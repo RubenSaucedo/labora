@@ -126,6 +126,7 @@ grades what you meant instead of what the page says.
 
 | Posture | Agent | Sees | Writes |
 |---|---|---|---|
+| Intake | `applicant-intake` | the operator's answers | human-authored `profile/` sources |
 | Acquire | `profile-researcher` | untrusted web, GitHub, credential issuers | `evidence/` only |
 | Acquire | `scout-discovery`, `scout-fit`, `scout-market`, `scout-growth` | job sources, claims, preferences | discovery run dir |
 | Curate | `profile-builder` | evidence + sources, **no job** | `profile/generated/` (sole owner) |
@@ -135,6 +136,7 @@ grades what you meant instead of what the page says.
 
 | Agent | Role |
 |---|---|
+| `applicant-intake` | Onboarding conductor: interviews a brand-new applicant for contact, career history, evidence sources and preferences, then dispatches the researcher and curator |
 | `resume-build` | Conductor: sequences skills + deterministic tools, launches the tailor and judges, applies the release gate |
 | `profile-builder` | Profile conductor and sole owner of `profile/generated/`; dispatches the researcher |
 | `profile-researcher` | Isolated evidence acquisition — the only agent that touches untrusted pages, and it cannot write claims |

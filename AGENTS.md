@@ -11,6 +11,13 @@ Pipeline:
 The three judges (`judge-ats`, `judge-engineer`, `judge-hr`) run as isolated
 sub-agents launched by the `resume-build` conductor, not inline skills.
 
+Onboarding: a brand-new applicant enters through the `applicant-intake` agent,
+which interviews the operator for contact details, career history, evidence
+sources and search preferences, then dispatches `profile-researcher` to retrieve
+and `profile-builder` to curate. It writes only human-authored `profile/`
+sources; spoken answers are read back and confirmed before they are saved,
+because those files ground every later claim.
+
 Job discovery: the `job-explorer` conductor launches three isolated scout
 sub-agents (`scout-fit`, `scout-market`, `scout-growth`) that browse job sources
 (Playwright, human-login-only, never auto-apply) and score independently;

@@ -413,3 +413,84 @@ test("the report contract forbids stating hiring odds", () => {
       "hired: that depends on the other applicants, which no run can observe",
   );
 });
+
+// Onboarding is where a person's spoken words first enter the pipeline, so it is
+// the easiest place to invent. These assertions encode the boundaries that keep
+// an interview producing sources rather than conclusions.
+test("a brand-new applicant has an onboarding owner", () => {
+  assert.ok(
+    agents.has("applicant-intake"),
+    "applicant-intake is missing; a newcomer's onboarding would run inline in " +
+      "the conductor, which owns no sources and skips every intake boundary",
+  );
+});
+
+test("intake supplies sources but never owns generated artifacts", () => {
+  const intake = agents.get("applicant-intake");
+  assert.match(
+    intake.prose,
+    /Never write profile\/generated\/[\s\S]{0,120}profile-builder/i,
+    "intake must not write the ledger it feeds; the curator decides what " +
+      "becomes a claim, or the interview would author its own evidence",
+  );
+});
+
+test("intake transcribes the operator rather than improving them", () => {
+  const intake = agents.get("applicant-intake");
+  assert.match(intake.prose, /transcriber, not a writer/i);
+  assert.match(
+    intake.prose,
+    /number the operator did not say is\s+fabricated/i,
+    "an invented metric is worse than a vague sentence because it looks " +
+      "verifiable; the rule must be stated, not implied",
+  );
+});
+
+test("intake reads spoken answers back before they become evidence", () => {
+  const intake = agents.get("applicant-intake");
+  assert.match(
+    intake.prose,
+    /Read every sentence back and get explicit confirmation[\s\S]{0,200}hash-anchored/i,
+    "background.md and career.md ground later claims, so an unconfirmed " +
+      "sentence silently becomes evidence nobody agreed to",
+  );
+});
+
+test("intake asks for preferences instead of inferring them from history", () => {
+  const intake = agents.get("applicant-intake");
+  assert.match(
+    intake.prose,
+    /Preferences are asked, never inferred[\s\S]{0,160}want[\s\S]{0,40}work/i,
+    "where someone has worked does not say where they want to work",
+  );
+});
+
+test("intake never handles the operator's credentials", () => {
+  const intake = agents.get("applicant-intake");
+  assert.match(
+    intake.prose,
+    /Never ask for a password, and never accept one/i,
+    "logged-in sources are reached by profile-researcher driving a browser " +
+      "the operator logs into themselves",
+  );
+});
+
+test("scaffolding asks for the preferences a run is reported against", () => {
+  const skill = fs.readFileSync(
+    path.join(repoRoot, "skills/new-applicant/SKILL.md"),
+    "utf8",
+  );
+  assert.match(
+    skill,
+    /companies they want to explore/i,
+    "target companies must be asked at intake: coverage is reported per " +
+      "company, so an unasked company is a silent hole in every run",
+  );
+  assert.match(skill, /timezone/i);
+  assert.match(
+    skill,
+    /assign the level after the interview/i,
+    "asking only for 'Senior …' titles hides openings that employers post " +
+      "unleveled, which no scout can recover later",
+  );
+});

@@ -29,9 +29,17 @@ contract; `resume-persona` fills that folder. Never
 commit real persona data.
 
 Then **ask the operator** for `search-preferences.json` — target titles and
-levels, locations and remote preference, minimum compensation, must-haves,
-companies to avoid, job sources, and career goals. Validate the answers against
-`ZSearchPreferences` in `src/schemas/job-search.js`.
+levels, locations and remote preference, minimum compensation and currency,
+must-haves, **companies they want to explore**, companies to avoid, job sources,
+career goals, and timezone. Validate the answers against `ZSearchPreferences` in
+`src/schemas/job-search.js`.
+
+Ask for target titles in the forms employers actually post. Many companies list
+"Software Engineer" and assign the level after the interview, so a list of only
+"Senior …" titles hides those openings from every scout. Target companies are a
+first-class field rather than prose in `notes`, because coverage is reported per
+company: a named company that returned nothing is a finding, and prose cannot be
+checked against a run.
 
 It is deliberately **not** in `templates/`. Every other template file is inert
 until filled, but a placeholder preferences file would validate, and scouts would
