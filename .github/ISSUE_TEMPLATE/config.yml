@@ -1,0 +1,13 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/RubenSaucedo/labora/security/advisories/new
+    about: >
+      Report privately, never in a public issue. Especially relevant for prompt
+      injection through job postings, persona data leaving the machine, or any
+      path that touches credentials.
+  - name: Question or idea
+    url: https://github.com/RubenSaucedo/labora/discussions
+    about: >
+      For open-ended questions about how the pipeline works or why a constraint
+      exists. Use synthetic examples, never a real resume.

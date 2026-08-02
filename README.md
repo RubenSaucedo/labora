@@ -272,3 +272,23 @@ unsupported metrics, duplicate claims, contact injection, DOCX round trips,
 artifact freshness, cross-parser divergence, job-search consensus and cross-run
 dedup, fit-floor enforcement, application strategy references, isolated judge
 bundles, application outcomes, judge calibration, and release decisions.
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) first, and
+[`ARCHITECTURE.md`](ARCHITECTURE.md) before a substantial change.
+
+Most rules exist to protect a guarantee rather than a preference. The load
+bearing ones: never commit real persona data, never make it possible to render
+a fact the ledger cannot support, never widen an agent boundary, and never lower
+a discovery gate to manufacture leads. The prose in `agents/` and `skills/` is
+asserted on by the test suite, so rewording a rule is expected to break the
+build.
+
+Security issues go through [`SECURITY.md`](SECURITY.md) privately, never a
+public issue. Participation is governed by the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+## License
+
+[MIT](LICENSE)

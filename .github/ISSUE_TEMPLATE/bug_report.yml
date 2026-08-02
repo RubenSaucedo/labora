@@ -1,0 +1,70 @@
+name: Bug report
+description: Something behaves incorrectly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste a real resume, job posting, performance review or contact
+        details here.** Issues are public. Reduce the problem to a synthetic
+        example that still reproduces it.
+
+        Found a security vulnerability? Report it privately through
+        [Security Advisories](https://github.com/RubenSaucedo/labora/security/advisories/new)
+        instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you observe, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: >
+        The command or agent you invoked, and the state it ran against. Use
+        synthetic data.
+      placeholder: |
+        1. Ran `npm run merge-candidates -- ...`
+        2. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part
+      options:
+        - Resume pipeline (tailor, claims, format, judges)
+        - Job discovery (scouts, job-explorer, report)
+        - Profile (intake, researcher, builder, evidence)
+        - Deterministic tools under src/
+        - Plugin install / agent loading
+        - Docs
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "v2.0.0, or the commit SHA you tested"
+
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      placeholder: "output of `node --version`"
+
+  - type: checkboxes
+    id: no-personal-data
+    attributes:
+      label: Confirmation
+      options:
+        - label: This report contains no real personal or career data
+          required: true

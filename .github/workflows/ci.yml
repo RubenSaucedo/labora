@@ -1,0 +1,50 @@
+name: CI
+
+# The test suite is this project's enforcement layer: it asserts the agent
+# isolation boundaries and the prose contracts, not just the code. Running it on
+# every PR is what keeps those guarantees from being edited away silently.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["22.x", "24.x"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+  persona-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Real career history is the one thing that must never land in this repo.
+      # The gitignore already covers it, but a contributor can override an
+      # ignore rule with `git add -f`, so the guarantee is checked rather than
+      # assumed.
+      - name: No persona data other than the synthetic example
+        run: |
+          leaked=$(git ls-files data/personas/ | grep -v '^data/personas/example/' || true)
+          if [ -n "$leaked" ]; then
+            echo "::error::Real persona data is tracked. Only data/personas/example/ may be committed."
+            echo "$leaked"
+            exit 1
+          fi
+          echo "OK: only the example persona is tracked."

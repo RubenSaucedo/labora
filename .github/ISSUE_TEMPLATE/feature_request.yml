@@ -1,0 +1,52 @@
+name: Feature or change proposal
+description: Suggest a capability, or argue that a rule should change
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Issues are public — use synthetic examples, never a real resume or
+        job posting.**
+
+        Labora's constraints are deliberate. Proposing to relax one is welcome,
+        but it needs an argument about the guarantee it protects, not just the
+        friction it causes.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >
+        What is hard or impossible today? Describe the situation, not the
+        solution you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+    validations:
+      required: true
+
+  - type: textarea
+    id: guarantees
+    attributes:
+      label: Which guarantee does this touch?
+      description: >
+        If it affects agent isolation, evidence grounding, a discovery gate, or
+        credential/automation boundaries, say how the guarantee survives — or
+        why it should not.
+      placeholder: >
+        e.g. "None — this only changes report formatting", or "This lets the
+        tailor read X, which weakens the denial of raw evidence, because ..."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: no-personal-data
+    attributes:
+      label: Confirmation
+      options:
+        - label: This proposal contains no real personal or career data
+          required: true
