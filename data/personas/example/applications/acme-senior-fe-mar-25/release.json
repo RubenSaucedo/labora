@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "state": "human_review",
+  "generatedAt": "2026-07-31T04:51:16.864Z",
+  "artifact": {
+    "path": "final-resume-style-1.pdf",
+    "type": "pdf",
+    "hash": "fff622a44d46a869f0da5184570a00c3fc85f50d5c44bc737aaa61a2af8fc7c6"
+  },
+  "hardBlockers": [],
+  "reviewReasons": [
+    "Core job signals need human review: Strong understanding of web accessibility (WCAG 2.1); Experience with CI/CD pipelines and testing frameworks",
+    "ATS judge is marginal.",
+    "Engineer judge returned phone_screen.",
+    "Recruiter-screen judge requires human review."
+  ],
+  "gates": {
+    "strategy": true,
+    "claims": true,
+    "artifact": true,
+    "requirements": true,
+    "coreRequirements": false,
+    "atsJudge": true,
+    "engineerJudge": true,
+    "hrJudge": true
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "schema_version": "3.0",
+  "target_role": "Senior Frontend Engineer",
+  "ats_title": "Senior Frontend Engineer | React and TypeScript",
+  "contact": {
+    "name": "",
+    "email": "",
+    "phone": "",
+    "location": "",
+    "linkedin": "",
+    "github": "",
+    "portfolio": ""
+  },
+  "summary": "Senior Frontend Engineer with 7 years of experience building performant web applications. Specializes in React and TypeScript with measurable performance improvements and team mentoring experience.",
+  "skills_primary": [
+    "React",
+    "TypeScript",
+    "Performance optimization",
+    "CI/CD",
+    "Team mentoring",
+    "Component library design",
+    "SPA development",
+    "Code review practices"
+  ],
+  "skills_secondary": [
+    "Vue.js",
+    "Node.js",
+    "Design collaboration",
+    "Real-time analytics"
+  ],
+  "experience": [
+    {
+      "id": "acme-senior-frontend-2022",
+      "company": "Acme Corp",
+      "role": "Senior Frontend Engineer",
+      "period": "2022 - Present",
+      "bullets": [
+        "Led migration of a legacy jQuery dashboard to React and TypeScript, reducing page load times by 60%",
+        "Built a real-time analytics component serving 50k daily active users",
+        "Mentored 3 junior engineers and introduced code review practices that reduced production bugs by 40%"
+      ]
+    },
+    {
+      "id": "startupco-frontend-2019",
+      "company": "StartupCo",
+      "role": "Frontend Developer",
+      "period": "2019 - 2022",
+      "bullets": [
+        "Built a customer-facing SPA from scratch using Vue.js",
+        "Implemented a CI/CD pipeline with GitHub Actions",
+        "Collaborated with the design team to create a component library used across 4 products"
+      ]
+    },
+    {
+      "id": "webagency-junior-2017",
+      "company": "WebAgency",
+      "role": "Junior Developer",
+      "period": "2017 - 2019",
+      "bullets": [
+        "Developed responsive websites for 20+ clients using modern CSS",
+        "Contributed to an internal tool that automated client reporting"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "school": "UC Berkeley",
+      "degree": "BS Computer Science",
+      "location": "",
+      "startDate": "",
+      "endDate": "2017"
+    }
+  ],
+  "projects": [],
+  "certifications": [],
+  "awards_or_contributions": [],
+  "keywords_mapped": [],
+  "gaps_or_risks": [
+    "Web accessibility (WCAG 2.1) is required but not supported by the source record",
+    "Testing-framework experience is required but not supported by the source record"
+  ],
+  "notes_for_human": [
+    "Do not add accessibility or testing claims unless the applicant provides evidence"
+  ],
+  "provenance": {
+    "summaryClaimIds": [
+      "claim-summary-7-years",
+      "claim-acme-migration",
+      "claim-acme-mentoring"
+    ],
+    "bullets": [
+      {
+        "experienceId": "acme-senior-frontend-2022",
+        "bulletIndex": 0,
+        "claimIds": ["claim-acme-migration"]
+      },
+      {
+        "experienceId": "acme-senior-frontend-2022",
+        "bulletIndex": 1,
+        "claimIds": ["claim-acme-analytics"]
+      },
+      {
+        "experienceId": "acme-senior-frontend-2022",
+        "bulletIndex": 2,
+        "claimIds": ["claim-acme-mentoring"]
+      },
+      {
+        "experienceId": "startupco-frontend-2019",
+        "bulletIndex": 0,
+        "claimIds": ["claim-startup-spa"]
+      },
+      {
+        "experienceId": "startupco-frontend-2019",
+        "bulletIndex": 1,
+        "claimIds": ["claim-startup-cicd"]
+      },
+      {
+        "experienceId": "startupco-frontend-2019",
+        "bulletIndex": 2,
+        "claimIds": ["claim-startup-components"]
+      },
+      {
+        "experienceId": "webagency-junior-2017",
+        "bulletIndex": 0,
+        "claimIds": ["claim-web-responsive"]
+      },
+      {
+        "experienceId": "webagency-junior-2017",
+        "bulletIndex": 1,
+        "claimIds": ["claim-web-tool"]
+      }
+    ],
+    "skills": [
+      {"skill": "React", "claimIds": ["claim-acme-migration"]},
+      {"skill": "TypeScript", "claimIds": ["claim-acme-migration"]},
+      {"skill": "Performance optimization", "claimIds": ["claim-acme-migration"]},
+      {"skill": "CI/CD", "claimIds": ["claim-startup-cicd"]},
+      {"skill": "Team mentoring", "claimIds": ["claim-acme-mentoring"]},
+      {"skill": "Component library design", "claimIds": ["claim-startup-components"]},
+      {"skill": "SPA development", "claimIds": ["claim-startup-spa"]},
+      {"skill": "Code review practices", "claimIds": ["claim-acme-mentoring"]},
+      {"skill": "Vue.js", "claimIds": ["claim-startup-spa"]},
+      {"skill": "Node.js", "claimIds": ["claim-web-tool"]},
+      {"skill": "Design collaboration", "claimIds": ["claim-startup-components"]},
+      {"skill": "Real-time analytics", "claimIds": ["claim-acme-analytics"]}
+    ]
+  }
+}

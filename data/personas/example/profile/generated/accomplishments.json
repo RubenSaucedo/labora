@@ -1,0 +1,195 @@
+{
+  "schemaVersion": "1.0",
+  "persona": "example",
+  "units": [
+    {
+      "id": "unit-acme-react-migration",
+      "experienceId": "acme-senior-frontend-2022",
+      "title": "Legacy dashboard migration to React and TypeScript",
+      "externalTitle": "Legacy dashboard migration to React and TypeScript",
+      "kind": "platform",
+      "startDate": "2022-03",
+      "endDate": "2023-06",
+      "ongoing": false,
+      "contribution": "tech_lead",
+      "scope": {
+        "surface": "customer-facing analytics dashboard",
+        "audience": "business users",
+        "repos": [],
+        "partnerTeams": [],
+        "productionExposure": "shipped_ga"
+      },
+      "techStack": [
+        "react",
+        "typescript",
+        "javascript",
+        "performance-optimization",
+        "real-time-analytics",
+        "frontend-development"
+      ],
+      "outcomes": [
+        {
+          "claimId": "claim-acme-migration",
+          "metric": "page_load_time",
+          "direction": "reduced",
+          "confidence": "production_measured"
+        }
+      ],
+      "evidenceStrength": {
+        "tier": "strong",
+        "sourceKinds": [
+          "performance_review"
+        ],
+        "artifactCount": 1,
+        "corroboratingSources": 1,
+        "limitations": []
+      },
+      "disclosure": "public",
+      "claimIds": [
+        "claim-acme-migration",
+        "claim-acme-analytics"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "unit-acme-mentoring",
+      "experienceId": "acme-senior-frontend-2022",
+      "title": "Mentoring and code review practice",
+      "externalTitle": "Mentoring and code review practice",
+      "kind": "leadership",
+      "startDate": "2022-06",
+      "endDate": null,
+      "ongoing": true,
+      "contribution": "major_contributor",
+      "scope": {
+        "surface": "frontend team",
+        "audience": "junior engineers",
+        "repos": [],
+        "partnerTeams": [],
+        "productionExposure": "internal_only"
+      },
+      "techStack": [
+        "team-mentoring",
+        "code-review-practices"
+      ],
+      "outcomes": [
+        {
+          "claimId": "claim-acme-mentoring",
+          "metric": "engineers_mentored",
+          "direction": "increased",
+          "confidence": "unmeasured"
+        }
+      ],
+      "evidenceStrength": {
+        "tier": "moderate",
+        "sourceKinds": [
+          "performance_review"
+        ],
+        "artifactCount": 1,
+        "corroboratingSources": 1,
+        "limitations": [
+          "Self-reported."
+        ]
+      },
+      "disclosure": "public",
+      "claimIds": [
+        "claim-acme-mentoring"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "unit-startup-spa",
+      "experienceId": "startupco-frontend-2019",
+      "title": "Customer-facing single-page application and delivery pipeline",
+      "externalTitle": "Customer-facing single-page application and delivery pipeline",
+      "kind": "delivery",
+      "startDate": "2019-01",
+      "endDate": "2021-12",
+      "ongoing": false,
+      "contribution": "major_contributor",
+      "scope": {
+        "surface": "customer-facing product",
+        "audience": "end customers",
+        "repos": [],
+        "partnerTeams": [],
+        "productionExposure": "shipped_ga"
+      },
+      "techStack": [
+        "vue",
+        "github-actions",
+        "ci-cd",
+        "spa-development",
+        "vue.js",
+        "component-library-design",
+        "design-collaboration"
+      ],
+      "outcomes": [
+        {
+          "claimId": "claim-startup-components",
+          "metric": "component_library",
+          "direction": "achieved",
+          "confidence": "unmeasured"
+        }
+      ],
+      "evidenceStrength": {
+        "tier": "moderate",
+        "sourceKinds": [
+          "performance_review"
+        ],
+        "artifactCount": 1,
+        "corroboratingSources": 1,
+        "limitations": []
+      },
+      "disclosure": "public",
+      "claimIds": [
+        "claim-startup-spa",
+        "claim-startup-cicd",
+        "claim-startup-components"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "unit-webagency-client-sites",
+      "experienceId": "webagency-junior-2017",
+      "title": "Responsive client websites and reporting automation",
+      "externalTitle": "Responsive client websites and reporting automation",
+      "kind": "delivery",
+      "startDate": "2017-06",
+      "endDate": "2018-12",
+      "ongoing": false,
+      "contribution": "contributor",
+      "scope": {
+        "surface": "client marketing websites",
+        "audience": "agency clients",
+        "repos": [],
+        "partnerTeams": [],
+        "productionExposure": "shipped_ga"
+      },
+      "techStack": [
+        "html",
+        "css",
+        "javascript",
+        "node.js",
+        "responsive-design"
+      ],
+      "outcomes": [],
+      "evidenceStrength": {
+        "tier": "weak",
+        "sourceKinds": [
+          "self_report"
+        ],
+        "artifactCount": 0,
+        "corroboratingSources": 1,
+        "limitations": [
+          "Early-career work with no surviving artifacts."
+        ]
+      },
+      "disclosure": "public",
+      "claimIds": [
+        "claim-web-responsive",
+        "claim-web-tool"
+      ],
+      "supersedes": []
+    }
+  ]
+}

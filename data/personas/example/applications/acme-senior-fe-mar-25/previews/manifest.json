@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "sourceArtifact": "final-resume-style-1.pdf",
+  "sourceArtifactHash": "fff622a44d46a869f0da5184570a00c3fc85f50d5c44bc737aaa61a2af8fc7c6",
+  "pageCount": 1,
+  "pages": [
+    {
+      "file": "page-01.png",
+      "hash": "ae62a5c882bd12264c3e63e3d12a56c738bea41cd3ae833c3cf80e8e257c5b92"
+    }
+  ]
+}

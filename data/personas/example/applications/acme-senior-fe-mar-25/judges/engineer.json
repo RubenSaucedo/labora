@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "rubricVersion": "2026-07-28",
+    "model": "synthetic-fixture",
+    "evaluatedArtifactHash": "fff622a44d46a869f0da5184570a00c3fc85f50d5c44bc737aaa61a2af8fc7c6",
+    "promptHash": "71a70bc60ba63570f910a17ccde0b6e811fcfc3d7c42ffa9a6d1dcca2e6257d8",
+    "inputHash": "ff4d241565860cc3c983f1ce504465ee8abe01cbe5987e2befb706c457556339",
+    "evaluatedAt": "2026-07-30T00:00:00.000Z"
+  },
+  "score": 72,
+  "verdict": "phone_screen",
+  "seniorityAssessment": {
+    "claimedLevel": "Senior Frontend Engineer",
+    "evidencedLevel": "Senior Frontend Engineer",
+    "notes": "The resume shows ownership, measurable performance work, mentoring, and delivery across multiple products."
+  },
+  "technicalDepth": {
+    "score": 68,
+    "strengths": [
+      "React and TypeScript migration with a measured performance result",
+      "Real-time analytics delivery",
+      "CI/CD implementation"
+    ],
+    "gaps": [
+      "Limited architecture and tradeoff detail",
+      "No supported accessibility or testing-framework evidence"
+    ]
+  },
+  "credibility": {
+    "score": 90,
+    "concerns": []
+  },
+  "scopeAndImpact": {
+    "score": 72,
+    "notes": "The metrics are specific and source-grounded, though system scale and architectural scope remain concise."
+  },
+  "redFlags": [],
+  "recommendations": [
+    {
+      "priority": "medium",
+      "action": "Add verified architecture or testing decisions if those facts exist in the source record.",
+      "expectedImpact": "Would strengthen the technical-depth signal."
+    }
+  ],
+  "reasoning": "The candidate merits a phone screen based on credible senior frontend impact, but the resume does not yet demonstrate every technical requirement in the job."
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0",
+  "angle": "growth",
+  "persona": "example",
+  "generatedAt": "2026-07-29T04:14:00.000Z",
+  "sources": ["linkedin", "company-boards"],
+  "candidates": [
+    {
+      "jobId": "72631b8090910777",
+      "title": "Senior Frontend Engineer",
+      "company": "Northwind",
+      "location": "San Francisco, CA",
+      "url": "https://careers.northwind.example/jobs/senior-frontend-engineer",
+      "officialUrl": "https://careers.northwind.example/jobs/senior-frontend-engineer",
+      "remote": "hybrid",
+      "compensation": { "min": 210000, "max": 250000, "currency": "USD", "source": "posting" },
+      "postedDate": "2026-07-25",
+      "observedAt": "2026-07-29T04:05:00.000Z",
+      "postingHash": "8af469c98c442937145f63b1ad47d33c1c0071240c2ff775cfc1f7e54d31740c",
+      "status": "open",
+      "source": "company-boards",
+      "angle": "growth",
+      "score": 79,
+      "rationale": "Role explicitly owns the design-system roadmap, a reachable step toward the persona's stated staff-scope and design-system goals given the Acme migration base.",
+      "matchedClaims": ["claim-acme-migration"],
+      "matchedPreferences": ["Own frontend platform / design-system direction", "Move from senior to staff scope"],
+      "concerns": ["Design-system ownership is new scope, not yet evidenced"]
+    }
+  ],
+  "metadata": { "model": "example-fixture", "evaluatedAt": "2026-07-29T04:14:00.000Z" }
+}

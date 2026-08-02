@@ -1,0 +1,41 @@
+{
+  "name": "labora",
+  "version": "2.0.0",
+  "description": "Copilot plugin for evidence-grounded, job-tailored resumes with deterministic requirement, provenance, artifact, and release gates.",
+  "type": "module",
+  "scripts": {
+    "parse-job": "node src/tools/parse-job.js",
+    "analyze-job": "node src/tools/analyze-job.js",
+    "validate-application-strategy": "node src/tools/validate-application-strategy.js",
+    "score-ats": "node src/tools/score-ats.js",
+    "validate-claims": "node src/tools/validate-claims.js",
+    "format-docx": "node src/tools/format-docx.js",
+    "format-pdf": "node src/tools/format-pdf.js",
+    "render-artifact-preview": "node src/tools/render-artifact-preview.js",
+    "validate-artifact": "node src/tools/validate-artifact.js",
+    "artifact-text": "node src/tools/artifact-text.js",
+    "prepare-judge-input": "node src/tools/prepare-judge-input.js",
+    "run-state": "node src/tools/run-state.js",
+    "quality-gate": "node src/tools/quality-gate.js",
+    "merge-candidates": "node src/tools/merge-candidates.js",
+    "report-candidates": "node src/tools/report-candidates.js",
+    "calibrate-judges": "node src/tools/calibrate-judges.js",
+    "application-outcome": "node src/tools/application-outcome.js",
+    "resume-text": "node src/tools/resume-text.js",
+    "docx-text": "node src/tools/docx-text.js",
+    "pdf-text": "node src/tools/pdf-text.js",
+    "validate-evidence-cleaning": "node src/tools/validate-evidence-cleaning.js",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "docx": "^9.5.3",
+    "mammoth": "^1.11.0",
+    "pdf-parse": "^2.4.5",
+    "puppeteer": "^24.37.3",
+    "tesseract.js": "^7.0.0",
+    "zod": "^4.3.6"
+  }
+}

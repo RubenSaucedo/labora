@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "1.0",
+  "persona": "example",
+  "runDate": "2026-07-29",
+  "preferencesHash": "869b63fdf604589dfdbb933f3f64c710bf6598eb12582494d1e132d4eacaed2e",
+  "sources": [
+    "linkedin",
+    "company-boards",
+    "levels.fyi"
+  ],
+  "scouts": [
+    {
+      "angle": "fit",
+      "model": "example-fixture",
+      "candidateCount": 1
+    },
+    {
+      "angle": "growth",
+      "model": "example-fixture",
+      "candidateCount": 1
+    },
+    {
+      "angle": "market",
+      "model": "example-fixture",
+      "candidateCount": 1
+    }
+  ],
+  "minAgreement": 2,
+  "consensusThreshold": 70,
+  "fitFloor": 60,
+  "candidates": [
+    {
+      "jobId": "72631b8090910777",
+      "title": "Senior Frontend Engineer",
+      "company": "Northwind",
+      "location": "San Francisco, CA",
+      "url": "https://careers.northwind.example/jobs/senior-frontend-engineer",
+      "officialUrl": "https://careers.northwind.example/jobs/senior-frontend-engineer",
+      "remote": "hybrid",
+      "compensation": {
+        "min": 210000,
+        "max": 250000,
+        "currency": "USD",
+        "source": "posting"
+      },
+      "postedDate": "2026-07-25",
+      "observedAt": "2026-07-29T04:05:00.000Z",
+      "postingHash": "8af469c98c442937145f63b1ad47d33c1c0071240c2ff775cfc1f7e54d31740c",
+      "status": "open",
+      "source": "company-boards",
+      "angles": [
+        "fit",
+        "growth",
+        "market"
+      ],
+      "agreementCount": 3,
+      "scores": {
+        "fit": 88,
+        "market": 84,
+        "growth": 79
+      },
+      "consensusScore": 84,
+      "rationale": [
+        {
+          "angle": "fit",
+          "text": "React/TypeScript at scale and measurable performance work map directly to the persona's Acme migration and 7-year summary claims."
+        },
+        {
+          "angle": "growth",
+          "text": "Role explicitly owns the design-system roadmap, a reachable step toward the persona's stated staff-scope and design-system goals given the Acme migration base."
+        },
+        {
+          "angle": "market",
+          "text": "Comp clears the 200k floor, hybrid SF matches location preference, and the company is post-Series-C with steady headcount growth."
+        }
+      ],
+      "matchedClaims": [
+        "claim-summary-7-years",
+        "claim-acme-migration"
+      ],
+      "matchedPreferences": [
+        "Senior Frontend Engineer",
+        "React",
+        "TypeScript",
+        "Own frontend platform / design-system direction",
+        "Move from senior to staff scope",
+        "San Francisco, CA",
+        "hybrid",
+        "minCompensation"
+      ],
+      "concerns": [
+        "Design-system ownership is new scope, not yet evidenced"
+      ],
+      "recommendation": "strong_lead",
+      "promoteToApplication": true,
+      "isNew": true,
+      "firstSeenRunDate": null,
+      "timesSeen": 1
+    }
+  ],
+  "excluded": [],
+  "newLeadCount": null
+}

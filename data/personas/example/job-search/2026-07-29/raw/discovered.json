@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0",
+  "persona": "example",
+  "generatedAt": "2026-07-29T04:05:00.000Z",
+  "sources": [
+    "linkedin",
+    "company-boards"
+  ],
+  "jobs": [
+    {
+      "jobId": "72631b8090910777",
+      "title": "Senior Frontend Engineer",
+      "company": "Northwind",
+      "location": "San Francisco, CA",
+      "url": "https://careers.northwind.example/jobs/senior-frontend-engineer",
+      "officialUrl": "https://careers.northwind.example/jobs/senior-frontend-engineer",
+      "remote": "hybrid",
+      "compensation": {
+        "min": 210000,
+        "max": 250000,
+        "currency": "USD",
+        "source": "posting"
+      },
+      "postedDate": "2026-07-25",
+      "observedAt": "2026-07-29T04:05:00.000Z",
+      "postingText": "Senior Frontend Engineer\nNorthwind is hiring a Senior Frontend Engineer to build React and TypeScript applications at scale, improve web performance, and contribute to a shared component platform. Hybrid in San Francisco. Compensation: USD 210000-250000.",
+      "postingHash": "8af469c98c442937145f63b1ad47d33c1c0071240c2ff775cfc1f7e54d31740c",
+      "status": "open",
+      "source": "company-boards"
+    }
+  ],
+  "metadata": {
+    "model": "example-fixture",
+    "evaluatedAt": "2026-07-29T04:05:00.000Z"
+  }
+}

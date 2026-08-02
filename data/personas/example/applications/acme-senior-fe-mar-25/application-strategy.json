@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "1.0",
+  "status": "ready",
+  "targetRole": "Senior Frontend Engineer",
+  "company": "Acme Corp",
+  "candidateNarrative": "Senior frontend engineer with seven years of progression, credible React and TypeScript modernization impact, and demonstrated mentoring and platform-quality improvements.",
+  "topSignals": [
+    {
+      "signal": "React and TypeScript modernization with measured performance impact",
+      "requirementIds": [
+        "req-002",
+        "req-003"
+      ],
+      "claimIds": [
+        "claim-acme-migration"
+      ],
+      "rationale": "The strongest recent claim directly combines the target stack, ownership, and a 60% performance result."
+    },
+    {
+      "signal": "Seven years of relevant frontend experience",
+      "requirementIds": [
+        "req-001"
+      ],
+      "claimIds": [
+        "claim-summary-7-years"
+      ],
+      "rationale": "The verified career span clears the stated experience threshold."
+    },
+    {
+      "signal": "Mentoring and engineering-quality leadership",
+      "requirementIds": [],
+      "claimIds": [
+        "claim-acme-mentoring"
+      ],
+      "rationale": "Mentoring three engineers and reducing production bugs provides concrete leadership evidence."
+    }
+  ],
+  "likelyConcerns": [
+    {
+      "requirementId": "req-004",
+      "text": "Strong understanding of web accessibility (WCAG 2.1)",
+      "severity": "core",
+      "evidenceStatus": "unsupported",
+      "questionForCandidate": "Do you have source-backed accessibility or WCAG experience that is not yet in the evidence corpus?"
+    },
+    {
+      "requirementId": "req-005",
+      "text": "Experience with CI/CD pipelines and testing frameworks",
+      "severity": "core",
+      "evidenceStatus": "unsupported",
+      "questionForCandidate": "Do you have source-backed testing-framework experience beyond the verified CI/CD work?"
+    }
+  ],
+  "firstPagePlan": {
+    "headline": "Senior Frontend Engineer | React and TypeScript",
+    "summaryFocus": [
+      "Seven years of frontend experience",
+      "React and TypeScript modernization",
+      "Performance impact and mentoring"
+    ],
+    "leadClaimIds": [
+      "claim-acme-migration",
+      "claim-acme-analytics",
+      "claim-acme-mentoring"
+    ],
+    "skillsOrder": [
+      "React",
+      "TypeScript",
+      "Performance optimization",
+      "CI/CD",
+      "Team mentoring",
+      "Component library design"
+    ]
+  },
+  "evidenceRequests": [
+    {
+      "requirementId": "req-004",
+      "question": "Do you have source-backed accessibility or WCAG experience that is not yet in the evidence corpus?",
+      "acceptableSources": [
+        "career.md entry",
+        "performance review",
+        "project documentation"
+      ],
+      "resolution": "candidate_has_no_evidence"
+    },
+    {
+      "requirementId": "req-005",
+      "question": "Do you have source-backed testing-framework experience beyond the verified CI/CD work?",
+      "acceptableSources": [
+        "career.md entry",
+        "performance review",
+        "project documentation"
+      ],
+      "resolution": "candidate_has_no_evidence"
+    }
+  ],
+  "notesForHuman": [
+    "The accessibility and testing-framework gaps are core concerns, not hard eligibility blockers.",
+    "Do not add either claim without new evidence."
+  ]
+}

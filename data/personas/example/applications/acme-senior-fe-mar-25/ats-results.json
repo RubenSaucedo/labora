@@ -1,0 +1,175 @@
+{
+  "metric_version": "2.0",
+  "coverage_percent": 61,
+  "lexical_coverage_percent": 61,
+  "requirement_coverage_percent": 50,
+  "preferred_coverage_percent": 33,
+  "responsibility_coverage_percent": 100,
+  "matched_keywords": [
+    "frontend-development",
+    "react",
+    "typescript",
+    "performance-optimization",
+    "ci-cd",
+    "mentoring",
+    "component-libraries",
+    "node.js",
+    "senior",
+    "frontend",
+    "engineer"
+  ],
+  "missing_keywords": [
+    "accessibility",
+    "wcag",
+    "testing",
+    "communication",
+    "design-systems",
+    "backend-development",
+    "open-source"
+  ],
+  "must_have_missing": [
+    "Strong understanding of web accessibility (WCAG 2.1)",
+    "Experience with CI/CD pipelines and testing frameworks",
+    "Excellent communication and mentoring skills"
+  ],
+  "hard_eligibility_missing": [],
+  "core_requirements_missing": [
+    "Strong understanding of web accessibility (WCAG 2.1)",
+    "Experience with CI/CD pipelines and testing frameworks"
+  ],
+  "soft_signals_missing": [
+    "Excellent communication and mentoring skills"
+  ],
+  "preferred_requirements_missing": [
+    "Familiarity with Node.js backend development",
+    "Contributions to open source projects"
+  ],
+  "requirements": [
+    {
+      "id": "req-001",
+      "priority": "required",
+      "severity": "core",
+      "kind": "years",
+      "text": "5+ years of frontend development experience",
+      "matched": true,
+      "matched_signals": [
+        "frontend-development: 7 years evidenced"
+      ]
+    },
+    {
+      "id": "req-002",
+      "priority": "required",
+      "severity": "core",
+      "kind": "skill",
+      "text": "Expert in React and TypeScript",
+      "matched": true,
+      "matched_signals": [
+        "react",
+        "typescript"
+      ]
+    },
+    {
+      "id": "req-003",
+      "priority": "required",
+      "severity": "core",
+      "kind": "skill",
+      "text": "Experience with performance optimization at scale",
+      "matched": true,
+      "matched_signals": [
+        "performance-optimization"
+      ]
+    },
+    {
+      "id": "req-004",
+      "priority": "required",
+      "severity": "core",
+      "kind": "skill",
+      "text": "Strong understanding of web accessibility (WCAG 2.1)",
+      "matched": false,
+      "matched_signals": []
+    },
+    {
+      "id": "req-005",
+      "priority": "required",
+      "severity": "core",
+      "kind": "skill",
+      "text": "Experience with CI/CD pipelines and testing frameworks",
+      "matched": false,
+      "matched_signals": [
+        "ci-cd"
+      ]
+    },
+    {
+      "id": "req-006",
+      "priority": "required",
+      "severity": "soft_signal",
+      "kind": "skill",
+      "text": "Excellent communication and mentoring skills",
+      "matched": false,
+      "matched_signals": [
+        "mentoring"
+      ]
+    },
+    {
+      "id": "req-007",
+      "priority": "preferred",
+      "severity": "preferred",
+      "kind": "skill",
+      "text": "Experience with design systems or component libraries",
+      "matched": true,
+      "matched_signals": [
+        "component-libraries"
+      ]
+    },
+    {
+      "id": "req-008",
+      "priority": "preferred",
+      "severity": "preferred",
+      "kind": "skill",
+      "text": "Familiarity with Node.js backend development",
+      "matched": false,
+      "matched_signals": [
+        "node.js"
+      ]
+    },
+    {
+      "id": "req-009",
+      "priority": "preferred",
+      "severity": "preferred",
+      "kind": "skill",
+      "text": "Contributions to open source projects",
+      "matched": false,
+      "matched_signals": []
+    }
+  ],
+  "format_risks": [],
+  "recommendations": [
+    "Surface truthful evidence for core signals: Strong understanding of web accessibility (WCAG 2.1); Experience with CI/CD pipelines and testing frameworks.",
+    "Mirror supported job language naturally in the summary, skills, and experience bullets."
+  ],
+  "ats_feedback": {
+    "missing_keywords_top": [
+      "accessibility",
+      "wcag",
+      "testing",
+      "communication",
+      "design-systems",
+      "backend-development",
+      "open-source"
+    ],
+    "must_have_missing": [
+      "Strong understanding of web accessibility (WCAG 2.1)",
+      "Experience with CI/CD pipelines and testing frameworks",
+      "Excellent communication and mentoring skills"
+    ],
+    "hard_eligibility_missing": [],
+    "core_requirements_missing": [
+      "Strong understanding of web accessibility (WCAG 2.1)",
+      "Experience with CI/CD pipelines and testing frameworks"
+    ],
+    "actions": [
+      "Surface truthful evidence for core signals: Strong understanding of web accessibility (WCAG 2.1); Experience with CI/CD pipelines and testing frameworks.",
+      "Mirror supported job language naturally in the summary, skills, and experience bullets."
+    ]
+  }
+}

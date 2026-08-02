@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "targetTitles": ["Senior Frontend Engineer", "Staff Frontend Engineer", "Senior Software Engineer"],
+  "targetLevels": ["senior", "staff"],
+  "locations": ["San Francisco, CA", "Remote-US"],
+  "remotePreference": "hybrid",
+  "minCompensation": 200000,
+  "currency": "USD",
+  "mustHaves": ["React", "TypeScript"],
+  "avoid": ["CryptoCasino"],
+  "sources": ["linkedin", "levels.fyi", "company-boards"],
+  "timezone": "UTC",
+  "goals": [
+    "Move from senior to staff scope",
+    "Own frontend platform / design-system direction",
+    "Deepen web performance leadership"
+  ],
+  "notes": "Prefers product companies with a real design-system investment."
+}

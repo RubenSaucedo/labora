@@ -1,0 +1,53 @@
+{
+  "schema_version": "4.0",
+  "contact": {
+    "name": "",
+    "email": "",
+    "phone": "",
+    "location": "",
+    "linkedin": "",
+    "github": "",
+    "portfolio": ""
+  },
+  "experience": [
+    {
+      "id": "acme-senior-frontend-2022",
+      "role": "Senior Frontend Engineer",
+      "company": "Acme Corp",
+      "period": "2022 - Present",
+      "location": "",
+      "progression": []
+    },
+    {
+      "id": "startupco-frontend-2019",
+      "role": "Frontend Developer",
+      "company": "StartupCo",
+      "period": "2019 - 2022",
+      "location": "",
+      "progression": []
+    },
+    {
+      "id": "webagency-junior-2017",
+      "role": "Junior Developer",
+      "company": "WebAgency",
+      "period": "2017 - 2019",
+      "location": "",
+      "progression": []
+    }
+  ],
+  "other_experience_compacted": [],
+  "education": [
+    {
+      "school": "UC Berkeley",
+      "degree": "BS Computer Science",
+      "location": "",
+      "startDate": "",
+      "endDate": "2017"
+    }
+  ],
+  "projects": [],
+  "certifications": [],
+  "awards_or_contributions": [],
+  "skill_vetoes": [],
+  "legacy_skills": []
+}

@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "1.0",
+  "title": "Senior Frontend Engineer",
+  "company": "Acme Corp",
+  "sourcePath": "data/personas/example/applications/acme-senior-fe-mar-25/job.md",
+  "aliasVersion": "2026-07-28",
+  "requirements": [
+    {
+      "id": "req-001",
+      "kind": "years",
+      "priority": "required",
+      "severity": "core",
+      "text": "5+ years of frontend development experience",
+      "sourceLine": 11,
+      "canonicalTerms": [
+        "frontend-development"
+      ],
+      "surfaceForms": [
+        "frontend development"
+      ],
+      "matchMode": "threshold",
+      "minimumYears": 5
+    },
+    {
+      "id": "req-002",
+      "kind": "skill",
+      "priority": "required",
+      "severity": "core",
+      "text": "Expert in React and TypeScript",
+      "sourceLine": 12,
+      "canonicalTerms": [
+        "react",
+        "typescript"
+      ],
+      "surfaceForms": [
+        "react",
+        "typescript"
+      ],
+      "matchMode": "all",
+      "minimumYears": null
+    },
+    {
+      "id": "req-003",
+      "kind": "skill",
+      "priority": "required",
+      "severity": "core",
+      "text": "Experience with performance optimization at scale",
+      "sourceLine": 13,
+      "canonicalTerms": [
+        "performance-optimization"
+      ],
+      "surfaceForms": [
+        "performance optimization"
+      ],
+      "matchMode": "threshold",
+      "minimumYears": null
+    },
+    {
+      "id": "req-004",
+      "kind": "skill",
+      "priority": "required",
+      "severity": "core",
+      "text": "Strong understanding of web accessibility (WCAG 2.1)",
+      "sourceLine": 14,
+      "canonicalTerms": [
+        "accessibility",
+        "wcag"
+      ],
+      "surfaceForms": [
+        "web accessibility",
+        "wcag"
+      ],
+      "matchMode": "all",
+      "minimumYears": null
+    },
+    {
+      "id": "req-005",
+      "kind": "skill",
+      "priority": "required",
+      "severity": "core",
+      "text": "Experience with CI/CD pipelines and testing frameworks",
+      "sourceLine": 15,
+      "canonicalTerms": [
+        "ci-cd",
+        "testing"
+      ],
+      "surfaceForms": [
+        "ci/cd",
+        "testing frameworks"
+      ],
+      "matchMode": "all",
+      "minimumYears": null
+    },
+    {
+      "id": "req-006",
+      "kind": "skill",
+      "priority": "required",
+      "severity": "soft_signal",
+      "text": "Excellent communication and mentoring skills",
+      "sourceLine": 16,
+      "canonicalTerms": [
+        "mentoring",
+        "communication"
+      ],
+      "surfaceForms": [
+        "mentoring",
+        "communication"
+      ],
+      "matchMode": "all",
+      "minimumYears": null
+    },
+    {
+      "id": "req-007",
+      "kind": "skill",
+      "priority": "preferred",
+      "severity": "preferred",
+      "text": "Experience with design systems or component libraries",
+      "sourceLine": 19,
+      "canonicalTerms": [
+        "design-systems",
+        "component-libraries"
+      ],
+      "surfaceForms": [
+        "design systems",
+        "component libraries"
+      ],
+      "matchMode": "any",
+      "minimumYears": null
+    },
+    {
+      "id": "req-008",
+      "kind": "skill",
+      "priority": "preferred",
+      "severity": "preferred",
+      "text": "Familiarity with Node.js backend development",
+      "sourceLine": 20,
+      "canonicalTerms": [
+        "node.js",
+        "backend-development"
+      ],
+      "surfaceForms": [
+        "node.js",
+        "backend development"
+      ],
+      "matchMode": "all",
+      "minimumYears": null
+    },
+    {
+      "id": "req-009",
+      "kind": "skill",
+      "priority": "preferred",
+      "severity": "preferred",
+      "text": "Contributions to open source projects",
+      "sourceLine": 21,
+      "canonicalTerms": [
+        "open-source"
+      ],
+      "surfaceForms": [
+        "open source"
+      ],
+      "matchMode": "threshold",
+      "minimumYears": null
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "metadata": {
+    "rubricVersion": "2026-07-28",
+    "model": "synthetic-fixture",
+    "evaluatedArtifactHash": "fff622a44d46a869f0da5184570a00c3fc85f50d5c44bc737aaa61a2af8fc7c6",
+    "promptHash": "38107fb3f833ec49d5f9b665f7aed7e720fbd78df6cb456649b477e42fe33ec3",
+    "inputHash": "459d179c8b9770e501b5829ff4a86160430085ead18a3eaec99cde76ebb93a70",
+    "evaluatedAt": "2026-07-30T00:00:00.000Z"
+  },
+  "score": 68,
+  "screenRecommendation": "review",
+  "reasoning": "The resume is clear, credible, and visually easy to scan, with strong evidence for the central frontend requirements. Accessibility and testing-framework evidence remain important core concerns that should be reviewed rather than treated as automatic disqualifiers.",
+  "sixSecondScan": {
+    "passed": true,
+    "notes": "Current role, company, dates, and contact information are immediately visible."
+  },
+  "visualReview": {
+    "reviewed": true,
+    "pageCount": 1,
+    "concerns": []
+  },
+  "strengths": [
+    "Clear frontend progression",
+    "Credible quantified impact",
+    "Mentoring and component-library experience"
+  ],
+  "redFlags": [
+    "Required WCAG and testing-framework evidence is absent"
+  ],
+  "roleFit": {
+    "score": 68,
+    "matchSummary": "Strong match on core frontend technologies but incomplete required qualification coverage.",
+    "matchedSignals": [
+      "React",
+      "TypeScript",
+      "Performance optimization",
+      "CI/CD",
+      "Mentoring"
+    ],
+    "missingSignals": [
+      "WCAG 2.1",
+      "Testing frameworks",
+      "Explicit communication evidence"
+    ]
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "action": "Confirm whether the applicant has source-backed accessibility and testing experience.",
+      "expectedImpact": "Determines whether the application can truthfully meet the stated minimum bar."
+    }
+  ],
+  "detailedFeedback": {
+    "clarity": [],
+    "credibility": [],
+    "requirements": [
+      "Do not add unsupported core qualifications."
+    ]
+  },
+  "agentFeedback": []
+}

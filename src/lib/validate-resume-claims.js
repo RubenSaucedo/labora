@@ -1,0 +1,688 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { canonicalSkillsInText } from "./skill-aliases.js";
+import { skillVocabulary } from "./skill-vocabulary.js";
+
+const SUPPORT_STOPWORDS = new Set([
+  "a", "an", "and", "at", "by", "for", "from", "in", "into", "of", "on",
+  "the", "to", "using", "with", "that", "this", "their",
+]);
+
+function normalize(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[,\s]+/g, " ")
+    .trim();
+}
+
+function numericTokens(value) {
+  return [...new Set(
+    String(value || "")
+      .toLowerCase()
+      .replace(/,/g, "")
+      .match(/\b\d+(?:\.\d+)?(?:%|k|m|b|ms|x)?\+?\b/g) || []
+  )].map((token) => token.replace(/\+$/, ""));
+}
+
+function issue(severity, code, message, location = "") {
+  return { severity, code, message, location };
+}
+
+function stem(token) {
+  return token
+    .replace(/(?:ization|isation)$/, "ize")
+    .replace(/(?:ations|ation)$/, "")
+    .replace(/(?:ments|ment)$/, "")
+    .replace(/(?:ated|ating)$/, "")
+    .replace(/(?:ies)$/, "y")
+    .replace(/(?:ed|ing|es|s)$/, "");
+}
+
+function substantiveTokens(value) {
+  return [...new Set(
+    String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9+#.]+/g, " ")
+      .split(/\s+/)
+      .filter((token) =>
+        token.length >= 3 &&
+        !SUPPORT_STOPWORDS.has(token) &&
+        !/^\d/.test(token)
+      )
+      .map(stem)
+      .filter((token) => token.length >= 2)
+  )];
+}
+
+function textSupportRatio(candidate, evidence) {
+  const candidateTokens = substantiveTokens(candidate);
+  if (!candidateTokens.length) return 1;
+  const evidenceTokens = new Set(substantiveTokens(evidence));
+  const supported = candidateTokens.filter((token) => evidenceTokens.has(token));
+  return supported.length / candidateTokens.length;
+}
+
+function unsupportedCanonicalTerms(candidate, evidence) {
+  const candidateTerms = canonicalSkillsInText(candidate).map((match) => match.canonicalId);
+  const evidenceTerms = new Set(canonicalSkillsInText(evidence).map((match) => match.canonicalId));
+  return candidateTerms.filter((term) => !evidenceTerms.has(term));
+}
+
+function namedTerms(value) {
+  const text = String(value || "");
+  const terms = [];
+  const matches = [...text.matchAll(/\b[A-Za-z][A-Za-z0-9.+#/-]*\b/g)];
+  for (const match of matches) {
+    const term = match[0];
+    const sentenceStart = match.index === 0 || /[.!?]\s*$/.test(text.slice(0, match.index));
+    const hasInternalCapital = /[a-z][A-Z]/.test(term);
+    const hasTechPunctuation = /[.+#/]/.test(term);
+    const isAcronym = /^[A-Z0-9]{2,}$/.test(term);
+    const isCapitalizedMidSentence = !sentenceStart && /^[A-Z]/.test(term);
+    if (hasInternalCapital || hasTechPunctuation || isAcronym || isCapitalizedMidSentence) {
+      terms.push(term.toLowerCase());
+    }
+  }
+  return [...new Set(terms)];
+}
+
+function unsupportedNamedTerms(candidate, evidence) {
+  const normalizedEvidence = normalize(evidence);
+  const evidenceCanonicalTerms = new Set(
+    canonicalSkillsInText(evidence).map((match) => match.canonicalId)
+  );
+  return namedTerms(candidate).filter((term) => {
+    if (normalizedEvidence.includes(normalize(term))) return false;
+    const termCanonical = canonicalSkillsInText(term).map((match) => match.canonicalId);
+    return !termCanonical.length || termCanonical.some((canonical) => !evidenceCanonicalTerms.has(canonical));
+  });
+}
+
+function unsupportedNumericTokens(candidate, evidence) {
+  const evidenceNumbers = new Set(numericTokens(evidence));
+  return numericTokens(candidate).filter((token) => !evidenceNumbers.has(token));
+}
+
+function excerptSupports(text, excerpt) {
+  return (
+    unsupportedNumericTokens(text, excerpt).length === 0 &&
+    unsupportedCanonicalTerms(text, excerpt).length === 0 &&
+    unsupportedNamedTerms(text, excerpt).length === 0 &&
+    textSupportRatio(text, excerpt) >= 0.4
+  );
+}
+
+// The text a claim may contribute to rendered resume content. Generalized wording
+// replaces the internal fact so confidentiality-safe phrasing is what gets validated.
+function renderableFact(claim) {
+  return claim.externalFact ? claim.externalFact : claim.fact;
+}
+
+function normalizedObject(value) {
+  if (Array.isArray(value)) return value.map(normalizedObject);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, normalizedObject(value[key])])
+    );
+  }
+  return typeof value === "string" ? normalize(value) : value;
+}
+
+function normalizedMultiset(values) {
+  return values.map((value) => JSON.stringify(normalizedObject(value))).sort();
+}
+
+function withinDir(root, candidate) {
+  const relative = path.relative(root, candidate);
+  return (
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
+}
+
+function sourceMayGroundClaims(sourcePath, personaRoot) {
+  const resolvedSource = path.resolve(sourcePath);
+  const resolvedPersona = path.resolve(personaRoot);
+  const approvedProfileFiles = new Set([
+    path.join(resolvedPersona, "profile", "career.md"),
+    path.join(resolvedPersona, "profile", "background.md"),
+  ]);
+  if (approvedProfileFiles.has(resolvedSource)) return true;
+
+  const evidenceRoot = path.join(
+    resolvedPersona,
+    "evidence",
+    "performance-reviews"
+  );
+  const evidenceRelative = path.relative(evidenceRoot, resolvedSource);
+  const evidenceSegments = evidenceRelative.split(path.sep);
+  if (withinDir(evidenceRoot, resolvedSource) && evidenceSegments.includes("text")) {
+    return true;
+  }
+
+  // Repository snapshots are machine-retrievable evidence: `snapshot-repos.js`
+  // can re-fetch them and a reviewer can diff the result. Only the generated
+  // markdown grounds claims, so a hand-edited file cannot enter the corpus
+  // under a name the tool would never produce.
+  const repositoriesRoot = path.join(resolvedPersona, "evidence", "repositories");
+  return (
+    withinDir(repositoriesRoot, resolvedSource) &&
+    path.basename(resolvedSource) === "repositories.md"
+  );
+}
+
+function periodSupported(period, evidence) {
+  const tokens = String(period || "").toLowerCase().match(/\b(?:19|20)\d{2}\b|present|current/g) || [];
+  const normalizedEvidence = normalize(evidence);
+  return tokens.every((token) => normalizedEvidence.includes(token));
+}
+
+function recordSupportedByClaims(record, claims, requiredFields) {
+  return claims.some(({ claim, evidence }) =>
+    claim.status === "verified" &&
+    requiredFields.every((field) => {
+      const value = record[field];
+      if (!value) return true;
+      if (field === "period") return periodSupported(value, `${claim.period} ${evidence}`);
+      return normalize(evidence).includes(normalize(value));
+    })
+  );
+}
+
+function sha256(filePath) {
+  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+export function validateResumeClaims({
+  resume,
+  identity,
+  ledger,
+  bank = null,
+  repoRoot = process.cwd(),
+  personaRoot,
+}) {
+  const vocabulary = skillVocabulary({ identity, bank });
+  const issues = [];
+  const claimById = new Map(ledger.claims.map((claim) => [claim.id, claim]));
+  const identityExperienceById = new Map(
+    [...(identity.experience || []), ...(identity.other_experience_compacted || [])]
+      .filter((entry) => entry.id)
+      .map((entry) => [entry.id, entry])
+  );
+
+  const resolvedRoot = fs.realpathSync(path.resolve(repoRoot));
+  const resolvedPersonaRoot = fs.realpathSync(path.resolve(personaRoot || repoRoot));
+  const claimEvidence = new Map();
+  const readExcerpts = (sources, sourceLocation) => {
+    const excerpts = [];
+    for (const source of sources || []) {
+      const candidateSourcePath = path.resolve(repoRoot, source.path);
+      if (
+        candidateSourcePath !== path.resolve(repoRoot) &&
+        !candidateSourcePath.startsWith(`${path.resolve(repoRoot)}${path.sep}`)
+      ) {
+        issues.push(issue("error", "source_outside_root", `Source "${source.path}" resolves outside the repository.`, sourceLocation));
+        continue;
+      }
+      if (!fs.existsSync(candidateSourcePath) || !fs.statSync(candidateSourcePath).isFile()) {
+        issues.push(issue("error", "source_missing", `Source "${source.path}" does not exist.`, sourceLocation));
+        continue;
+      }
+      const sourcePath = fs.realpathSync(candidateSourcePath);
+      if (sourcePath !== resolvedRoot && !sourcePath.startsWith(`${resolvedRoot}${path.sep}`)) {
+        issues.push(issue("error", "source_outside_root", `Source "${source.path}" resolves outside the repository.`, sourceLocation));
+        continue;
+      }
+      if (!sourceMayGroundClaims(sourcePath, resolvedPersonaRoot)) {
+        issues.push(issue(
+          "error",
+          "source_not_approved",
+          `Source "${source.path}" is outside the active persona's approved grounding corpus.`,
+          sourceLocation
+        ));
+        continue;
+      }
+      if (sha256(sourcePath) !== source.fileHash) {
+        issues.push(issue("error", "source_hash_mismatch", `Source "${source.path}" changed after claim verification.`, sourceLocation));
+        continue;
+      }
+      if (source.lineStart == null || source.lineEnd == null) {
+        issues.push(issue("error", "source_excerpt_missing", `Source "${source.path}" requires an exact line range.`, sourceLocation));
+        continue;
+      }
+      const lines = fs.readFileSync(sourcePath, "utf8").split(/\r?\n/);
+      const start = source.lineStart;
+      const end = source.lineEnd;
+      if (start > end || end > lines.length) {
+        issues.push(issue("error", "source_line_range", `Source line range is invalid for "${source.path}".`, sourceLocation));
+        continue;
+      }
+      excerpts.push(lines.slice(start - 1, end).join("\n"));
+    }
+    return excerpts;
+  };
+
+  for (const claim of ledger.claims) {
+    const sourceLocation = `claim:${claim.id}`;
+    const excerpts = readExcerpts(claim.sources, sourceLocation);
+    claimEvidence.set(claim.id, excerpts.join("\n"));
+    if (!excerpts.some((excerpt) => excerptSupports(claim.fact, excerpt))) {
+      issues.push(issue(
+        "error",
+        "claim_source_mismatch",
+        `Claim "${claim.id}" is not substantively supported by its referenced source excerpt.`,
+        sourceLocation
+      ));
+    }
+
+    if (claim.disclosure === "internal_generalizable" && !claim.externalFact) {
+      issues.push(issue(
+        "error",
+        "external_fact_missing",
+        `Claim "${claim.id}" is internal_generalizable and requires an externalFact for rendering.`,
+        sourceLocation
+      ));
+    }
+
+    if (claim.externalFact) {
+      // A generalization may drop detail but must never introduce a number, and every
+      // named or canonical term it uses must trace back to the internal fact or to an
+      // approved source that authorizes the generalized wording.
+      const generalizationEvidence = [claim.fact, ...readExcerpts(claim.externalSources, sourceLocation)].join("\n");
+      const invented = [
+        ...unsupportedNumericTokens(claim.externalFact, claim.fact),
+        ...unsupportedCanonicalTerms(claim.externalFact, generalizationEvidence),
+        ...unsupportedNamedTerms(claim.externalFact, generalizationEvidence),
+      ];
+      if (invented.length) {
+        issues.push(issue(
+          "error",
+          "external_fact_ungrounded",
+          `Claim "${claim.id}" externalFact introduces unsupported content: ${invented.join(", ")}.`,
+          sourceLocation
+        ));
+      }
+    }
+  }
+
+  const verifiedClaimEvidence = ledger.claims.map((claim) => ({
+    claim,
+    evidence: `${claim.fact}\n${claimEvidence.get(claim.id) || ""}`,
+  }));
+  for (const entry of [...(identity.experience || []), ...(identity.other_experience_compacted || [])]) {
+    if (!recordSupportedByClaims(entry, verifiedClaimEvidence, ["company", "role", "period"])) {
+      issues.push(issue(
+        "error",
+        "identity_experience_unproven",
+        `Identity experience "${entry.id || entry.role}" is not grounded in an approved source excerpt.`,
+        `identity.experience:${entry.id || entry.role}`
+      ));
+    }
+  }
+  const structuredChecks = [
+    ["education", ["school", "degree", "endDate"]],
+    ["projects", ["name"]],
+    ["certifications", ["name"]],
+    ["awards_or_contributions", ["title"]],
+  ];
+  for (const [field, requiredFields] of structuredChecks) {
+    for (const [index, record] of (identity[field] || []).entries()) {
+      if (!recordSupportedByClaims(record, verifiedClaimEvidence, requiredFields)) {
+        issues.push(issue(
+          "error",
+          "identity_record_unproven",
+          `identity ${field}[${index}] is not grounded in an approved source excerpt.`,
+          `identity.${field}[${index}]`
+        ));
+      }
+    }
+  }
+
+  const bulletMappings = new Map();
+  for (const mapping of resume.provenance?.bullets || []) {
+    const key = `${mapping.experienceId}:${mapping.bulletIndex}`;
+    if (bulletMappings.has(key)) {
+      issues.push(issue("error", "duplicate_bullet_mapping", `Duplicate provenance mapping for ${key}.`, key));
+    }
+    bulletMappings.set(key, mapping);
+  }
+
+  const usedClaimSets = new Map();
+  for (const [experienceIndex, entry] of (resume.experience || []).entries()) {
+    const coreEntry = identityExperienceById.get(entry.id);
+    const location = `experience[${experienceIndex}]`;
+
+    if (!entry.id) {
+      issues.push(issue("error", "missing_experience_id", "Every tailored experience entry requires a stable id.", location));
+    } else if (!coreEntry) {
+      issues.push(issue("error", "unknown_experience_id", `Experience id "${entry.id}" does not exist in the identity record.`, location));
+    }
+
+    if (coreEntry) {
+      for (const field of ["company", "role", "period"]) {
+        if (normalize(entry[field]) !== normalize(coreEntry[field])) {
+          issues.push(issue(
+            "error",
+            "experience_identity_changed",
+            `${field} must match the identity record for experience "${entry.id}".`,
+            `${location}.${field}`
+          ));
+        }
+      }
+    }
+
+    // A promotion is rendered content, so it is gated exactly like a bullet: it
+    // must exist in the identity spine, be backed by verified, disclosable
+    // claims, and never leak an internal ladder token.
+    for (const [stepIndex, step] of (entry.progression || []).entries()) {
+      const stepLocation = `${location}.progression[${stepIndex}]`;
+      const rendered = step.disclosure !== "internal_only";
+      if (!rendered) continue;
+
+      const coreStep = (coreEntry?.progression || []).find(
+        (candidate) => normalize(candidate.label) === normalize(step.label)
+      );
+      if (!coreStep) {
+        issues.push(issue(
+          "error",
+          "progression_not_in_identity",
+          `Progression step "${step.label}" is not present in the identity record for "${entry.id}".`,
+          stepLocation
+        ));
+        continue;
+      }
+
+      if (step.claimIds.length === 0) {
+        issues.push(issue(
+          "error",
+          "unmapped_progression",
+          `Progression step "${step.label}" requires claim provenance.`,
+          stepLocation
+        ));
+      }
+      for (const claimId of step.claimIds) {
+        const claim = claimById.get(claimId);
+        if (!claim) {
+          issues.push(issue("error", "unknown_claim", `Claim "${claimId}" does not exist.`, stepLocation));
+          continue;
+        }
+        if (claim.status !== "verified") {
+          issues.push(issue("error", "unverified_claim", `Claim "${claimId}" is ${claim.status}.`, stepLocation));
+        }
+        if (claim.disclosure === "internal_only") {
+          issues.push(issue(
+            "error",
+            "confidential_claim_rendered",
+            `Claim "${claimId}" is internal_only and may not ground rendered resume content.`,
+            stepLocation
+          ));
+        }
+      }
+
+      // An internal ladder token is meaningless outside the company and may be
+      // confidential, so a generalizable step must carry an external label.
+      if (step.disclosure === "internal_generalizable" && !String(step.externalLabel || "").trim()) {
+        issues.push(issue(
+          "error",
+          "progression_label_not_generalized",
+          `Progression step "${step.label}" is internal_generalizable and requires an externalLabel to render.`,
+          stepLocation
+        ));
+      }
+    }
+
+    for (const [bulletIndex, bullet] of (entry.bullets || []).entries()) {
+      const key = `${entry.id}:${bulletIndex}`;
+      const mapping = bulletMappings.get(key);
+      const bulletLocation = `${location}.bullets[${bulletIndex}]`;
+      if (!mapping) {
+        issues.push(issue("error", "unmapped_bullet", "Every resume bullet requires claim provenance.", bulletLocation));
+        continue;
+      }
+
+      const mappedClaims = [];
+      for (const claimId of mapping.claimIds) {
+        const claim = claimById.get(claimId);
+        if (!claim) {
+          issues.push(issue("error", "unknown_claim", `Claim "${claimId}" does not exist.`, bulletLocation));
+          continue;
+        }
+        if (claim.status !== "verified") {
+          issues.push(issue("error", "unverified_claim", `Claim "${claimId}" is ${claim.status}.`, bulletLocation));
+        }
+        if (claim.disclosure === "internal_only") {
+          issues.push(issue(
+            "error",
+            "confidential_claim_rendered",
+            `Claim "${claimId}" is internal_only and may not ground rendered resume content.`,
+            bulletLocation
+          ));
+        }
+        mappedClaims.push(claim);
+      }
+
+      const claimSet = [...new Set(mapping.claimIds)].sort().join("|");
+      if (claimSet) {
+        const previous = usedClaimSets.get(claimSet);
+        if (previous) {
+          issues.push(issue(
+            "error",
+            "duplicate_claim_usage",
+            `The same claim set is already used by ${previous}.`,
+            bulletLocation
+          ));
+        } else {
+          usedClaimSets.set(claimSet, bulletLocation);
+        }
+      }
+
+      const supportedText = mappedClaims.map(renderableFact).join(" ");
+      const unsupportedTerms = unsupportedCanonicalTerms(bullet, supportedText);
+      const unsupportedNames = unsupportedNamedTerms(bullet, supportedText);
+      if (unsupportedTerms.length || unsupportedNames.length) {
+        issues.push(issue(
+          "error",
+          "unsupported_technology",
+          `Mapped claims do not support: ${[...unsupportedTerms, ...unsupportedNames].join(", ")}.`,
+          bulletLocation
+        ));
+      }
+      if (textSupportRatio(bullet, supportedText) < 0.35) {
+        issues.push(issue(
+          "error",
+          "claim_content_mismatch",
+          "The bullet is not substantively supported by its mapped claim text.",
+          bulletLocation
+        ));
+      }
+      for (const token of unsupportedNumericTokens(bullet, supportedText)) {
+          issues.push(issue(
+            "error",
+            "unsupported_number",
+            `Numeric claim "${token}" is not present in the mapped source claims.`,
+            bulletLocation
+          ));
+      }
+    }
+  }
+
+  const skillMappings = new Map(
+    (resume.provenance?.skills || []).map((mapping) => [normalize(mapping.skill), mapping])
+  );
+  const displayedSkills = [...(resume.skills_primary || []), ...(resume.skills_secondary || [])];
+  // A vetoed-to-empty vocabulary is a deliberate configuration, not a missing
+  // input; only an absent bank should report the input error.
+  const hasVocabularySource = Boolean((bank?.units || []).length)
+    || Boolean((identity?.legacy_skills || []).length);
+  if (displayedSkills.length && !hasVocabularySource) {
+    issues.push(issue(
+      "error",
+      "no_skill_vocabulary",
+      "No skill vocabulary is available: pass the accomplishment bank, or the persona has no units.",
+      "skills"
+    ));
+  }
+  for (const skill of displayedSkills) {
+    const normalizedSkill = normalize(skill);
+    if (hasVocabularySource && !vocabulary.has(skill)) {
+      issues.push(issue(
+        "error",
+        "skill_not_in_vocabulary",
+        `Skill "${skill}" is not demonstrated by any accomplishment unit, or is vetoed in the identity record.`,
+        "skills"
+      ));
+    }
+    const mapping = skillMappings.get(normalizedSkill);
+    if (!mapping) {
+      issues.push(issue("error", "unmapped_skill", `Skill "${skill}" requires claim provenance.`, "skills"));
+      continue;
+    }
+    for (const claimId of mapping.claimIds) {
+      const claim = claimById.get(claimId);
+      if (!claim) {
+        issues.push(issue("error", "unknown_claim", `Claim "${claimId}" does not exist.`, `skill:${skill}`));
+      } else if (claim.status !== "verified") {
+        issues.push(issue("error", "unverified_claim", `Claim "${claimId}" is ${claim.status}.`, `skill:${skill}`));
+      } else if (claim.disclosure === "internal_only") {
+        issues.push(issue(
+          "error",
+          "confidential_claim_rendered",
+          `Claim "${claimId}" is internal_only and may not ground rendered resume content.`,
+          `skill:${skill}`
+        ));
+      }
+    }
+    const skillEvidence = mapping.claimIds
+      .map((claimId) => claimById.get(claimId))
+      .filter(Boolean)
+      .map(renderableFact)
+      .join(" ");
+    const skillCanonicalTerms = canonicalSkillsInText(skill).map((match) => match.canonicalId);
+    const unsupportedSkillTerms = unsupportedCanonicalTerms(skill, skillEvidence);
+    if (
+      unsupportedSkillTerms.length ||
+      (skillCanonicalTerms.length === 0 && textSupportRatio(skill, skillEvidence) < 0.5)
+    ) {
+      issues.push(issue(
+        "error",
+        "skill_claim_mismatch",
+        `Mapped claims do not substantively support skill "${skill}".`,
+        `skill:${skill}`
+      ));
+    }
+  }
+
+  for (const claimId of resume.provenance?.summaryClaimIds || []) {
+    const claim = claimById.get(claimId);
+    if (!claim) {
+      issues.push(issue("error", "unknown_claim", `Summary claim "${claimId}" does not exist.`, "summary"));
+    } else if (claim.status !== "verified") {
+      issues.push(issue("error", "unverified_claim", `Summary claim "${claimId}" is ${claim.status}.`, "summary"));
+    } else if (claim.disclosure === "internal_only") {
+      issues.push(issue(
+        "error",
+        "confidential_claim_rendered",
+        `Summary claim "${claimId}" is internal_only and may not ground rendered resume content.`,
+        "summary"
+      ));
+    }
+  }
+
+  if (resume.summary) {
+    const summaryClaims = (resume.provenance?.summaryClaimIds || [])
+      .map((claimId) => claimById.get(claimId))
+      .filter(Boolean);
+    const summaryEvidence = summaryClaims.map(renderableFact).join(" ");
+    if (!summaryClaims.length) {
+      issues.push(issue("error", "unmapped_summary", "The summary requires verified claim provenance.", "summary"));
+    } else {
+      const unsupportedTerms = unsupportedCanonicalTerms(resume.summary, summaryEvidence);
+      const unsupportedNames = unsupportedNamedTerms(resume.summary, summaryEvidence);
+      const unsupportedNumbers = unsupportedNumericTokens(resume.summary, summaryEvidence);
+      if (
+        unsupportedTerms.length ||
+        unsupportedNames.length ||
+        unsupportedNumbers.length ||
+        textSupportRatio(resume.summary, summaryEvidence) < 0.3
+      ) {
+        issues.push(issue(
+          "error",
+          "summary_claim_mismatch",
+          "The summary contains content not supported by its mapped claims.",
+          "summary"
+        ));
+      }
+    }
+  }
+
+  const unsupportedTitleTerms = unsupportedCanonicalTerms(
+    resume.ats_title,
+    `${vocabulary.labels().join(" ")} ${resume.target_role}`
+  );
+  if (resume.ats_title && !normalize(resume.ats_title).includes(normalize(resume.target_role))) {
+    issues.push(issue("error", "ats_title_role_mismatch", "ATS title must retain the target role.", "ats_title"));
+  }
+  if (unsupportedTitleTerms.length) {
+    issues.push(issue(
+      "error",
+      "ats_title_unsupported_skill",
+      `ATS title contains unsupported skills: ${unsupportedTitleTerms.join(", ")}.`,
+      "ats_title"
+    ));
+  }
+
+  // Education must match the identity record exactly: a degree is not a
+  // per-job selection, and silently dropping one misrepresents the record.
+  {
+    const actual = normalizedMultiset(resume.education || []);
+    const expected = normalizedMultiset(identity.education || []);
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      issues.push(issue(
+        "error",
+        "identity_section_mismatch",
+        "education must match the identity record exactly; rebuild the identity record if the source record changed.",
+        "education"
+      ));
+    }
+  }
+
+  // Projects, certifications and awards are a catalog the tailor selects from.
+  // The resume may carry any subset, but never an entry the identity record
+  // does not contain -- that is the anti-fabrication guarantee. Omission is a
+  // tailoring decision and is checked by strategy, not here.
+  for (const field of ["projects", "certifications", "awards_or_contributions"]) {
+    const permitted = new Map();
+    for (const entry of identity[field] || []) {
+      const key = JSON.stringify(normalizedObject(entry));
+      permitted.set(key, (permitted.get(key) || 0) + 1);
+    }
+    const unsupported = [];
+    for (const entry of resume[field] || []) {
+      const key = JSON.stringify(normalizedObject(entry));
+      const remaining = permitted.get(key) || 0;
+      if (remaining === 0) {
+        unsupported.push(entry?.name || entry?.title || key.slice(0, 60));
+      } else {
+        permitted.set(key, remaining - 1);
+      }
+    }
+    if (unsupported.length) {
+      issues.push(issue(
+        "error",
+        "identity_section_unsupported",
+        `${field} contains entries absent from the identity record: ${unsupported.join(", ")}. Rebuild the identity record if the source record changed.`,
+        field
+      ));
+    }
+  }
+
+  const errors = issues.filter((item) => item.severity === "error");
+  return {
+    valid: errors.length === 0,
+    errorCount: errors.length,
+    warningCount: issues.length - errors.length,
+    issues,
+  };
+}

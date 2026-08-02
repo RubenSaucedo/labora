@@ -1,0 +1,187 @@
+{
+  "schemaVersion": "1.0",
+  "persona": "example",
+  "generatedAt": "2026-07-28T00:00:00.000Z",
+  "claims": [
+    {
+      "id": "claim-summary-7-years",
+      "type": "identity",
+      "fact": "Senior Frontend Engineer with 7 years of experience building performant web applications.",
+      "period": "",
+      "sources": [
+        {
+          "path": "data/personas/example/profile/background.md",
+          "fileHash": "093d2ea33aaf8a81ebb81f487550968d44b0b86dcd4fc425bdf6d76ff26f5e0d",
+          "lineStart": 21,
+          "lineEnd": 23,
+          "page": null,
+          "extraction": "markdown",
+          "confidence": 1
+        }
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "claim-acme-migration",
+      "type": "metric",
+      "fact": "Led a legacy jQuery dashboard migration to React and TypeScript that reduced page load times by 60%.",
+      "period": "2022 - Present",
+      "sources": [
+        {
+          "path": "data/personas/example/profile/career.md",
+          "fileHash": "86bd63cd64a705ff186112153f7991dba4cead391e1df25b2a38dc405986cc3f",
+          "lineStart": 3,
+          "lineEnd": 5,
+          "page": null,
+          "extraction": "markdown",
+          "confidence": 1
+        }
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "claim-acme-analytics",
+      "type": "metric",
+      "fact": "Built a real-time analytics component serving 50k daily active users.",
+      "period": "2022 - Present",
+      "sources": [
+        {
+          "path": "data/personas/example/profile/career.md",
+          "fileHash": "86bd63cd64a705ff186112153f7991dba4cead391e1df25b2a38dc405986cc3f",
+          "lineStart": 3,
+          "lineEnd": 5,
+          "page": null,
+          "extraction": "markdown",
+          "confidence": 1
+        }
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "claim-acme-mentoring",
+      "type": "metric",
+      "fact": "Mentored 3 junior engineers and introduced code review practices that reduced production bugs by 40%.",
+      "period": "2022 - Present",
+      "sources": [
+        {
+          "path": "data/personas/example/profile/career.md",
+          "fileHash": "86bd63cd64a705ff186112153f7991dba4cead391e1df25b2a38dc405986cc3f",
+          "lineStart": 3,
+          "lineEnd": 5,
+          "page": null,
+          "extraction": "markdown",
+          "confidence": 1
+        }
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "claim-startup-spa",
+      "type": "achievement",
+      "fact": "Built a customer-facing single-page application from scratch using Vue.js.",
+      "period": "2019 - 2022",
+      "sources": [
+        {
+          "path": "data/personas/example/profile/career.md",
+          "fileHash": "86bd63cd64a705ff186112153f7991dba4cead391e1df25b2a38dc405986cc3f",
+          "lineStart": 7,
+          "lineEnd": 9,
+          "page": null,
+          "extraction": "markdown",
+          "confidence": 1
+        }
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "claim-startup-cicd",
+      "type": "achievement",
+      "fact": "Implemented a CI/CD pipeline with GitHub Actions.",
+      "period": "2019 - 2022",
+      "sources": [
+        {
+          "path": "data/personas/example/profile/career.md",
+          "fileHash": "86bd63cd64a705ff186112153f7991dba4cead391e1df25b2a38dc405986cc3f",
+          "lineStart": 7,
+          "lineEnd": 9,
+          "page": null,
+          "extraction": "markdown",
+          "confidence": 1
+        }
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "claim-startup-components",
+      "type": "metric",
+      "fact": "Collaborated with the design team to create a component library used across 4 products.",
+      "period": "2019 - 2022",
+      "sources": [
+        {
+          "path": "data/personas/example/profile/career.md",
+          "fileHash": "86bd63cd64a705ff186112153f7991dba4cead391e1df25b2a38dc405986cc3f",
+          "lineStart": 7,
+          "lineEnd": 9,
+          "page": null,
+          "extraction": "markdown",
+          "confidence": 1
+        }
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "claim-education-berkeley",
+      "type": "education",
+      "fact": "Earned a BS in Computer Science from UC Berkeley in 2017.",
+      "period": "2017",
+      "sources": [
+        {
+          "path": "data/personas/example/profile/background.md",
+          "fileHash": "093d2ea33aaf8a81ebb81f487550968d44b0b86dcd4fc425bdf6d76ff26f5e0d",
+          "lineStart": 51,
+          "lineEnd": 52,
+          "page": null,
+          "extraction": "markdown",
+          "confidence": 1
+        }
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "claim-web-responsive",
+      "type": "metric",
+      "fact": "Developed responsive websites for more than 20 clients using modern CSS.",
+      "period": "2017 - 2019",
+      "sources": [
+        {
+          "path": "data/personas/example/profile/career.md",
+          "fileHash": "86bd63cd64a705ff186112153f7991dba4cead391e1df25b2a38dc405986cc3f",
+          "lineStart": 11,
+          "lineEnd": 13,
+          "page": null,
+          "extraction": "markdown",
+          "confidence": 1
+        }
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "claim-web-tool",
+      "type": "achievement",
+      "fact": "Contributed to an internal tool that automated client reporting and learned React and Node.js.",
+      "period": "2017 - 2019",
+      "sources": [
+        {
+          "path": "data/personas/example/profile/career.md",
+          "fileHash": "86bd63cd64a705ff186112153f7991dba4cead391e1df25b2a38dc405986cc3f",
+          "lineStart": 11,
+          "lineEnd": 13,
+          "page": null,
+          "extraction": "markdown",
+          "confidence": 1
+        }
+      ],
+      "status": "verified"
+    }
+  ]
+}

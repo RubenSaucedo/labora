@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0",
+  "angle": "fit",
+  "persona": "example",
+  "generatedAt": "2026-07-29T04:10:00.000Z",
+  "sources": ["linkedin", "company-boards"],
+  "candidates": [
+    {
+      "jobId": "72631b8090910777",
+      "title": "Senior Frontend Engineer",
+      "company": "Northwind",
+      "location": "San Francisco, CA",
+      "url": "https://careers.northwind.example/jobs/senior-frontend-engineer",
+      "officialUrl": "https://careers.northwind.example/jobs/senior-frontend-engineer",
+      "remote": "hybrid",
+      "compensation": { "min": 210000, "max": 250000, "currency": "USD", "source": "posting" },
+      "postedDate": "2026-07-25",
+      "observedAt": "2026-07-29T04:05:00.000Z",
+      "postingHash": "8af469c98c442937145f63b1ad47d33c1c0071240c2ff775cfc1f7e54d31740c",
+      "status": "open",
+      "source": "company-boards",
+      "angle": "fit",
+      "score": 88,
+      "rationale": "React/TypeScript at scale and measurable performance work map directly to the persona's Acme migration and 7-year summary claims.",
+      "matchedClaims": ["claim-summary-7-years", "claim-acme-migration"],
+      "matchedPreferences": ["Senior Frontend Engineer", "React", "TypeScript"],
+      "concerns": []
+    }
+  ],
+  "metadata": { "model": "example-fixture", "evaluatedAt": "2026-07-29T04:10:00.000Z" }
+}

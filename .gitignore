@@ -1,0 +1,35 @@
+node_modules/
+.DS_Store
+eng.traineddata
+
+docs/
+
+# Persona data is PERSONAL: career history, performance reviews, past resumes,
+# generated resumes. Everything under data/personas is ignored EXCEPT the
+# `example` persona, which is the committed reference. Never commit real
+# persona data. (Legacy path data/applicant/ also ignored for safety.)
+data/personas/*
+!data/personas/example/
+data/applicant/
+
+# Credentials and env
+auth/
+.env
+.env.*
+*.pem
+*.key
+**/credentials*.json
+**/client_secret*.json
+
+# Local assistant settings: these record machine-specific paths and per-user
+# permission grants, so they are personal to whoever cloned the repo.
+.claude/settings.local.json
+.copilot/settings.local.json
+
+# Local runtime caches and per-style iteration notes
+.ollama-cache/
+prompts/**/notes.md
+prompts/**/.improve/
+# Playwright MCP session artifacts. Page snapshots and console logs from an
+# authenticated browsing session can contain personal data; never commit them.
+.playwright-mcp/
