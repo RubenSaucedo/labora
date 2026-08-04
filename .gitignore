@@ -5,12 +5,17 @@ eng.traineddata
 docs/
 
 # Persona data is PERSONAL: career history, performance reviews, past resumes,
-# generated resumes. Everything under data/personas is ignored EXCEPT the
-# `example` persona, which is the committed reference. Never commit real
-# persona data. (Legacy path data/applicant/ also ignored for safety.)
+# generated resumes. It now lives OUTSIDE this repo in a private workspace
+# (see labora.example.json). The rules below remain as defence in depth for the
+# legacy in-repo layout: everything under data/personas is ignored EXCEPT the
+# `example` persona, which is the committed reference fixture.
 data/personas/*
 !data/personas/example/
 data/applicant/
+
+# Machine-local pointer to the private persona workspace. Personal because it
+# records a machine-specific path; labora.example.json is the committed template.
+labora.json
 
 # Credentials and env
 auth/

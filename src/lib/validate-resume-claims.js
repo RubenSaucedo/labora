@@ -142,6 +142,34 @@ function withinDir(root, candidate) {
   );
 }
 
+function withinAnyRoot(candidate, roots) {
+  return roots.some((root) => root && (candidate === root || withinDir(root, candidate)));
+}
+
+// A claim's provenance must travel with the persona. Persona data lives in a
+// private workspace outside this repository, so a source recorded relative to
+// the repo root is stranded the moment the persona moves. Resolve
+// persona-relative first (the portable form), then fall back to repo-relative
+// so ledgers written under the older layout keep validating.
+//
+// The two forms cannot collide: "profile/background.md" does not exist under a
+// repo root, and "data/personas/<n>/profile/background.md" does not exist under
+// a persona root.
+function resolveClaimSource(sourcePath, { personaRoot, repoRoot }) {
+  const roots = [personaRoot, repoRoot].filter(Boolean);
+  for (const root of roots) {
+    const candidate = path.resolve(root, sourcePath);
+    if (!withinAnyRoot(candidate, roots)) continue;
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+      return { path: candidate, contained: true };
+    }
+  }
+  // Nothing existed. Report the more precise failure: escaping the permitted
+  // roots is a different defect from simply being absent.
+  const preferred = path.resolve(roots[0], sourcePath);
+  return { path: preferred, contained: withinAnyRoot(preferred, roots) };
+}
+
 function sourceMayGroundClaims(sourcePath, personaRoot) {
   const resolvedSource = path.resolve(sourcePath);
   const resolvedPersona = path.resolve(personaRoot);
@@ -218,21 +246,23 @@ export function validateResumeClaims({
   const readExcerpts = (sources, sourceLocation) => {
     const excerpts = [];
     for (const source of sources || []) {
-      const candidateSourcePath = path.resolve(repoRoot, source.path);
-      if (
-        candidateSourcePath !== path.resolve(repoRoot) &&
-        !candidateSourcePath.startsWith(`${path.resolve(repoRoot)}${path.sep}`)
-      ) {
-        issues.push(issue("error", "source_outside_root", `Source "${source.path}" resolves outside the repository.`, sourceLocation));
+      const permittedRoots = [resolvedPersonaRoot, resolvedRoot];
+      const resolution = resolveClaimSource(source.path, {
+        personaRoot: resolvedPersonaRoot,
+        repoRoot: resolvedRoot,
+      });
+      if (!resolution.contained) {
+        issues.push(issue("error", "source_outside_root", `Source "${source.path}" resolves outside the persona workspace.`, sourceLocation));
         continue;
       }
+      const candidateSourcePath = resolution.path;
       if (!fs.existsSync(candidateSourcePath) || !fs.statSync(candidateSourcePath).isFile()) {
         issues.push(issue("error", "source_missing", `Source "${source.path}" does not exist.`, sourceLocation));
         continue;
       }
       const sourcePath = fs.realpathSync(candidateSourcePath);
-      if (sourcePath !== resolvedRoot && !sourcePath.startsWith(`${resolvedRoot}${path.sep}`)) {
-        issues.push(issue("error", "source_outside_root", `Source "${source.path}" resolves outside the repository.`, sourceLocation));
+      if (!withinAnyRoot(sourcePath, permittedRoots)) {
+        issues.push(issue("error", "source_outside_root", `Source "${source.path}" resolves outside the persona workspace.`, sourceLocation));
         continue;
       }
       if (!sourceMayGroundClaims(sourcePath, resolvedPersonaRoot)) {

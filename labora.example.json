@@ -1,0 +1,4 @@
+{
+  "$comment": "Copy to labora.json (gitignored) and point `workspace` at your private persona workspace. Relative paths resolve against this file, not the cwd. See README.md > Persona workspaces.",
+  "workspace": "../labora-<your-name>"
+}

@@ -54,8 +54,13 @@ Human approval remains mandatory.
 
 ## Data layout
 
+Persona data is **personal** — career history, performance reviews,
+compensation, generated resumes. It lives in a private workspace **outside this
+repository**, so labora itself never stores user data and can be installed as a
+plugin without carrying anyone's history.
+
 ```text
-data/personas/<name>/
+<workspace>/personas/<name>/
 ├── profile/
 │   ├── contact.md                  # you edit
 │   ├── background.md               # you edit
@@ -86,9 +91,66 @@ data/personas/<name>/
     └── summary.md
 ```
 
-Real persona data is gitignored. Only `data/personas/example/` is committed.
-Contact information remains blank in model-written JSON and is injected from
-`profile/contact.md` during deterministic rendering.
+### Persona workspaces
+
+labora is a **plugin**: it holds code and the synthetic `example` fixture, and
+no user data. Your data lives in a workspace you own — any directory containing
+`personas/`.
+
+```text
+src/
+├── labora/          # the plugin — code only, installable, no user data
+└── labora-ruben/    # your workspace
+    └── personas/ruben/
+```
+
+**Run labora from your workspace.** That is the whole configuration:
+
+```bash
+cd ~/src/labora-ruben
+# every tool and agent now resolves personas/ from here
+```
+
+Resolution order, first match wins:
+
+1. `$LABORA_WORKSPACE` — explicit override
+2. the `workspace` field of the nearest `labora.json` (resolved relative to that
+   file) — useful only when you must run from *outside* your workspace
+3. **`<cwd>`, when it contains `personas/`** — the normal path
+4. `<cwd>/data` — legacy in-repo layout
+5. the plugin's bundled `data/` — keeps the committed `example` persona
+   reachable wherever the plugin is installed
+
+Options 1 and 2 exist for unusual setups. If you `cd` into your workspace you
+need neither, and the plugin repo never learns your workspace exists.
+
+Git is a recommendation, not a requirement — mandating a repo adds an
+accidental-public-remote failure mode worse than the problem it solves. If you
+do version it, use a **private** repo; the convention is `labora-<owner>`.
+
+Only `data/personas/example/` is committed; it is synthetic. Contact information
+remains blank in model-written JSON and is injected from `profile/contact.md`
+during deterministic rendering.
+
+Migrating an existing in-repo persona:
+
+```bash
+mkdir -p ../labora-<name>/personas
+mv data/personas/<name> ../labora-<name>/personas/<name>
+cd ../labora-<name>
+node <path-to-labora>/src/tools/migrate-claim-sources.js <name>          # dry run
+node <path-to-labora>/src/tools/migrate-claim-sources.js <name> --write
+node <path-to-labora>/src/tools/validate-profile.js <name>               # expect: profile VALID
+```
+
+Claim provenance is stored **persona-relative** so it travels with the persona.
+`migrate-claim-sources.js` repoints legacy repo-relative paths and refuses to
+write unless every source hashes identically to the value recorded at
+verification time — so a migration can never silently change what a verified
+claim asserts.
+
+Two tests assert against a real persona and skip when none is present. To run
+them, point at a workspace: `LABORA_WORKSPACE=../labora-<name> npm test`.
 
 The profile is split by **ownership**, then by lifetime:
 

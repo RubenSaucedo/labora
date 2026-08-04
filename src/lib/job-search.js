@@ -587,10 +587,12 @@ function dispositionGroup(report, disposition) {
  * act on, not what the operator is allowed to consider. A strong role held up
  * by one unpublished salary outranks a weak one that happened to pass.
  */
-function rankedPostings(report) {
+function rankedPostings(report, { includeNoFit = false } = {}) {
   const all = [
     ...report.candidates.map((c) => ({ ...c, disposition: "act" })),
-    ...(report.excluded || []).filter((e) => e.disposition !== "no_fit"),
+    ...(report.excluded || []).filter(
+      (e) => includeNoFit || e.disposition !== "no_fit"
+    ),
   ];
   return all.sort((a, b) =>
     (b.scores?.fit ?? 0) - (a.scores?.fit ?? 0) ||
@@ -611,6 +613,20 @@ const DISPOSITION_NOTE = {
   blocked: "",
 };
 
+/**
+ * Which gate a posting failed, shown on the card itself.
+ *
+ * The operator asked which roles are the best fit, and a role that missed the
+ * threshold by one point is a materially different proposition from one that
+ * missed by twenty. `act` cards cleared every gate and carry no reason field,
+ * so this is additive and never fires for them.
+ */
+const GATE_LABEL = {
+  watch: "watching this company, not this req",
+  blocked: "one gate short",
+  no_fit: "not this run",
+};
+
 function renderCard(lines, entry, rank, deduped) {
   const facts = [
     entry.location || "",
@@ -628,6 +644,9 @@ function renderCard(lines, entry, rank, deduped) {
   if (facts.length) lines.push(`${facts.join(" · ")}`);
   if (entry.url) lines.push(`${entry.url}`);
   if (DISPOSITION_NOTE[entry.disposition]) lines.push(`_${DISPOSITION_NOTE[entry.disposition]}_`);
+  if (entry.disposition !== "act" && entry.reason) {
+    lines.push(`**Gate — ${GATE_LABEL[entry.disposition] || entry.disposition}:** ${entry.reason}`);
+  }
   lines.push("");
 
   lines.push("**Why you fit**");
@@ -693,21 +712,39 @@ function renderCard(lines, entry, rank, deduped) {
  * are marked with how many runs they have appeared in.
  *
  * @param {object} report - a ZJobSearchReport-shaped object
+ * @param {object} [options]
+ * @param {number} [options.cardLimit] - how many postings render as full cards.
+ * @param {boolean} [options.includeNoFit] - rank no-fit postings too, for a
+ *   company-scoped sub-report where the operator wants every req accounted for.
+ * @param {string} [options.title] - override the H1.
+ * @param {string} [options.intro] - extra paragraph under the H1.
  * @returns {string} markdown
  */
-export function renderJobSearchReport(report) {
+export function renderJobSearchReport(report, options = {}) {
+  const {
+    cardLimit = CARD_LIMIT,
+    includeNoFit = false,
+    title = null,
+    intro = null,
+  } = options;
   const deduped = report.newLeadCount != null;
-  const ranked = rankedPostings(report);
-  const cards = ranked.slice(0, CARD_LIMIT);
-  const overflow = ranked.slice(CARD_LIMIT);
-  const noFit = dispositionGroup(report, "no_fit");
+  const ranked = rankedPostings(report, { includeNoFit });
+  const cards = ranked.slice(0, cardLimit);
+  const overflow = ranked.slice(cardLimit);
+  // A no-fit posting promoted into the ranking is already accounted for on a
+  // card, so listing it again in the appendix would double-report it.
+  const noFit = includeNoFit ? [] : dispositionGroup(report, "no_fit");
   const coverage = report.coverage || [];
   const adjacent = report.adjacent || [];
   const actionable = report.candidates.length;
 
   const lines = [];
-  lines.push(`# Job exploration — ${report.persona} (${report.runDate})`);
+  lines.push(title || `# Job exploration — ${report.persona} (${report.runDate})`);
   lines.push("");
+  if (intro) {
+    lines.push(intro);
+    lines.push("");
+  }
 
   const lead = cards.slice(0, 2).map((c) => c.company);
   lines.push(
@@ -831,4 +868,46 @@ export function renderJobSearchReport(report) {
   }
 
   return lines.join("\n") + "\n";
+}
+
+/**
+ * Narrow a reconciled report to a single company, preserving every score,
+ * rationale, concern, gap and claim citation exactly as the reconciler wrote
+ * them.
+ *
+ * A company-scoped sub-report is a *view*, never a re-scoring: the operator
+ * deciding where to apply must see the same numbers the run committed to, so
+ * this only filters and never recomputes. Coverage is narrowed to the matching
+ * companies so a blocked or zero source stays visible in the sub-report rather
+ * than silently disappearing.
+ *
+ * Pure and deterministic — no I/O.
+ *
+ * @param {object} report - a ZJobSearchReport-shaped object
+ * @param {string} company - company name, matched leniently on punctuation
+ * @returns {object} a ZJobSearchReport-shaped object containing only that company
+ */
+export function filterReportByCompany(report, company) {
+  const norm = (v) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const target = norm(company);
+  if (!target) throw new Error("filterReportByCompany requires a company name.");
+  const hit = (value) => {
+    const c = norm(value);
+    return c === target || c.startsWith(target);
+  };
+  const candidates = report.candidates.filter((c) => hit(c.company));
+  const excluded = (report.excluded || []).filter((e) => hit(e.company));
+  return {
+    ...report,
+    candidates,
+    excluded,
+    coverage: (report.coverage || []).filter((c) => hit(c.company)),
+    // Adjacency is a whole-run finding about companies the operator did not
+    // name; it is not about this company and would be noise here.
+    adjacent: [],
+    scouts: report.scouts.map((s) => ({
+      ...s,
+      candidateCount: candidates.length + excluded.length,
+    })),
+  };
 }

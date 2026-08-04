@@ -4,27 +4,34 @@ import fs from "node:fs";
 import path from "node:path";
 import { skillVocabulary, normalizeSkill } from "../src/lib/skill-vocabulary.js";
 import { normalizeIdentity } from "../src/lib/normalize-identity.js";
+import { resolvePersonaRoot, personaSearchPaths } from "../src/lib/workspace.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
-function read(persona, file) {
-  return JSON.parse(
-    fs.readFileSync(path.join(repoRoot, "data", "personas", persona, "profile", "generated", file), "utf8")
-  );
+function generatedPath(persona, file) {
+  return path.join(resolvePersonaRoot(persona), "profile", "generated", file);
 }
 
-// Only `example` is committed; every other persona is gitignored private data.
-// Tests that assert against a local persona must skip when it is absent, or the
-// suite passes only on the machine that happens to hold that persona.
+function read(persona, file) {
+  return JSON.parse(fs.readFileSync(generatedPath(persona, file), "utf8"));
+}
+
+// Only `example` is committed; every other persona is private data living in a
+// workspace outside this repo. Tests that assert against a local persona must
+// skip when it is absent, or the suite passes only on the machine that happens
+// to hold that persona. Resolving through the workspace resolver means they
+// still run wherever that persona genuinely is.
 function hasPersona(persona) {
-  return fs.existsSync(
-    path.join(repoRoot, "data", "personas", persona, "profile", "generated", "identity.json"),
-  );
+  return fs.existsSync(generatedPath(persona, "identity.json"));
 }
 
 function shippedPersonas() {
-  const root = path.join(repoRoot, "data", "personas");
-  return fs.readdirSync(root).filter(hasPersona);
+  const seen = new Set();
+  for (const root of personaSearchPaths()) {
+    if (!fs.existsSync(root)) continue;
+    for (const name of fs.readdirSync(root)) seen.add(name);
+  }
+  return [...seen].filter(hasPersona);
 }
 
 test("skill labels match their slug form across separators and case", () => {

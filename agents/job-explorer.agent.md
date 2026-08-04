@@ -13,9 +13,9 @@ yourself and you never apply.
 
 Resolve for the requested persona:
 
-- `data/personas/<name>/profile/search-preferences.json` (trusted config);
-- `data/personas/<name>/profile/generated/claims.json` (grounding for fit);
-- run dir: `data/personas/<name>/job-search/<YYYY-MM-DD>/`.
+- `<workspace>/personas/<name>/profile/search-preferences.json` (trusted config);
+- `<workspace>/personas/<name>/profile/generated/claims.json` (grounding for fit);
+- run dir: `<workspace>/personas/<name>/job-search/<YYYY-MM-DD>/`.
 
 If `search-preferences.json` is missing, ask the operator for target titles,
 locations, remote preference, minimum comp, sources, and any avoid list, then

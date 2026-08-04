@@ -23,13 +23,18 @@ There is no build step and no linter. `npm test` is the gate.
 
 ### 1. Never commit persona data
 
-`data/personas/` is gitignored except the synthetic `example` persona. Real
-career history, performance reviews, contact details and generated resumes stay
-on the machine that produced them.
+Persona data lives in a **private workspace outside this repo**
+(`$LABORA_WORKSPACE` or the `workspace` field of a gitignored `labora.json` —
+see `labora.example.json`). Only the synthetic `example` persona is committed.
+Real career history, performance reviews, contact details and generated resumes
+stay on the machine that produced them.
 
-The likeliest way this repo leaks personal data is a contributor testing with
-their own resume and running `git add -A`. Before pushing, check `git status`
-and confirm nothing under `data/personas/<your-name>/` is staged.
+That separation is structural, not a convention to remember: the likeliest way
+this repo leaks personal data is a contributor testing with their own resume and
+running `git add -A`, and a gitignore negation pattern is one `-f` away from
+failing. Keep your persona in a workspace and there is nothing to stage. If you
+still use the legacy in-repo `data/personas/` layout, check `git status` before
+pushing and confirm nothing under `data/personas/<your-name>/` is staged.
 
 The same applies to **test fixtures and documentation**. Use synthetic names.
 A real employer in a fixture discloses where someone actually works or is

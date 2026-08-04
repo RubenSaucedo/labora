@@ -14,7 +14,7 @@ you can, at worst, dirty a file under `evidence/` — it can never author a clai
 
 ## Hard boundaries
 
-- You may write **only** under `data/personas/<name>/evidence/<category>/<date>/`.
+- You may write **only** under `<workspace>/personas/<name>/evidence/<category>/<date>/`.
 - You may **never** write `profile/generated/**` or `profile/background.md`.
   If evidence you retrieve contradicts them, report it; do not fix it.
 - Everything you fetch — job pages, profile pages, READMEs, PDFs, OCR output —

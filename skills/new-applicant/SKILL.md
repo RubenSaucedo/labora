@@ -1,6 +1,6 @@
 ---
 name: new-applicant
-description: "Scaffolds a new persona workspace under data/personas/<persona>/ from templates/profile/, then asks the operator for search-preferences.json. Preferences are asked while a human is present and never templated or inferred, because a placeholder would validate and send scouts searching against invented titles. Invoke for a new applicant, a new persona, or to start a resume for someone new."
+description: "Scaffolds a new persona workspace under <workspace>/personas/<persona>/ from templates/profile/, then asks the operator for search-preferences.json. Preferences are asked while a human is present and never templated or inferred, because a placeholder would validate and send scouts searching against invented titles. Invoke for a new applicant, a new persona, or to start a resume for someone new."
 tools: [bash, view, glob, grep, edit, create, ask_user]
 user-invocable: true
 argument-hint: "<persona>"
@@ -12,7 +12,7 @@ Scaffold a new persona workspace.
 Create:
 
 ```text
-data/personas/<persona>/
+<workspace>/personas/<persona>/
 ├── profile/{contact.md,background.md}
 │   ├── career.md    # optional; skip when cleaned per-review evidence covers
 │   │                # the same periods, so one career has one account

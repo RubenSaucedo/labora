@@ -19,6 +19,7 @@ import { validateResumeClaims } from "../lib/validate-resume-claims.js";
 import { normalizeIdentity } from "../lib/normalize-identity.js";
 import { ZAccomplishmentBank } from "../schemas/accomplishments.js";
 import { ZClaimLedger } from "../schemas/provenance.js";
+import { resolvePersonaRoot } from "../lib/workspace.js";
 
 export function buildSelfResume(identity) {
   return {
@@ -105,9 +106,7 @@ if (invokedDirectly) {
     process.stderr.write("Usage: node src/tools/validate-profile.js <persona-root|persona-name>\n");
     process.exit(1);
   }
-  const personaRoot = fs.existsSync(personaArg)
-    ? personaArg
-    : path.join(process.cwd(), "data", "personas", personaArg);
+  const personaRoot = fs.existsSync(personaArg) ? personaArg : resolvePersonaRoot(personaArg);
 
   try {
     const { valid, issues, summary } = validateProfile(personaRoot);

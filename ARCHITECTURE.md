@@ -399,8 +399,9 @@ job-explorer (conductor)
   consensus is at least 70, the posting is not closed, and it is not in `avoid`.
   Fit scores at or above the floor must cite verified claim IDs and exact search
   preferences; unknown or unverified grounding fails reconciliation.
-- Output lives at `data/personas/<name>/job-search/<run-date>/` and is gitignored
-  like the rest of persona data. A discovered job is a **lead**; promotion into
+- Output lives at `<workspace>/personas/<name>/job-search/<run-date>/`, in the
+  operator's private workspace outside this repo like the rest of persona data.
+  A discovered job is a **lead**; promotion into
   `applications/<slug>/` is a separate operator-triggered step.
 - Cross-run memory (`merge-candidates.js --seen job-search/seen.json`) keys on
   `canonicalJobId` so an overnight cadence highlights only genuinely new leads
@@ -410,7 +411,23 @@ job-explorer (conductor)
 
 ## Privacy and safety
 
-- Real personas and outputs are gitignored.
+- **Persona data lives outside this repository.** labora is a plugin: it holds
+  code and the synthetic `example` fixture, and no user data. Everything
+  personal lives in an operator-owned workspace resolved by
+  `src/lib/workspace.js` — normally just the directory you run from. This is a
+  structural boundary, not a convention: a gitignore negation pattern
+  (`data/personas/*` plus `!example/`) guarding performance reviews and
+  compensation is one `git add -f` from failing, and there is no undo for
+  disclosure. It also makes the plugin correct — `plugin.json` declares labora
+  installable, and an installed plugin's `process.cwd()` is the *user's*
+  directory, where an in-repo `data/personas/` would not exist at all.
+- **Provenance is persona-relative so it travels with the persona.** A claim
+  source recorded as `data/personas/<n>/profile/background.md` only resolves from
+  this repo's root and is stranded the moment the persona moves. Sources are
+  stored relative to the persona root; `migrate-claim-sources.js` repoints legacy
+  ledgers and refuses to write unless every source hashes identically to the
+  value recorded at verification time, so a relocation can never silently change
+  what a verified claim asserts.
 - Contact is injected only at rendering.
 - Evidence, OCR and job descriptions cannot alter system instructions.
 - Job-search browsing is human-login-only, read-only, and never auto-applies.

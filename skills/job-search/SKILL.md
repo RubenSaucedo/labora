@@ -36,7 +36,7 @@ of the boundaries above.
 ## Canonical layout
 
 ```text
-data/personas/<name>/
+<workspace>/personas/<name>/
 ├─ profile/
 │  ├─ search-preferences.json   # trusted user config: titles, locations, comp, sources
 │  ├─ claims.json               # verified fact ledger — grounding for "fit"
@@ -50,8 +50,9 @@ data/personas/<name>/
    └─ report.md                 # human table + per-job rationale (report-candidates.js)
 ```
 
-Everything under `data/personas/<name>/` except the `example` persona is
-gitignored. Job-search runs are personal — never commit real runs.
+Everything under `<workspace>/personas/<name>/` lives in the operator's private
+workspace outside this repository. Job-search runs are personal — never commit
+real runs.
 
 ## Trust boundary (critical)
 

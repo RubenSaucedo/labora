@@ -1,8 +1,12 @@
 import fs from "fs";
 import path from "path";
+import { resolvePersonaRoot } from "./workspace.js";
 
-// v2 layout (Option A):
-//   data/personas/<name>/
+// v2 layout (Option A). The persona container is resolved by workspace.js and
+// normally lives OUTSIDE this repo in a private workspace (see labora.json /
+// $LABORA_WORKSPACE); the in-repo `data/personas/` path remains as a legacy
+// fallback and as the home of the committed `example` fixture.
+//   <workspace>/personas/<name>/
 //     profile/                    human-authored sources
 //       contact.md                private contact card; never grounds claims
 //       background.md             durable self-reported facts; grounds claims
@@ -12,10 +16,8 @@ import path from "path";
 //         identity.json           structural spine
 //         claims.json             verified claim ledger
 //         accomplishments.json    retrieval index over the ledger
-//     evidence/... (personal history; gitignored)
+//     evidence/... (personal history; never committed)
 //     applications/<job-slug>/{job.md, resume.json, ..., judges/*.json}
-const DATA_DIR = path.join(process.cwd(), "data");
-const PERSONAS_DIR = path.join(DATA_DIR, "personas");
 
 function clean(name) {
   const base = (name || "").replace(/\.(md|json)$/i, "").trim();
@@ -30,7 +32,7 @@ export function toJobSlug(jobArg) {
 
 // ---- persona root ----
 export function personaRootPath(name) {
-  return path.join(PERSONAS_DIR, clean(name));
+  return resolvePersonaRoot(clean(name));
 }
 export function getPersonaDir(name) {
   const dir = personaRootPath(name);

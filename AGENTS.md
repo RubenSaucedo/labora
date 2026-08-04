@@ -45,6 +45,10 @@ auditable. Running a stage inline, or hand-priming a generic sub-agent to
 imitate one, silently removes every boundary the stage exists to enforce. If an
 agent is unavailable because the plugin is not installed, say so and stop.
 
-Human-authored profile sources live at `data/personas/<name>/profile/`, generated
-artifacts under `data/personas/<name>/profile/generated/`; every job and all outputs live together
-under `applications/<job-slug>/`. See `README.md` and `ARCHITECTURE.md`.
+Human-authored profile sources live at `<workspace>/personas/<name>/profile/`,
+generated artifacts under `profile/generated/`; every job and all outputs live
+together under `applications/<job-slug>/`. labora is a **plugin and stores no
+user data**: `<workspace>` is a directory you own that contains `personas/`, and
+the normal way to select it is to run from it. `$LABORA_WORKSPACE` and a
+`labora.json` pointer override that for unusual setups. Only the synthetic
+`example` persona is committed. See `README.md` and `ARCHITECTURE.md`.

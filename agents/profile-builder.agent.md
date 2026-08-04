@@ -37,7 +37,7 @@ judge later and costs a real application.
 
 ## Procedure
 
-1. Resolve the persona root: `data/personas/<name>/`.
+1. Resolve the persona root: `<workspace>/personas/<name>/`.
 2. Inventory what exists: `profile/background.md`, optional `profile/career.md`,
    cleaned `evidence/**/text/*.md`, and dated tool snapshots under `evidence/`.
 3. When evidence is missing or stale, launch **`profile-researcher`** as a

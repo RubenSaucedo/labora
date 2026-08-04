@@ -13,7 +13,7 @@ the tools instead of reproducing their logic in prose.
 ## Canonical layout
 
 ```text
-data/personas/<name>/
+<workspace>/personas/<name>/
 ├─ profile/
 │  ├─ contact.md                 # human-authored
 │  ├─ background.md              # human-authored

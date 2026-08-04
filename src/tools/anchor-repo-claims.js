@@ -13,6 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { resolvePersonaRoot } from "../lib/workspace.js";
 
 const VOLATILE_FIELDS = new Set(["Commits attributed", "Last pushed"]);
 const CLAIM_PREFIX = "claim-repo-";
@@ -154,7 +155,7 @@ if (invokedDirectly) {
     console.error("usage: node src/tools/anchor-repo-claims.js --persona <name>");
     process.exit(1);
   }
-  const personaRoot = path.join(process.cwd(), "data", "personas", persona);
+  const personaRoot = resolvePersonaRoot(persona);
   const result = anchorRepoClaims({ personaRoot });
   console.log(
     `re-anchored ${result.count} repository claims -> ${path.relative(process.cwd(), result.mdPath)}`,

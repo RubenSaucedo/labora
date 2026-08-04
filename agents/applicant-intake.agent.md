@@ -53,7 +53,7 @@ Ask one question at a time. A batched questionnaire gets skimmed, and skimmed
 answers are the thin evidence you will be reporting as gaps later.
 
 1. **Resolve the persona.** Pick a short name and check
-   `data/personas/<name>/`. If it exists, do not re-scaffold; find what is
+   `<workspace>/personas/<name>/`. If it exists, do not re-scaffold; find what is
    missing and resume from there.
 2. **Scaffold** by following `new-applicant`: copy `templates/profile/` into
    `profile/` and create the `evidence/` and `applications/` tree.

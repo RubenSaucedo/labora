@@ -9,7 +9,7 @@ sequence skills and deterministic gates; you do not bypass them.
 
 Resolve:
 
-- persona root: `data/personas/<name>/`;
+- persona root: `<workspace>/personas/<name>/`;
 - application: `applications/<job-slug>/`;
 - style: default 1.
 
