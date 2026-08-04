@@ -22,13 +22,33 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the contracts.
 
 ## Quick start
 
-Install the plugin, then restart the CLI so the agents register:
+**1. Install the plugin**, then restart the CLI so the agents register:
 
 ```bash
 /plugin install RubenSaucedo/labora
 ```
 
-Work conversationally — the agents and skills route by intent:
+**2. Install its dependencies.** The deterministic tools are Node scripts with
+real runtime dependencies (`zod`, `docx`, `mammoth`, `pdf-parse`, `tesseract.js`,
+`puppeteer`). The plugin installer git-clones the repo but does **not** run
+`npm install`, so without this step every tool fails with
+`ERR_MODULE_NOT_FOUND`:
+
+```bash
+cd ~/Library/Caches/copilot/marketplaces/RubenSaucedo--labora   # macOS
+npm install --omit=dev
+```
+
+**3. Create a workspace** — a directory you own that holds `personas/`. Your
+career data lives here, never in the plugin:
+
+```bash
+mkdir -p ~/src/labora-<you>/personas && cd ~/src/labora-<you>
+git init          # optional, but if you do version it, keep the repo PRIVATE
+```
+
+**4. Work from that directory.** That is the entire configuration: labora finds
+`personas/` because you ran it there. Agents and skills route by intent:
 
 ```text
 new applicant <persona>

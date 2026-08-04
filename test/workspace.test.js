@@ -4,7 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
-import { personaSearchPaths, resolvePersonaRoot, primaryPersonasDir } from "../src/lib/workspace.js";
+import { personaSearchPaths, resolvePersonaRoot, primaryPersonasDir, PLUGIN_ROOT } from "../src/lib/workspace.js";
+import { validateProfile } from "../src/tools/validate-profile.js";
 import { planMigration } from "../src/tools/migrate-claim-sources.js";
 
 function tmpdir(prefix = "labora-ws-") {
@@ -88,6 +89,19 @@ test("new personas are written to the workspace, not the plugin repo", () => {
   fs.mkdirSync(path.join(ws, "personas"), { recursive: true });
   assert.equal(primaryPersonasDir({ cwd: ws, env: { LABORA_WORKSPACE: ws } }),
     path.join(ws, "personas"));
+});
+
+test("the bundled example persona validates from a cwd outside the plugin repo", () => {
+  // The reference fixture must be portable, because as a plugin it is almost
+  // never run from its own checkout. Repo-relative claim sources resolved only
+  // when the cwd happened to be the labora repo, so `example` silently reported
+  // INVALID everywhere it actually matters.
+  const exampleRoot = resolvePersonaRoot("example", { cwd: PLUGIN_ROOT, env: {} });
+  const elsewhere = tmpdir("labora-elsewhere-");
+  const { valid, issues } = validateProfile(exampleRoot, { repoRoot: elsewhere });
+  const sourceIssues = issues.filter((i) => String(i.code).startsWith("source_"));
+  assert.deepEqual(sourceIssues, [], `example must resolve its own sources from any cwd`);
+  assert.equal(valid, true);
 });
 
 test("claim source migration repoints repo-relative paths to persona-relative", () => {
