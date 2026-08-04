@@ -746,17 +746,24 @@ export function renderJobSearchReport(report, options = {}) {
     lines.push("");
   }
 
-  const lead = cards.slice(0, 2).map((c) => c.company);
+  // Distinct companies: the top cards are frequently several reqs at the same
+  // employer, and "Vercel and Vercel rank highest" reads like a bug because it
+  // is one.
+  const lead = [...new Set(cards.map((c) => c.company))].slice(0, 2);
+  const leadVerb = lead.length === 1 ? "ranks" : "rank";
   lines.push(
     `**${cards.length} role${cards.length === 1 ? "" : "s"} worth your time.**` +
-    (lead.length ? ` ${lead.join(" and ")} rank highest — your evidence covers most of what they ask for.` : "")
+    (lead.length ? ` ${lead.join(" and ")} ${leadVerb} highest — your evidence covers most of what they ask for.` : "")
   );
   const scoredCount = report.candidates.length + (report.excluded || []).length;
   const emptyCount = coverage.filter((c) => c.found === 0).length;
   if (coverage.length) {
     lines.push(
-      `${scoredCount} posting${scoredCount === 1 ? "" : "s"} scored across ${coverage.length} companies searched` +
-      (emptyCount ? ` · ${emptyCount} companies need a wider query (see below)` : "")
+      `${scoredCount} posting${scoredCount === 1 ? "" : "s"} scored across ${coverage.length} ` +
+      `${coverage.length === 1 ? "company" : "companies"} searched` +
+      (emptyCount
+        ? ` · ${emptyCount} ${emptyCount === 1 ? "company needs" : "companies need"} a wider query (see below)`
+        : "")
     );
   }
   lines.push("");

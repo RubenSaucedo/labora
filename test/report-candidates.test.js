@@ -207,3 +207,41 @@ test("only the strongest ten postings become cards", () => {
   assert.match(md, /## Also scored — 4/);
   assert.match(md, /\*\*Co13\*\*/);
 });
+
+test("the headline names distinct companies, not the same one twice", () => {
+  // Several reqs at one employer is the normal shape of a focused run, so
+  // taking the top two cards verbatim produced "Vercel and Vercel rank highest".
+  const md = renderJobSearchReport(report([
+    candidate({ jobId: "job-1", company: "Vercel", title: "SWE, Dashboard" }),
+    candidate({ jobId: "job-2", company: "Vercel", title: "SWE, eve" }),
+  ]));
+  assert.doesNotMatch(md, /Vercel and Vercel/);
+  assert.match(md, /Vercel ranks highest/);
+});
+
+test("the headline uses plural agreement for two distinct companies", () => {
+  const md = renderJobSearchReport(report([
+    candidate({ jobId: "job-1", company: "Vercel" }),
+    candidate({ jobId: "job-2", company: "Notion" }),
+  ]));
+  // Order comes from scoring, not from this assertion — only the agreement and
+  // the distinctness are under test here.
+  assert.match(md, /(Vercel and Notion|Notion and Vercel) rank highest/);
+});
+
+test("coverage counts are pluralized", () => {
+  const one = renderJobSearchReport(report([candidate()], {
+    coverage: [{ company: "Vercel", found: 0, cause: "title_mismatch", queries: ["swe"], note: "n" }],
+  }));
+  assert.match(one, /1 company searched/);
+  assert.match(one, /1 company needs a wider query/);
+
+  const many = renderJobSearchReport(report([candidate()], {
+    coverage: [
+      { company: "Vercel", found: 0, cause: "title_mismatch", queries: ["swe"], note: "n" },
+      { company: "Notion", found: 0, cause: "location", queries: ["swe"], note: "n" },
+    ],
+  }));
+  assert.match(many, /2 companies searched/);
+  assert.match(many, /2 companies need a wider query/);
+});
