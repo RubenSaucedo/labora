@@ -66,3 +66,49 @@ test("unit limitations survive into the review", () => {
     "limitations are the honest caveats a reviewer most needs; they must not be summarised away",
   );
 });
+
+// The review surface exists so ungrounded prose can be caught by a human. It
+// used to render a project's name and link only, so a description that no claim
+// supported was invisible to review as well as unchecked by the gate.
+test("a project description renders beside the claims that ground it", () => {
+  const identity = JSON.parse(fs.readFileSync(path.join(exampleGenerated, "identity.json"), "utf8"));
+  const generated = fs.mkdtempSync(path.join(os.tmpdir(), "render-prose-"));
+  for (const file of ["claims.json", "accomplishments.json"]) {
+    fs.copyFileSync(path.join(exampleGenerated, file), path.join(generated, file));
+  }
+  identity.projects = [{
+    name: "Labora",
+    description: "An evidence-grounded resume assurance system.",
+    highlights: ["Every rendered bullet maps to a verified claim."],
+    link: "",
+    claimIds: ["some-claim"],
+  }];
+  fs.writeFileSync(path.join(generated, "identity.json"), JSON.stringify(identity));
+
+  const markdown = renderProfile("example", generated);
+  assert.match(markdown, /An evidence-grounded resume assurance system\./,
+    "a description that reaches a resume must be visible to a reviewer");
+  assert.match(markdown, /Every rendered bullet maps to a verified claim\./,
+    "highlights render too");
+  assert.match(markdown, /grounded by:.*some-claim/,
+    "a reviewer must see which claims the prose came from");
+});
+
+test("prose with no claim provenance is called out in the review", () => {
+  const identity = JSON.parse(fs.readFileSync(path.join(exampleGenerated, "identity.json"), "utf8"));
+  const generated = fs.mkdtempSync(path.join(os.tmpdir(), "render-prose-bare-"));
+  for (const file of ["claims.json", "accomplishments.json"]) {
+    fs.copyFileSync(path.join(exampleGenerated, file), path.join(generated, file));
+  }
+  identity.projects = [{
+    name: "Labora",
+    description: "Led a team of twelve.",
+    highlights: [],
+    link: "",
+    claimIds: [],
+  }];
+  fs.writeFileSync(path.join(generated, "identity.json"), JSON.stringify(identity));
+
+  assert.match(renderProfile("example", generated), /grounded by:.*\*\*nothing\*\*/,
+    "ungrounded prose must be conspicuous, not merely absent");
+});

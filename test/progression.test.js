@@ -123,3 +123,27 @@ test("a correctly grounded promotion passes the gate", () => {
   const progressionIssues = found.filter((c) => c.startsWith("progression") || c === "unmapped_progression");
   assert.deepEqual(progressionIssues, []);
 });
+
+// A step is matched to the identity record by `label`, but `formatProgression`
+// renders `externalLabel` in its place whenever one is set, plus `date`.
+// Checking `label` alone let the rendered title and year say anything while the
+// step still resolved to a real, claim-backed promotion.
+test("a promotion whose rendered label was rewritten is rejected", () => {
+  const found = codes([
+    { label: "L62", externalLabel: "Distinguished Principal Architect", date: "2024", disclosure: "internal_generalizable", claimIds: ["claim-l62"] },
+  ]);
+  assert.ok(
+    found.includes("progression_identity_changed"),
+    `the label that actually renders must match the identity record, got ${found.join(", ")}`,
+  );
+});
+
+test("a promotion whose date was rewritten is rejected", () => {
+  const found = codes([
+    { label: "L62", externalLabel: "Promoted", date: "2019", disclosure: "internal_generalizable", claimIds: ["claim-l62"] },
+  ]);
+  assert.ok(
+    found.includes("progression_identity_changed"),
+    `an invented promotion date must be rejected, got ${found.join(", ")}`,
+  );
+});

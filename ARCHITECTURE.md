@@ -191,6 +191,33 @@ like a bullet: the step must exist in the identity spine, carry verified
 disclosable claims, and supply an `externalLabel` when the internal token is not
 meaningful outside the company. An `internal_only` step never renders.
 
+A step is located in the spine by `label`, but `label` is not necessarily what
+prints — `formatProgression` substitutes `externalLabel` whenever one is set, and
+prints `date` beside it. So `externalLabel` and `date` are each required to match
+the identity record (`progression_identity_changed`). Checking `label` alone left
+the rendered title and year free to claim anything while the step still resolved
+to a real, claim-backed promotion.
+
+Composed prose in the spine carries explicit provenance in `claimIds`:
+`projects[].description`, `projects[].highlights[]` and
+`awards_or_contributions[].description`. Atomic fields such as a project `name`
+are grounded by matching them against a source excerpt, but a description cannot
+be checked that way — it is written *from* evidence rather than quoted from it,
+so no substring match confirms it. Before 4.0.0 those fields were compared to
+nothing, and because a resume project validates by exact-object match against
+the spine, a description effectively validated against itself and could reach a
+rendered document unsupported. The claims listed must exist, be `verified`, and
+not be `internal_only` — the same three checks a rendered bullet and a
+progression step already clear (`claimProvenanceIssues`). A record with no
+description and no highlights needs no `claimIds`, because it renders no prose.
+
+Upgrading to 4.0.0 makes a persona whose projects or awards carry undocumented
+prose fail `validate-profile` with `identity_prose_unmapped`. That failure is the
+defect surfacing, not a new restriction: the prose was always ungrounded. Rebuild
+the spine through `profile-builder` so each description names the claims it was
+composed from. If no claim supports a description, the description was never
+supportable and belongs in a gap report rather than in a resume.
+
 It was called `core-resume.json` through schema 3.0. The name was removed with
 the fields, because a document named "resume" invites an agent to treat it as a
 resume to edit — which is the anchoring behaviour 4.0 exists to prevent.
@@ -255,6 +282,12 @@ ones. Omission is a tailoring decision, reviewed by strategy and the judges.
 
 The check is multiset containment, so a resume cannot pad a section by repeating
 one verified entry.
+
+Containment is keyed on the fields a reader will see; `claimIds` is excluded
+(`catalogKey`). Provenance records where a description came from and is stripped
+before rendering, so comparing it would make a tailor that copied the visible
+record faithfully but omitted the metadata fail as though it had invented the
+entry — and would make the verdict depend on the order of the IDs.
 
 ### `applications/<slug>/job-spec.json`
 
