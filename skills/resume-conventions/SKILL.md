@@ -116,27 +116,27 @@ pre-baked resume prose that anchors the tailor instead of informing it.
 
 | Need | Command |
 |---|---|
-| Parse basic job metadata | `node src/tools/parse-job.js <job.md>` |
-| Build structured required/preferred constraints | `node src/tools/analyze-job.js <job.md> <job-spec.json>` |
-| Rank accomplishment units for a job | `node src/tools/rank-accomplishments.js <accomplishments.json> <job-spec.json> [--limit <n>]` |
-| Validate application strategy references | `node src/tools/validate-application-strategy.js <strategy.json> <job-spec.json> <claims.json> --accomplishments <accomplishments.json> --output <validations/strategy.json>` |
-| Score lexical and structured requirement coverage | `node src/tools/score-ats.js <resume.json> <job.md> --job-spec <job-spec.json>` |
-| Validate a persona's profile alone (no job, no resume) | `node src/tools/validate-profile.js <persona-name>` |
-| Validate every bullet/skill against claims | `node src/tools/validate-claims.js <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` |
-| Render DOCX with deterministic contact injection | `node src/tools/format-docx.js <resume.json> <out.docx> --style <N> --job <job.md> --contact <contact.md>` |
-| Render text-layer PDF | `node src/tools/format-pdf.js <resume.json> <out.pdf> --style <N> --job <job.md> --contact <contact.md>` |
-| Render visual page previews | `node src/tools/render-artifact-preview.js <out.pdf> <application>/previews` |
-| Extract selected DOCX/PDF delivery text | `node src/tools/artifact-text.js <file.docx|file.pdf>` |
-| Validate rendered field recall/order/contact | `node src/tools/validate-artifact.js <resume.json> <file.docx> --contact <contact.md> --job <job.md> --output <validations/artifact.json>` |
-| Check content-hash freshness | `node src/tools/run-state.js check <application-dir> --style <N>` |
-| Record a completed stage | `node src/tools/run-state.js record <application-dir> <stage> --style <N> [--model ID]` |
-| Aggregate the final release state | `node src/tools/quality-gate.js <application-dir> --style <N> --artifact <selected.docx|selected.pdf>` |
-| Prepare isolated judge input | `node src/tools/prepare-judge-input.js <ats|engineer|hr> <application-dir> <artifact>` |
-| Record an operator-confirmed outcome | `node src/tools/application-outcome.js <application-dir> record <event>` |
-| Extract PDF text/OCR | `node src/tools/pdf-text.js <file.pdf> [out.md] [--ocr]` |
-| Snapshot GitHub repository evidence | `node src/tools/snapshot-repos.js --persona <name> [--owner <login>] [--since YYYY-MM-DD] [--verify-urls]` |
-| Re-anchor repository claims after a snapshot | `node src/tools/anchor-repo-claims.js --persona <name>` |
-| Validate evidence cleaning | `node src/tools/validate-evidence-cleaning.js <extracted.md> <cleaned.md> --metadata <extracted.json> --output <validation.json>` |
+| Parse basic job metadata | `labora parse-job <job.md>` |
+| Build structured required/preferred constraints | `labora analyze-job <job.md> <job-spec.json>` |
+| Rank accomplishment units for a job | `labora rank-accomplishments <accomplishments.json> <job-spec.json> [--limit <n>]` |
+| Validate application strategy references | `labora validate-application-strategy <strategy.json> <job-spec.json> <claims.json> --accomplishments <accomplishments.json> --output <validations/strategy.json>` |
+| Score lexical and structured requirement coverage | `labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>` |
+| Validate a persona's profile alone (no job, no resume) | `labora validate-profile <persona-name>` |
+| Validate every bullet/skill against claims | `labora validate-claims <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` |
+| Render DOCX with deterministic contact injection | `labora format-docx <resume.json> <out.docx> --style <N> --job <job.md> --contact <contact.md>` |
+| Render text-layer PDF | `labora format-pdf <resume.json> <out.pdf> --style <N> --job <job.md> --contact <contact.md>` |
+| Render visual page previews | `labora render-artifact-preview <out.pdf> <application>/previews` |
+| Extract selected DOCX/PDF delivery text | `labora artifact-text <file.docx|file.pdf>` |
+| Validate rendered field recall/order/contact | `labora validate-artifact <resume.json> <file.docx> --contact <contact.md> --job <job.md> --output <validations/artifact.json>` |
+| Check content-hash freshness | `labora run-state check <application-dir> --style <N>` |
+| Record a completed stage | `labora run-state record <application-dir> <stage> --style <N> [--model ID]` |
+| Aggregate the final release state | `labora quality-gate <application-dir> --style <N> --artifact <selected.docx|selected.pdf>` |
+| Prepare isolated judge input | `labora prepare-judge-input <ats|engineer|hr> <application-dir> <artifact>` |
+| Record an operator-confirmed outcome | `labora application-outcome <application-dir> record <event>` |
+| Extract PDF text/OCR | `labora pdf-text <file.pdf> [out.md] [--ocr]` |
+| Snapshot GitHub repository evidence | `labora snapshot-repos --persona <name> [--owner <login>] [--since YYYY-MM-DD] [--verify-urls]` |
+| Re-anchor repository claims after a snapshot | `labora anchor-repo-claims --persona <name>` |
+| Validate evidence cleaning | `labora validate-evidence-cleaning <extracted.md> <cleaned.md> --metadata <extracted.json> --output <validation.json>` |
 
 `coverage_percent` is lexical coverage, not an ATS hiring probability.
 `requirement_coverage_percent` evaluates structured required lines.

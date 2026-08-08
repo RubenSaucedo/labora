@@ -9,7 +9,7 @@ import { filterReportByCompany, renderJobSearchReport } from "../lib/job-search.
  * files.
  *
  * Usage:
- *   node src/tools/report-company.js --company <name> --out <file.md> \
+ *   labora report-company --company <name> --out <file.md> \
  *     <candidates.json> [more-candidates.json ...]
  *
  * Every posting for that company renders as a full card spanning all four
@@ -37,7 +37,7 @@ const inputs = process.argv.slice(2).filter((a, i, all) => {
 
 if (!company || !outPath || inputs.length === 0) {
   process.stderr.write(
-    "Usage: node src/tools/report-company.js --company <name> --out <file.md> <candidates.json> [...]\n"
+    "Usage: labora report-company --company <name> --out <file.md> <candidates.json> [...]\n"
   );
   process.exit(1);
 }

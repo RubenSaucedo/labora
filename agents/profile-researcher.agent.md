@@ -31,7 +31,7 @@ check for a deterministic tool and prefer it:
 
 | Category | Tool |
 | --- | --- |
-| `repositories/` | `node src/tools/snapshot-repos.js --persona <name> --verify-urls` |
+| `repositories/` | `labora snapshot-repos --persona <name> --verify-urls` |
 
 When no tool exists for a source you are asked to capture, say so and propose
 adding one rather than hand-writing the file. Hand-typing a retrieved fact

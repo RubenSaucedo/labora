@@ -10,7 +10,7 @@ user-invocable: false
 Load `resume-conventions` first. Read-only judge; never edits the resume.
 
 **Input:** only the JSON bundle from
-`node src/tools/prepare-judge-input.js hr <application-dir> <artifact>`.
+`labora prepare-judge-input hr <application-dir> <artifact>`.
 **Output:** `applications/<job-slug>/judges/hr.json` validating against
 `ZHrJudgeOutput` in `src/schemas/judge-output.js`.
 

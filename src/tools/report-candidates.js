@@ -7,14 +7,14 @@ import { renderJobSearchReport } from "../lib/job-search.js";
 /**
  * Render a human-readable report.md from candidates.json.
  *
- * Usage: node src/tools/report-candidates.js <run-dir/candidates.json> [out.md]
+ * Usage: labora report-candidates <run-dir/candidates.json> [out.md]
  *
  * When candidates.json carries cross-run dedup data, the report leads with
  * genuinely new leads and marks how many runs each posting has appeared in.
  */
 const inPath = process.argv[2];
 if (!inPath) {
-  process.stderr.write("Usage: node src/tools/report-candidates.js <candidates.json> [out.md]\n");
+  process.stderr.write("Usage: labora report-candidates <candidates.json> [out.md]\n");
   process.exit(1);
 }
 const outPath = process.argv[3] || path.join(path.dirname(inPath), "report.md");

@@ -39,12 +39,12 @@ resume build reuses without re-paying OCR cost.
 For each `raw/<name>.pdf`:
 
 1. Extract and persist the mechanical transcript:
-   `node src/tools/pdf-text.js <raw.pdf> <extracted/name.md> --metadata <extracted/name.json>`
+   `labora pdf-text <raw.pdf> <extracted/name.md> --metadata <extracted/name.json>`
    (add `--ocr` when a text-layer pass is incomplete).
 2. Read the persisted extraction and produce a **faithfully cleaned** markdown
    version under `text/`.
 3. Run:
-   `node src/tools/validate-evidence-cleaning.js <extracted.md> <cleaned.md> --metadata <extracted/name.json> --output <validations/name.json>`.
+   `labora validate-evidence-cleaning <extracted.md> <cleaned.md> --metadata <extracted/name.json> --output <validations/name.json>`.
    Any newly introduced number/date/percentage is a hard error requiring human
    comparison against the PDF.
 

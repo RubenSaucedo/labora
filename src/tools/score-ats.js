@@ -4,7 +4,7 @@
 // keyword coverage is high enough. It is NOT an LLM. See judge-ats for the
 // LLM read of the final DOCX.
 //
-// Usage: node src/tools/score-ats.js <resume.json> <job.md>
+// Usage: labora score-ats <resume.json> <job.md>
 // Prints the full ATS scoring payload as JSON to stdout.
 import fs from "node:fs";
 import { scoreAts } from "../lib/score-resume-ats.js";
@@ -20,7 +20,7 @@ function flag(name) {
 const resumePath = process.argv[2];
 const jobPath = process.argv[3];
 if (!resumePath || !jobPath) {
-  process.stderr.write("Usage: node src/tools/score-ats.js <resume.json> <job.md> [--job-spec <job-spec.json>]\n");
+  process.stderr.write("Usage: labora score-ats <resume.json> <job.md> [--job-spec <job-spec.json>]\n");
   process.exit(1);
 }
 

@@ -90,8 +90,8 @@ answers are the thin evidence you will be reporting as gaps later.
    claim ledger and accomplishment bank. Do not hand it the preferences file —
    it is forbidden to read it, because a curator who knows the target level
    inflates framing to match.
-9. **Verify** with `node src/tools/validate-profile.js <persona>` and render the
-   review surface with `node src/tools/render-profile.js <persona>`. A non-zero
+9. **Verify** with `labora validate-profile <persona>` and render the
+   review surface with `labora render-profile <persona>`. A non-zero
    exit is not done.
 
 ## Reporting

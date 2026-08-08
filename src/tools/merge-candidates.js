@@ -22,7 +22,7 @@ import { ZClaimLedger } from "../schemas/provenance.js";
  * Reconcile scout reports into candidates.json.
  *
  * Usage:
- *   node src/tools/merge-candidates.js <run-dir> --prefs <search-preferences.json> \
+ *   labora merge-candidates <run-dir> --prefs <search-preferences.json> \
  *     [--claims <claims.json>] \
  *     [--persona <name>] [--min-agreement 2] [--threshold 70] [--fit-floor 60]
  *
@@ -45,7 +45,7 @@ const runDir = process.argv[2];
 const prefsPath = arg("--prefs");
 if (!runDir || !prefsPath) {
   process.stderr.write(
-    "Usage: node src/tools/merge-candidates.js <run-dir> --prefs <search-preferences.json> [--claims <claims.json>] [--persona name] [--min-agreement 2] [--threshold 70] [--fit-floor 60] [--seen <seen.json>] [--suppress-seen]\n"
+    "Usage: labora merge-candidates <run-dir> --prefs <search-preferences.json> [--claims <claims.json>] [--persona name] [--min-agreement 2] [--threshold 70] [--fit-floor 60] [--seen <seen.json>] [--suppress-seen]\n"
   );
   process.exit(1);
 }

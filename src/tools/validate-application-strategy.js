@@ -20,7 +20,7 @@ const bankPath = flag("--accomplishments");
 
 if (!strategyPath || !jobSpecPath || !claimsPath) {
   process.stderr.write(
-    "Usage: node src/tools/validate-application-strategy.js <application-strategy.json> <job-spec.json> <claims.json> [--accomplishments <accomplishments.json>] [--output <validation.json>]\n"
+    "Usage: labora validate-application-strategy <application-strategy.json> <job-spec.json> <claims.json> [--accomplishments <accomplishments.json>] [--output <validation.json>]\n"
   );
   process.exit(1);
 }

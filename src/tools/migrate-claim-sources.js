@@ -79,7 +79,7 @@ if (invokedDirectly) {
   const write = args.includes("--write");
   const persona = args.find((a) => !a.startsWith("--"));
   if (!persona) {
-    console.error("usage: node src/tools/migrate-claim-sources.js <persona> [--write]");
+    console.error("usage: labora migrate-claim-sources <persona> [--write]");
     process.exit(1);
   }
 

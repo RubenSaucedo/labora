@@ -62,7 +62,7 @@ proves exposure to a topic; on its own it does not earn a displayed skill, which
 still requires claim-backed applied work.
 
 **Repository evidence is retrieved, never written by hand.** Run
-`node src/tools/snapshot-repos.js --persona <name>` to capture repository facts
+`labora snapshot-repos --persona <name>` to capture repository facts
 into `evidence/repositories/<date>/repositories.md`. Only that generated file
 grounds claims, so the corpus stays re-verifiable: any reviewer can re-run the
 tool and diff the result.

@@ -17,7 +17,7 @@ Ignore names and protected-trait proxies. The deterministic artifact validator,
 not candidate identity or school prestige, owns contact and parseability checks.
 
 **Input:** only the JSON bundle from
-`node src/tools/prepare-judge-input.js ats <application-dir> <artifact>`.
+`labora prepare-judge-input ats <application-dir> <artifact>`.
 **Output:** `applications/<job-slug>/judges/ats.json` validating against
 `ZAtsJudgeOutput` in `src/schemas/judge-output.js`.
 

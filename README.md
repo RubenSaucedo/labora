@@ -289,22 +289,22 @@ rubric; the matching agents provide the isolated context that runs them.
 ## Deterministic tools
 
 ```bash
-node src/tools/analyze-job.js <job.md> [job-spec.json]
-node src/tools/validate-evidence-cleaning.js <extracted.md> <cleaned.md> --metadata <extracted.json>
-node src/tools/validate-application-strategy.js <strategy.json> <job-spec.json> <claims.json> [--accomplishments <accomplishments.json>]
-node src/tools/rank-accomplishments.js <accomplishments.json> <job-spec.json> [--limit <n>]
-node src/tools/score-ats.js <resume.json> <job.md> --job-spec <job-spec.json>
-node src/tools/validate-claims.js <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>]
-node src/tools/format-docx.js <resume.json> <out.docx> --job <job.md> --contact <contact.md>
-node src/tools/format-pdf.js <resume.json> <out.pdf> --job <job.md> --contact <contact.md>
-node src/tools/render-artifact-preview.js <out.pdf> <application-dir>/previews
-node src/tools/validate-artifact.js <resume.json> <out.docx|out.pdf> --contact <contact.md> --job <job.md> [--cross-parser]
-node src/tools/prepare-judge-input.js <ats|engineer|hr> <application-dir> <artifact>
-node src/tools/run-state.js check <application-dir> --style 1
-node src/tools/quality-gate.js <application-dir> --artifact <selected.docx|selected.pdf>
-node src/tools/merge-candidates.js <run-dir> --prefs <search-preferences.json> --claims <claims.json> [--fit-floor 60] [--seen <seen.json>] [--suppress-seen]
-node src/tools/calibrate-judges.js [--persona <name>] [--out <calibration.json>]
-node src/tools/application-outcome.js <application-dir> show|record <event>
+labora analyze-job <job.md> [job-spec.json]
+labora validate-evidence-cleaning <extracted.md> <cleaned.md> --metadata <extracted.json>
+labora validate-application-strategy <strategy.json> <job-spec.json> <claims.json> [--accomplishments <accomplishments.json>]
+labora rank-accomplishments <accomplishments.json> <job-spec.json> [--limit <n>]
+labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>
+labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>]
+labora format-docx <resume.json> <out.docx> --job <job.md> --contact <contact.md>
+labora format-pdf <resume.json> <out.pdf> --job <job.md> --contact <contact.md>
+labora render-artifact-preview <out.pdf> <application-dir>/previews
+labora validate-artifact <resume.json> <out.docx|out.pdf> --contact <contact.md> --job <job.md> [--cross-parser]
+labora prepare-judge-input <ats|engineer|hr> <application-dir> <artifact>
+labora run-state check <application-dir> --style 1
+labora quality-gate <application-dir> --artifact <selected.docx|selected.pdf>
+labora merge-candidates <run-dir> --prefs <search-preferences.json> --claims <claims.json> [--fit-floor 60] [--seen <seen.json>] [--suppress-seen]
+labora calibrate-judges [--persona <name>] [--out <calibration.json>]
+labora application-outcome <application-dir> show|record <event>
 ```
 
 `coverage_percent` is lexical coverage only.
@@ -347,7 +347,7 @@ stage and prevent release.
 Documents and job descriptions are treated as untrusted data, never instructions.
 
 Repository evidence is retrieved, not written by hand:
-`node src/tools/snapshot-repos.js --persona <name>` records repository facts
+`labora snapshot-repos --persona <name>` records repository facts
 (visibility, languages, commit counts, dates, README excerpt) under
 `evidence/repositories/<date>/`. Only the generated `repositories.md` grounds
 claims, so any reviewer can re-run the tool and diff the result. Visibility is

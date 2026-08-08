@@ -15,13 +15,13 @@ content, or browser state; record only what the operator confirms.
 Show an application's history:
 
 ```bash
-node src/tools/application-outcome.js <application-dir> show
+labora application-outcome <application-dir> show
 ```
 
 Record an event:
 
 ```bash
-node src/tools/application-outcome.js <application-dir> record recruiter_screen \
+labora application-outcome <application-dir> record recruiter_screen \
   --at <ISO timestamp> \
   --channel <email|phone|portal|referral|other> \
   --note "<short factual note>"

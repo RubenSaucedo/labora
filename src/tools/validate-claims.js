@@ -16,7 +16,7 @@ const outputPath = outputIndex >= 0 ? process.argv[outputIndex + 1] : null;
 const bankIndex = process.argv.indexOf("--accomplishments");
 const explicitBankPath = bankIndex >= 0 ? process.argv[bankIndex + 1] : null;
 if (!resumePath || !identityPath || !ledgerPath) {
-  process.stderr.write("Usage: node src/tools/validate-claims.js <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>]\n");
+  process.stderr.write("Usage: labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>]\n");
   process.exit(1);
 }
 

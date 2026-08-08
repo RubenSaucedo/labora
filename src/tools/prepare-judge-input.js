@@ -8,7 +8,7 @@ const artifactPath = process.argv[4];
 
 if (!judge || !applicationDir || !artifactPath) {
   process.stderr.write(
-    "Usage: node src/tools/prepare-judge-input.js <ats|engineer|hr> <application-dir> <artifact.docx|artifact.pdf>\n"
+    "Usage: labora prepare-judge-input <ats|engineer|hr> <application-dir> <artifact.docx|artifact.pdf>\n"
   );
   process.exit(1);
 }

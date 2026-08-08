@@ -9,7 +9,7 @@ user-invocable: false
 
 Load `resume-conventions`.
 
-Run `node src/tools/quality-gate.js <application-dir> --style <N> --artifact
+Run `labora quality-gate <application-dir> --style <N> --artifact
 <selected-delivery-artifact>`. The tool writes
 `release.json`.
 

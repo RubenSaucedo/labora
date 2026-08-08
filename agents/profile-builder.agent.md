@@ -48,11 +48,11 @@ judge later and costs a real application.
 5. Run `resume-persona` to (re)build the identity spine, claim ledger and
    accomplishment bank.
 6. Validate, and treat validation as the definition of done:
-   `node src/tools/validate-profile.js <persona-name>`
+   `labora validate-profile <persona-name>`
    It checks the ledger and every identity record with no job and no resume in
    play. A non-zero exit is not done.
 7. Render the human review surface:
-   `node src/tools/render-profile.js <persona-name>`
+   `labora render-profile <persona-name>`
    It writes `profile/generated/PROFILE.md`. Nobody reviews a few thousand lines
    of JSON, so an unreviewed ledger is an unchallenged one. Regenerate it after
    every rebuild and never hand-edit it.

@@ -10,7 +10,7 @@ const outputDir = process.argv[3];
 
 if (!pdfPath || !outputDir) {
   process.stderr.write(
-    "Usage: node src/tools/render-artifact-preview.js <resume.pdf> <output-dir>\n"
+    "Usage: labora render-artifact-preview <resume.pdf> <output-dir>\n"
   );
   process.exit(1);
 }

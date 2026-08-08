@@ -39,7 +39,7 @@ This is a private planning artifact. It is never rendered into the resume.
    operator must add a durable source to `profile/background.md`, `profile/career.md`
    or the evidence corpus, then rerun `resume-persona`.
 5. Shortlist accomplishment units. Run
-   `node src/tools/rank-accomplishments.js <accomplishments.json> <job-spec.json>`
+   `labora rank-accomplishments <accomplishments.json> <job-spec.json>`
    for a deterministic starting order, then record `unitShortlist` entries with a
    `rank`, the requirement IDs each unit genuinely covers, and a one-line
    rationale. The ranking is an input to your judgment, not a verdict: promote a
@@ -60,7 +60,7 @@ This is a private planning artifact. It is never rendered into the resume.
    - `needs_evidence`: at least one question remains pending;
    - `blocked`: a confirmed hard-eligibility condition cannot be met.
 8. Validate:
-   `node src/tools/validate-application-strategy.js <strategy.json> <job-spec.json> <claims.json> --accomplishments <accomplishments.json> --output <validations/strategy.json>`.
+   `labora validate-application-strategy <strategy.json> <job-spec.json> <claims.json> --accomplishments <accomplishments.json> --output <validations/strategy.json>`.
 9. Record `application_strategy` with `run-state`.
 
 Never convert an unsupported requirement into a claim, imply that ledger absence

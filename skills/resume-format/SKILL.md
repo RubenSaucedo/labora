@@ -13,7 +13,7 @@ Load `resume-conventions`. Formatting never edits content.
 Render DOCX:
 
 ```bash
-node src/tools/format-docx.js \
+labora format-docx \
   <application>/resume.json \
   <application>/final-resume-style-<N>.docx \
   --style <N> \
@@ -26,7 +26,7 @@ delivery artifact. Select one delivery artifact for this run; do not assume PDF
 or DOCX universally parses better. Render page previews:
 
 ```bash
-node src/tools/render-artifact-preview.js \
+labora render-artifact-preview \
   <application>/final-resume-style-<N>.pdf \
   <application>/previews
 ```
