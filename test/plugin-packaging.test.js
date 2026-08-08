@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -187,13 +188,51 @@ test("the dispatcher depends on nothing but Node itself", () => {
 });
 
 // The hook is what tells the model where the dispatcher actually lives.
+//
+// The events must sit under a "hooks" key. A file that puts them at the top
+// level parses as valid JSON and is silently discarded - the CLI logs
+// "hooks must be an object" to a debug log and starts normally, so the only
+// visible symptom is a hook that never runs. This shipped once already.
 test("the plugin registers a hook that announces the dispatcher", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, "plugin.json"), "utf8"));
   assert.equal(manifest.hooks, "hooks.json", "plugin.json must point at the hook file");
-  const hooks = JSON.parse(fs.readFileSync(path.join(repoRoot, manifest.hooks), "utf8"));
-  const commands = (hooks.sessionStart || []).map((h) => h.bash || h.command || "");
+  const config = JSON.parse(fs.readFileSync(path.join(repoRoot, manifest.hooks), "utf8"));
+
+  assert.ok(
+    config.hooks && typeof config.hooks === "object" && !Array.isArray(config.hooks),
+    'hook events must be nested under a "hooks" object, or the runtime discards the file silently',
+  );
+  assert.ok(
+    !config.sessionStart,
+    "sessionStart is at the top level, where the runtime will not look for it",
+  );
+
+  const handlers = config.hooks.sessionStart || [];
+  assert.ok(handlers.length > 0, "a sessionStart handler is required");
+  for (const handler of handlers) {
+    assert.equal(handler.type, "command", "each handler needs an explicit type");
+    assert.ok(handler.timeoutSec > 0, "a hook without a timeout can hang session startup");
+  }
+  const commands = handlers.map((h) => h.bash || h.command || "");
   assert.ok(
     commands.some((c) => c.includes("PLUGIN_ROOT") && c.includes("bin/labora")),
     "the sessionStart hook must resolve bin/labora through the plugin root the runtime provides",
+  );
+});
+
+// The hook's stdout is parsed as JSON by the runtime. If announce ever printed
+// a bare string or a stray log line, the hook would fail the same silent way.
+test("announce emits exactly one line of parseable hook output", () => {
+  const result = spawnSync(path.join(repoRoot, "bin", "labora"), ["announce"], {
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, "announce must succeed even when dependencies are missing");
+  const lines = result.stdout.trim().split("\n");
+  assert.equal(lines.length, 1, "multi-line output would not parse as a hook response");
+  const parsed = JSON.parse(lines[0]);
+  assert.equal(typeof parsed.additionalContext, "string");
+  assert.ok(
+    parsed.additionalContext.includes(path.join(repoRoot, "bin", "labora")),
+    "the announcement must carry the absolute dispatcher path; that is its whole purpose",
   );
 });
