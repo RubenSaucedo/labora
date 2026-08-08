@@ -6,6 +6,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { resolvePersonaRoot } from "../lib/workspace.js";
+
 const SOURCE_TIERS = [
   { match: /evidence\/repositories\//, tier: "machine-retrievable", note: "tool snapshot of a repository" },
   { match: /performance-review|evidence\/performance-reviews\//, tier: "attested", note: "employer performance review" },
@@ -183,17 +185,40 @@ export function renderProfile(personaName, generatedDir) {
     ...renderIdentitySection("Education", identity.education, (e) =>
       `${e.degree}, ${e.school} (${e.startDate}–${e.endDate})`),
   );
+  // Descriptions and highlights are the only prose the identity record renders,
+  // so they are the only part a reviewer can catch drifting from evidence.
+  // Showing them beside the claims that ground them makes that check possible;
+  // rendering the name alone leaves the prose unreviewed as well as unverified.
+  const renderProse = (record) => {
+    const lines = [];
+    const description = String(record.description || "").trim();
+    if (description) lines.push(`  - ${description}`);
+    for (const highlight of record.highlights || []) {
+      const text = String(highlight || "").trim();
+      if (text) lines.push(`  - ${text}`);
+    }
+    if (lines.length) {
+      const ids = record.claimIds || [];
+      lines.push(`  - _grounded by:_ ${ids.length ? ids.join(", ") : "**nothing**"}`);
+    }
+    return lines.join("\n");
+  };
+
   out.push(
-    ...renderIdentitySection("Projects", identity.projects, (p) =>
-      `**${p.name}**${p.link ? ` — ${p.link}` : ""}`),
+    ...renderIdentitySection("Projects", identity.projects, (p) => {
+      const prose = renderProse(p);
+      return `**${p.name}**${p.link ? ` — ${p.link}` : ""}${prose ? `\n${prose}` : ""}`;
+    }),
   );
   out.push(
     ...renderIdentitySection("Certifications", identity.certifications, (c) =>
       `${c.name} — ${c.issuer} ${c.year}${c.credential_url ? ` — ${c.credential_url}` : " — _no credential link_"}`),
   );
   out.push(
-    ...renderIdentitySection("Awards & contributions", identity.awards_or_contributions, (a) =>
-      `${a.title} (${a.year})${a.link ? ` — ${a.link}` : ""}`),
+    ...renderIdentitySection("Awards & contributions", identity.awards_or_contributions, (a) => {
+      const prose = renderProse(a);
+      return `${a.title} (${a.year})${a.link ? ` — ${a.link}` : ""}${prose ? `\n${prose}` : ""}`;
+    }),
   );
 
   const orphans = ledger.claims.filter((claim) => !claimedByUnit.has(claim.id));
@@ -211,12 +236,18 @@ export function renderProfile(personaName, generatedDir) {
 }
 
 function main() {
-  const personaName = process.argv[2];
-  if (!personaName) {
+  const personaArg = process.argv[2];
+  if (!personaArg) {
     console.error("usage: labora render-profile <persona-name>");
     process.exit(2);
   }
-  const generatedDir = path.join("data/personas", personaName, "profile/generated");
+  // Resolve through the shared persona search path. A relative "data/personas"
+  // only resolves when the process runs from the plugin root against bundled
+  // fixture data, which stopped being the normal case when persona data moved
+  // to a separate private workspace.
+  const personaRoot = fs.existsSync(personaArg) ? personaArg : resolvePersonaRoot(personaArg);
+  const personaName = path.basename(personaRoot);
+  const generatedDir = path.join(personaRoot, "profile/generated");
   if (!fs.existsSync(generatedDir)) {
     console.error(`No generated profile at ${generatedDir}`);
     process.exit(2);

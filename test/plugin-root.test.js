@@ -139,3 +139,24 @@ test("pathLabel names a file by the most specific root that contains it", () => 
   );
   assert.equal(pathLabel("/elsewhere/file.md", roots), "absolute:/elsewhere/file.md");
 });
+
+// A tool that joins a relative "data/personas" resolves against the process cwd,
+// so it only finds a persona when the process happens to run from the plugin
+// root against bundled fixture data. That stopped being the normal case when
+// persona data moved to a separate workspace, and it is invisible until a real
+// persona is used. Every tool must go through the shared persona resolver.
+test("no tool resolves a persona through a hardcoded relative path", () => {
+  const toolsDir = path.join(pluginRoot, "src", "tools");
+  const offenders = [];
+  for (const entry of fs.readdirSync(toolsDir)) {
+    if (!entry.endsWith(".js")) continue;
+    const source = fs.readFileSync(path.join(toolsDir, entry), "utf8");
+    // Only a string literal used as a path base, not a mention in prose.
+    if (/path\.join\(\s*["'`]data\/personas/.test(source)) offenders.push(entry);
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    "these tools must call resolvePersonaRoot() instead of joining a relative persona path",
+  );
+});

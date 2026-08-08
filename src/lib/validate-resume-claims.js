@@ -133,6 +133,20 @@ function normalizedMultiset(values) {
   return values.map((value) => JSON.stringify(normalizedObject(value))).sort();
 }
 
+/**
+ * The key that decides whether a catalog entry was fabricated.
+ *
+ * It compares what a reader will see, so provenance is excluded: `claimIds`
+ * records where a description came from, and is stripped from the artifact
+ * before rendering. Including it would make a tailor that copies the visible
+ * record faithfully but omits the metadata fail as though it had invented the
+ * entry, and would make the check sensitive to the order of the IDs.
+ */
+function catalogKey(entry) {
+  const { claimIds, ...rendered } = entry || {};
+  return JSON.stringify(normalizedObject(rendered));
+}
+
 function withinDir(root, candidate) {
   const relative = path.relative(root, candidate);
   return (
@@ -217,6 +231,36 @@ function recordSupportedByClaims(record, claims, requiredFields) {
       return normalize(evidence).includes(normalize(value));
     })
   );
+}
+
+/**
+ * Gates a set of claim IDs that ground rendered content.
+ *
+ * Every surface that renders composed prose — a progression step, a project
+ * description, an award description — must clear the same three checks, so they
+ * share one implementation rather than three that can drift apart.
+ */
+function claimProvenanceIssues(claimIds, claimById, location) {
+  const found = [];
+  for (const claimId of claimIds) {
+    const claim = claimById.get(claimId);
+    if (!claim) {
+      found.push(issue("error", "unknown_claim", `Claim "${claimId}" does not exist.`, location));
+      continue;
+    }
+    if (claim.status !== "verified") {
+      found.push(issue("error", "unverified_claim", `Claim "${claimId}" is ${claim.status}.`, location));
+    }
+    if (claim.disclosure === "internal_only") {
+      found.push(issue(
+        "error",
+        "confidential_claim_rendered",
+        `Claim "${claimId}" is internal_only and may not ground rendered resume content.`,
+        location
+      ));
+    }
+  }
+  return found;
 }
 
 function sha256(filePath) {
@@ -370,6 +414,44 @@ export function validateResumeClaims({
     }
   }
 
+  // Atomic fields above are grounded by matching them against a source excerpt.
+  // Composed prose cannot be: a description is written *from* evidence, not
+  // quoted from it, so substring containment would reject every honestly
+  // written record. Prose therefore names the claims it was composed from, the
+  // same contract a rendered bullet meets.
+  //
+  // Only records that actually carry prose are gated. A project with no
+  // description and no highlights renders nothing that needs grounding beyond
+  // its already-checked name.
+  const proseChecks = [
+    ["projects", ["description", "highlights"]],
+    ["awards_or_contributions", ["description"]],
+  ];
+  for (const [field, proseFields] of proseChecks) {
+    for (const [index, record] of (identity[field] || []).entries()) {
+      const location = `identity.${field}[${index}]`;
+      const carriesProse = proseFields.some((proseField) => {
+        const value = record[proseField];
+        return Array.isArray(value)
+          ? value.some((item) => String(item || "").trim())
+          : String(value || "").trim();
+      });
+      if (!carriesProse) continue;
+
+      const claimIds = record.claimIds || [];
+      if (claimIds.length === 0) {
+        issues.push(issue(
+          "error",
+          "identity_prose_unmapped",
+          `identity ${field}[${index}] renders composed prose and requires claim provenance in "claimIds".`,
+          location
+        ));
+        continue;
+      }
+      issues.push(...claimProvenanceIssues(claimIds, claimById, location));
+    }
+  }
+
   const bulletMappings = new Map();
   for (const mapping of resume.provenance?.bullets || []) {
     const key = `${mapping.experienceId}:${mapping.bulletIndex}`;
@@ -432,21 +514,21 @@ export function validateResumeClaims({
           stepLocation
         ));
       }
-      for (const claimId of step.claimIds) {
-        const claim = claimById.get(claimId);
-        if (!claim) {
-          issues.push(issue("error", "unknown_claim", `Claim "${claimId}" does not exist.`, stepLocation));
-          continue;
-        }
-        if (claim.status !== "verified") {
-          issues.push(issue("error", "unverified_claim", `Claim "${claimId}" is ${claim.status}.`, stepLocation));
-        }
-        if (claim.disclosure === "internal_only") {
+      issues.push(...claimProvenanceIssues(step.claimIds, claimById, stepLocation));
+
+      // The step is matched to the identity record by `label`, but `label` is
+      // not what prints: `formatProgression` renders `externalLabel` in its
+      // place whenever one is set, alongside `date`. Checking only `label`
+      // leaves the rendered title and year free to say anything while the step
+      // still resolves to a real, claim-backed promotion. Both must match the
+      // identity record for the same reason company, role and period do.
+      for (const field of ["externalLabel", "date"]) {
+        if (normalize(step[field] || "") !== normalize(coreStep[field] || "")) {
           issues.push(issue(
             "error",
-            "confidential_claim_rendered",
-            `Claim "${claimId}" is internal_only and may not ground rendered resume content.`,
-            stepLocation
+            "progression_identity_changed",
+            `${field} must match the identity record for progression step "${step.label}".`,
+            `${stepLocation}.${field}`
           ));
         }
       }
@@ -685,12 +767,12 @@ export function validateResumeClaims({
   for (const field of ["projects", "certifications", "awards_or_contributions"]) {
     const permitted = new Map();
     for (const entry of identity[field] || []) {
-      const key = JSON.stringify(normalizedObject(entry));
+      const key = catalogKey(entry);
       permitted.set(key, (permitted.get(key) || 0) + 1);
     }
     const unsupported = [];
     for (const entry of resume[field] || []) {
-      const key = JSON.stringify(normalizedObject(entry));
+      const key = catalogKey(entry);
       const remaining = permitted.get(key) || 0;
       if (remaining === 0) {
         unsupported.push(entry?.name || entry?.title || key.slice(0, 60));

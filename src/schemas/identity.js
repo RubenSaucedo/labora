@@ -48,11 +48,17 @@ export const ZEducation = z.object({
   endDate: z.string().default(""),
 }).strict();
 
+// `description` and `highlights` are composed prose, not atomic facts, so they
+// cannot be grounded by matching them against a source excerpt the way `name`
+// is. They carry explicit claim provenance instead — the same contract a
+// rendered bullet meets. Without it, prose validates against itself and reaches
+// a rendered resume unsupported.
 export const ZProject = z.object({
   name: z.string().default(""),
   description: z.string().default(""),
   highlights: z.array(z.string()).default([]),
   link: z.string().default(""),
+  claimIds: z.array(z.string()).default([]),
 }).strict();
 
 export const ZCertification = z.object({
@@ -70,6 +76,7 @@ export const ZAward = z.object({
   description: z.string().default(""),
   year: z.string().default(""),
   link: z.string().default(""),
+  claimIds: z.array(z.string()).default([]),
 }).strict();
 
 /**

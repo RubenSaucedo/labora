@@ -24,7 +24,9 @@ Load `resume-conventions`.
   has it. A multi-year tenure without its promotions reads as stagnation, and
   promotions are among the strongest signals a resume carries. Never invent,
   re-date, or re-label a step: an internal ladder token renders through its
-  `externalLabel`, and an `internal_only` step does not render at all.
+  `externalLabel`, and an `internal_only` step does not render at all. `label`,
+  `externalLabel` and `date` are each checked against the identity record, so
+  rewriting the label that actually prints is rejected rather than rendered.
 - Every bullet maps to one or more verified claim IDs.
 - Every displayed skill maps to verified claim IDs and exists in the identity record.
 - Education matches the identity record exactly.
@@ -33,6 +35,9 @@ Load `resume-conventions`.
   contain. Prefer recent, role-relevant credentials over completeness; a long
   tail of unrelated certifications dilutes the relevant ones. Rebuild identity
   from source when those facts change instead of enriching them during tailoring.
+  A catalog entry is matched on what renders, so a project's `claimIds` may
+  travel with it or not — that field is provenance for the identity record, and
+  it is never compared and never rendered.
 - Internal provenance is never prose for the recruiter.
 - `keywords_mapped` is deprecated; leave it empty.
 - Never create unsupported metrics, technologies, scope, titles, dates, or

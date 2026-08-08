@@ -33,6 +33,34 @@ locations, education, projects, certifications and awards.
   tenure does not read as stagnation. Each step is claim-backed. When the
   internal ladder token means nothing outside the company, put it in `label` and
   give a renderable `externalLabel`.
+- Any record carrying composed prose must name the claims that prose was written
+  from, in `claimIds`. This applies to `projects[].description`,
+  `projects[].highlights[]` and `awards_or_contributions[].description`.
+
+**Prose in the identity record carries `claimIds`.** Atomic fields such as a
+project `name` or an award `title` are grounded by matching them against a source
+excerpt. A description cannot be checked that way — it is composed *from*
+evidence rather than quoted from it, so no substring match can confirm it.
+Without explicit provenance a description is validated against nothing and
+reaches a rendered resume unsupported, which is the one outcome this system
+exists to prevent. Write the description from claims you can name, then list
+their IDs:
+
+```json
+{
+  "name": "Labora",
+  "description": "Evidence-grounded resume assurance system.",
+  "highlights": [],
+  "link": "https://github.com/RubenSaucedo/labora",
+  "claimIds": ["labora-project-2026"]
+}
+```
+
+Every listed claim must exist, be `verified`, and not be `internal_only`. A
+record with no description and no highlights needs no `claimIds` — it renders no
+prose to ground. If a project deserves a description but no claim supports one,
+that is a gap to report and an evidence question for `profile-researcher`, never
+a description to write anyway.
 
 **Never write a summary, a highlight, or an achievement list into the identity
 record.** Those fields were removed in schema 4.0 on purpose: a pre-written
