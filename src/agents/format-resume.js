@@ -650,9 +650,18 @@ export async function formatResumeToPdfBuffer({ resumeJson, style: styleParam })
     throw new Error("resumeJson object is required");
   }
   const style = getStyle(styleParam ?? 1);
-  const { default: puppeteer } = await import("puppeteer");
+  // puppeteer-core carries no browser of its own, so the executable has to be
+  // supplied. See src/lib/browser.js for why that is the right trade.
+  const [{ default: puppeteer }, { requireChrome }] = await Promise.all([
+    import("puppeteer-core"),
+    import("../lib/browser.js"),
+  ]);
   const html = resumeJsonToHtml(resumeJson, styleParam ?? 1);
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const browser = await puppeteer.launch({
+    headless: true,
+    executablePath: requireChrome(),
+    args: ["--no-sandbox"],
+  });
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });

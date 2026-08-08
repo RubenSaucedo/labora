@@ -47,6 +47,15 @@ function missingDependencies() {
   );
 }
 
+// pdf-parse requires a Node with a working `File` global. On an older runtime it
+// fails deep inside a dependency with a message that says nothing about Node, so
+// check the one constraint that actually matters and say so plainly.
+function unsupportedNode() {
+  const [major, minor] = process.versions.node.split(".").map(Number);
+  const ok = (major === 20 && minor >= 16) || (major >= 22);
+  return ok ? null : `Node ${process.versions.node}`;
+}
+
 function fail(message) {
   process.stderr.write(`labora: ${message}\n`);
   process.exit(1);
@@ -85,21 +94,36 @@ function runSetup() {
   process.stderr.write("labora: dependencies ready\n");
 }
 
+function chromeStatus() {
+  // Resolved in a child process so a broken install cannot take doctor down -
+  // reporting health is the one thing that has to work when nothing else does.
+  const probe = "import('./src/lib/browser.js').then(m=>process.stdout.write(m.findChrome()||''))";
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", probe], {
+    cwd: pluginRoot,
+    encoding: "utf8",
+  });
+  return (result.status === 0 && result.stdout.trim()) || null;
+}
+
 function runDoctor() {
   const missing = missingDependencies();
   const tools = availableTools();
+  const stale = unsupportedNode();
+  const chrome = chromeStatus();
   const lines = [
     `plugin root   ${pluginRoot}`,
     `working dir   ${process.cwd()}`,
-    `node          ${process.version}`,
+    `node          ${process.version}${stale ? "  UNSUPPORTED, needs >=20.16 or >=22.3" : ""}`,
     `tools         ${tools.length} available`,
     `dependencies  ${missing.length === 0 ? "ready" : `MISSING: ${missing.join(", ")}`}`,
+    `pdf renderer  ${chrome ? chrome : "no Chrome found — DOCX still works, PDF will not"}`,
   ];
   process.stdout.write(lines.join("\n") + "\n");
   if (missing.length) {
     process.stdout.write(`\nRun "${SETUP_COMMAND}" to install the missing dependencies.\n`);
     process.exit(1);
   }
+  if (stale) process.exit(1);
 }
 
 // Emitted by the sessionStart hook. Skills refer to the tools as "labora
@@ -177,6 +201,14 @@ if (!/^[a-z0-9][a-z0-9-]*$/.test(command)) {
 const toolPath = path.join(toolsDir, `${command}.js`);
 if (!availableTools().includes(command) || !fs.existsSync(toolPath)) {
   fail(`unknown tool "${command}". Run "labora list".`);
+}
+
+const stale = unsupportedNode();
+if (stale) {
+  fail(
+    `${stale} is too old to run labora's tools; they need >=20.16 or >=22.3.\n` +
+    `Upgrade Node, or run this through a newer one.`
+  );
 }
 
 const missing = missingDependencies();

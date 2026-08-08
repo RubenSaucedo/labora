@@ -6,10 +6,10 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { dirname, resolve } from 'path';
+import { dirname, resolve, join } from 'path';
 import { fileURLToPath } from 'url';
 import { PDFParse } from 'pdf-parse';
-import { createWorker } from 'tesseract.js';
+import { pluginRoot } from '../lib/paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 function isEntryScript() {
@@ -74,6 +74,33 @@ export function isNegligibleText(text) {
 }
 
 /**
+ * Start a Tesseract worker with its language data cached inside the plugin.
+ *
+ * Two things are being fixed here. Tesseract is imported lazily so that a PDF
+ * with a text layer - the overwhelmingly common case - can be read without OCR
+ * being installed at all. And `cachePath` is set explicitly: Tesseract defaults
+ * it to `.`, meaning it downloads a multi-megabyte `eng.traineddata` into
+ * whatever directory it happens to be run from. That directory is the persona's
+ * private workspace, so the default quietly drops a binary blob into the user's
+ * own repository. It belongs with the plugin that needs it.
+ */
+async function createOcrWorker() {
+  let createWorker;
+  try {
+    ({ createWorker } = await import('tesseract.js'));
+  } catch (err) {
+    throw new Error(
+      'This PDF has no text layer, so reading it needs OCR, but tesseract.js is ' +
+      'not installed. Install it with "labora setup", or supply a PDF exported ' +
+      `with a text layer. (${err.message})`
+    );
+  }
+  const cachePath = join(pluginRoot, '.cache', 'tesseract');
+  mkdirSync(cachePath, { recursive: true });
+  return createWorker('eng', undefined, { cachePath });
+}
+
+/**
  * Extract text from an image-based PDF by rendering each page to an image and running OCR (Tesseract.js).
  * Use when getText() returns little or no content.
  * Processes one page at a time to avoid loading all pages into memory (fixes hang/OOM on multi-page image PDFs).
@@ -89,7 +116,7 @@ export async function extractTextFromPdfViaOcr(buffer, options = {}) {
     numpages = extracted.numpages || 1;
   }
 
-  const worker = await createWorker('eng');
+  const worker = await createOcrWorker();
   const pageTexts = [];
   const screenshotOptions = { imageBuffer: true, scale: 2 };
 
