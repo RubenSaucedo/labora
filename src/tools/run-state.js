@@ -17,17 +17,15 @@ if (!["check", "record"].includes(command) || !applicationArg) {
   process.exit(1);
 }
 
-const repoRoot = process.cwd();
 const applicationDir = path.resolve(applicationArg);
 const style = Number(flag("--style", "1"));
 
 try {
   if (command === "check") {
-    process.stdout.write(JSON.stringify(stageStatus({ repoRoot, applicationDir, style }), null, 2) + "\n");
+    process.stdout.write(JSON.stringify(stageStatus({ applicationDir, style }), null, 2) + "\n");
   } else {
     const stage = process.argv[4];
     const result = recordStage({
-      repoRoot,
       applicationDir,
       stage,
       style,

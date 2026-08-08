@@ -37,6 +37,12 @@ Core rules:
 - Lexical coverage is not hiring probability. This applies to employers and job
   titles too, not just resume keywords.
 - File existence is not freshness; use `src/tools/run-state.js`.
+- The plugin's own files and the user's workspace are two different roots.
+  Resolve labora's sources, skills and agent prompts against `pluginRoot` from
+  `src/lib/paths.js`; resolve personas, evidence and applications against the
+  working directory. Never resolve a plugin file against `process.cwd()` — a
+  workspace that happens to contain `agents/` or `skills/` would then supply the
+  prompt a judge is certified against.
 - Only `release.json.state = send_ready` is eligible for human-approved sending.
 
 Dispatch agents; never stand in for them. The isolation between conductor,

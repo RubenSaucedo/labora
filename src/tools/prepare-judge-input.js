@@ -15,7 +15,6 @@ if (!judge || !applicationDir || !artifactPath) {
 
 try {
   const result = await prepareJudgeInput({
-    repoRoot: process.cwd(),
     applicationDir,
     artifactPath,
     judge,

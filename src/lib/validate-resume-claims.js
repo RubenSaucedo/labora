@@ -153,10 +153,10 @@ function withinAnyRoot(candidate, roots) {
 // so ledgers written under the older layout keep validating.
 //
 // The two forms cannot collide: "profile/background.md" does not exist under a
-// repo root, and "data/personas/<n>/profile/background.md" does not exist under
+// workspace root, and "personas/<n>/profile/background.md" does not exist under
 // a persona root.
-function resolveClaimSource(sourcePath, { personaRoot, repoRoot }) {
-  const roots = [personaRoot, repoRoot].filter(Boolean);
+function resolveClaimSource(sourcePath, { personaRoot, workspaceRoot }) {
+  const roots = [personaRoot, workspaceRoot].filter(Boolean);
   for (const root of roots) {
     const candidate = path.resolve(root, sourcePath);
     if (!withinAnyRoot(candidate, roots)) continue;
@@ -228,7 +228,7 @@ export function validateResumeClaims({
   identity,
   ledger,
   bank = null,
-  repoRoot = process.cwd(),
+  workspaceRoot = process.cwd(),
   personaRoot,
 }) {
   const vocabulary = skillVocabulary({ identity, bank });
@@ -240,8 +240,8 @@ export function validateResumeClaims({
       .map((entry) => [entry.id, entry])
   );
 
-  const resolvedRoot = fs.realpathSync(path.resolve(repoRoot));
-  const resolvedPersonaRoot = fs.realpathSync(path.resolve(personaRoot || repoRoot));
+  const resolvedRoot = fs.realpathSync(path.resolve(workspaceRoot));
+  const resolvedPersonaRoot = fs.realpathSync(path.resolve(personaRoot || workspaceRoot));
   const claimEvidence = new Map();
   const readExcerpts = (sources, sourceLocation) => {
     const excerpts = [];
@@ -249,7 +249,7 @@ export function validateResumeClaims({
       const permittedRoots = [resolvedPersonaRoot, resolvedRoot];
       const resolution = resolveClaimSource(source.path, {
         personaRoot: resolvedPersonaRoot,
-        repoRoot: resolvedRoot,
+        workspaceRoot: resolvedRoot,
       });
       if (!resolution.contained) {
         issues.push(issue("error", "source_outside_root", `Source "${source.path}" resolves outside the persona workspace.`, sourceLocation));

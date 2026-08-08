@@ -60,7 +60,7 @@ export function summarize({ identity, ledger, bank }) {
   };
 }
 
-export function validateProfile(personaRoot, { repoRoot = process.cwd() } = {}) {
+export function validateProfile(personaRoot, { workspaceRoot = process.cwd() } = {}) {
   const generated = path.join(personaRoot, "profile", "generated");
   const identityPath = path.join(generated, "identity.json");
   const ledgerPath = path.join(generated, "claims.json");
@@ -68,7 +68,7 @@ export function validateProfile(personaRoot, { repoRoot = process.cwd() } = {}) 
 
   for (const required of [identityPath, ledgerPath]) {
     if (!fs.existsSync(required)) {
-      throw new Error(`missing ${path.relative(repoRoot, required)} — run resume-persona first`);
+      throw new Error(`missing ${path.relative(workspaceRoot, required)} — run resume-persona first`);
     }
   }
 
@@ -83,7 +83,7 @@ export function validateProfile(personaRoot, { repoRoot = process.cwd() } = {}) 
     identity,
     ledger,
     bank,
-    repoRoot,
+    workspaceRoot,
     personaRoot,
   });
 

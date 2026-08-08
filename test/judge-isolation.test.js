@@ -47,7 +47,7 @@ function buildApp() {
     "persona", "job_analysis", "application_strategy", "tailor", "format", "validate_claims",
     "validate_artifact", "judge_ats", "judge_engineer", "judge_hr", "quality_gate",
   ]) {
-    recordStage({ repoRoot: root, applicationDir: app, stage, style: 1 });
+    recordStage({ applicationDir: app, stage, style: 1 });
   }
   return { root, app };
 }
@@ -60,7 +60,7 @@ test("judges do not depend on provenance sources (resume, claims, core, validati
   fs.writeFileSync(path.join(root, "data", "personas", "example", "profile", "generated", "identity.json"), '{"tampered":true}');
   fs.writeFileSync(path.join(app, "validations", "claims.json"), '{"tampered":true}');
 
-  const status = stageStatus({ repoRoot: root, applicationDir: app, style: 1 }).stages;
+  const status = stageStatus({ applicationDir: app, style: 1 }).stages;
 
   // Control: the tailor stage DID consume resume.json, so it must now be stale.
   assert.equal(status.tailor.selfFresh, false, "control: tampering with provenance invalidates the generator stage");
@@ -74,7 +74,7 @@ test("judges do not depend on provenance sources (resume, claims, core, validati
 test("a judge stage does go stale when the rendered artifact changes", () => {
   const { root, app } = buildApp();
   fs.writeFileSync(path.join(app, "final-resume-style-1.docx"), "docx-v2");
-  const status = stageStatus({ repoRoot: root, applicationDir: app, style: 1 }).stages;
+  const status = stageStatus({ applicationDir: app, style: 1 }).stages;
   for (const judge of ["judge_ats", "judge_engineer", "judge_hr"]) {
     assert.equal(status[judge].selfFresh, false, `${judge} must re-run when the delivery artifact changes`);
   }
