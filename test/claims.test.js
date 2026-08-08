@@ -7,8 +7,8 @@ import crypto from "node:crypto";
 import { validateResumeClaims } from "../src/lib/validate-resume-claims.js";
 
 function fixture() {
-  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "resume-claim-fixture-"));
-  const sourcePath = path.join(repoRoot, "profile", "career.md");
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "resume-claim-fixture-"));
+  const sourcePath = path.join(workspaceRoot, "profile", "career.md");
   fs.mkdirSync(path.dirname(sourcePath), { recursive: true });
   fs.writeFileSync(sourcePath, "Engineer — Example (2022 - Present)\nUsed React to reduce latency by 40%.");
   const fileHash = crypto.createHash("sha256").update(fs.readFileSync(sourcePath)).digest("hex");
@@ -66,7 +66,7 @@ function fixture() {
       }],
     },
   };
-  return { identity, bank, ledger, resume, repoRoot, personaRoot: repoRoot };
+  return { identity, bank, ledger, resume, workspaceRoot, personaRoot: workspaceRoot };
 }
 
 test("accepts fully mapped verified claims", () => {
@@ -76,7 +76,7 @@ test("accepts fully mapped verified claims", () => {
 
 test("rejects claims grounded in story.md now that it is not an approved source", () => {
   const input = fixture();
-  const storyPath = path.join(input.repoRoot, "profile", "story.md");
+  const storyPath = path.join(input.workspaceRoot, "profile", "story.md");
   fs.writeFileSync(storyPath, "Engineer — Example (2022 - Present)\nUsed React to reduce latency by 40%.");
   const fileHash = crypto.createHash("sha256").update(fs.readFileSync(storyPath)).digest("hex");
   input.ledger.claims[0].sources = [{
@@ -122,7 +122,7 @@ test("rejects a claim when its source file changed", () => {
     lineStart: 1,
     lineEnd: 1,
   }];
-  const result = validateResumeClaims({ ...input, repoRoot: root, personaRoot: root });
+  const result = validateResumeClaims({ ...input, workspaceRoot: root, personaRoot: root });
   assert.equal(result.valid, false);
   assert.equal(result.issues.some((issue) => issue.code === "source_hash_mismatch"), true);
 });
@@ -185,11 +185,11 @@ test("rejects unsupported summary and invented structured sections", () => {
 
 test("rejects claims sourced from outside the active persona", () => {
   const input = fixture();
-  const otherSource = path.join(input.repoRoot, "data", "personas", "other", "profile", "career.md");
+  const otherSource = path.join(input.workspaceRoot, "data", "personas", "other", "profile", "career.md");
   fs.mkdirSync(path.dirname(otherSource), { recursive: true });
   fs.writeFileSync(otherSource, "Engineer — Example (2022 - Present)\nUsed React to reduce latency by 40%.");
   input.ledger.claims[0].sources[0] = {
-    path: path.relative(input.repoRoot, otherSource),
+    path: path.relative(input.workspaceRoot, otherSource),
     fileHash: crypto.createHash("sha256").update(fs.readFileSync(otherSource)).digest("hex"),
     lineStart: 1,
     lineEnd: 2,
@@ -232,12 +232,12 @@ test("generalized wording renders when the internal fact carries a codename", ()
   claim.disclosure = "internal_generalizable";
   claim.externalFact = "Used React to reduce latency by 40%.";
   fs.writeFileSync(
-    path.join(input.repoRoot, "profile", "career.md"),
+    path.join(input.workspaceRoot, "profile", "career.md"),
     "Engineer — Example (2022 - Present)\nUsed React on Projectbluebird to reduce latency by 40%."
   );
   claim.sources[0].fileHash = crypto
     .createHash("sha256")
-    .update(fs.readFileSync(path.join(input.repoRoot, "profile", "career.md")))
+    .update(fs.readFileSync(path.join(input.workspaceRoot, "profile", "career.md")))
     .digest("hex");
   const result = validateResumeClaims(input);
   assert.equal(result.valid, true);
@@ -277,7 +277,7 @@ test("externalFact cannot smuggle numbers or technologies past the internal fact
 
 function groundedIn(relativePath) {
   const input = fixture();
-  const sourcePath = path.join(input.repoRoot, relativePath);
+  const sourcePath = path.join(input.workspaceRoot, relativePath);
   fs.mkdirSync(path.dirname(sourcePath), { recursive: true });
   fs.writeFileSync(sourcePath, "Engineer — Example (2022 - Present)\nUsed React to reduce latency by 40%.");
   const claim = input.ledger.claims[0];
@@ -302,7 +302,7 @@ test("contact.md is rejected as a claim-grounding source", () => {
 
 test("editing contact.md cannot invalidate claims grounded in background.md", () => {
   const input = fixture();
-  const background = path.join(input.repoRoot, "profile", "background.md");
+  const background = path.join(input.workspaceRoot, "profile", "background.md");
   fs.writeFileSync(background, "Engineer — Example (2022 - Present)\nUsed React to reduce latency by 40%.");
   const claim = input.ledger.claims[0];
   claim.sources[0].path = "profile/background.md";
@@ -313,7 +313,7 @@ test("editing contact.md cannot invalidate claims grounded in background.md", ()
   assert.equal(validateResumeClaims(input).valid, true);
 
   // The contact card changes; the ledger must be unaffected.
-  fs.writeFileSync(path.join(input.repoRoot, "profile", "contact.md"), "- Phone: +1 555-000-9999");
+  fs.writeFileSync(path.join(input.workspaceRoot, "profile", "contact.md"), "- Phone: +1 555-000-9999");
   const after = validateResumeClaims(input);
   assert.equal(after.valid, true);
   assert.equal(after.issues.some((issue) => issue.code === "source_hash_mismatch"), false);
@@ -328,7 +328,7 @@ test("editing contact.md cannot invalidate claims grounded in background.md", ()
 
 function certFixture() {
   const input = fixture();
-  const background = path.join(input.repoRoot, "profile", "background.md");
+  const background = path.join(input.workspaceRoot, "profile", "background.md");
   fs.writeFileSync(background, "MICROSOFT SKILLUP AI\nMicrosoft | Issued March 2024");
   input.ledger.claims.push({
     id: "claim-cert-skillup",

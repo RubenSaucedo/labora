@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { assertSafeDocument } from "./file-safety.js";
 import { loadJobFromFile } from "./job-parser.js";
+import { pluginRoot as PLUGIN_ROOT } from "./paths.js";
 import { extractTextFromDocx } from "../utils/docx-to-text.js";
 import { extractTextFromPdf } from "../utils/pdf-to-md.js";
 
@@ -29,14 +30,14 @@ async function artifactText(artifactPath) {
   throw new Error("Judge artifact must be DOCX or PDF.");
 }
 
-function computePromptHash(repoRoot, judge) {
+function computePromptHash(pluginRoot, judge) {
   const promptPaths = [
-    path.join(repoRoot, "skills", "resume-conventions", "SKILL.md"),
-    path.join(repoRoot, "agents", `judge-${judge}.agent.md`),
-    path.join(repoRoot, "skills", `judge-${judge}`, "SKILL.md"),
+    path.join(pluginRoot, "skills", "resume-conventions", "SKILL.md"),
+    path.join(pluginRoot, "agents", `judge-${judge}.agent.md`),
+    path.join(pluginRoot, "skills", `judge-${judge}`, "SKILL.md"),
   ];
   const parts = promptPaths.map((filePath) =>
-    `${path.relative(repoRoot, filePath)}:${fileHash(filePath)}`
+    `${path.relative(pluginRoot, filePath)}:${fileHash(filePath)}`
   );
   return sha256(parts.join("\n"));
 }
@@ -95,13 +96,13 @@ function visualPreview(applicationDir, expectedArtifactHash) {
 }
 
 export async function prepareJudgeInput({
-  repoRoot,
+  pluginRoot = PLUGIN_ROOT,
   applicationDir,
   artifactPath,
   judge,
 }) {
   const expected = await expectedJudgeMetadata({
-    repoRoot,
+    pluginRoot,
     applicationDir,
     artifactPath,
     judge,
@@ -125,7 +126,7 @@ export async function prepareJudgeInput({
 }
 
 export async function expectedJudgeMetadata({
-  repoRoot,
+  pluginRoot = PLUGIN_ROOT,
   applicationDir,
   artifactPath,
   judge,
@@ -148,7 +149,7 @@ export async function expectedJudgeMetadata({
     : { status: "not_applicable", paths: [], manifestHash: null };
   const metadata = {
     evaluatedArtifactHash,
-    promptHash: computePromptHash(repoRoot, judge),
+    promptHash: computePromptHash(pluginRoot, judge),
     inputHash: sha256(JSON.stringify({
       judge,
       job: parsedJob,

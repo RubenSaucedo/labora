@@ -36,7 +36,7 @@ try {
     identity,
     ledger,
     bank,
-    repoRoot: process.cwd(),
+    workspaceRoot: process.cwd(),
     personaRoot: personaRootFromProfileFile(identityPath),
   });
   const json = JSON.stringify(result, null, 2) + "\n";

@@ -57,7 +57,6 @@ try {
     ? Object.fromEntries(await Promise.all(["ats", "engineer", "hr"].map(async (judge) => [
       judge,
       (await expectedJudgeMetadata({
-        repoRoot: process.cwd(),
         applicationDir,
         artifactPath,
         judge,
@@ -83,7 +82,7 @@ try {
     "HR",
     judgeValidationErrors
   );
-  const status = stageStatus({ repoRoot: process.cwd(), applicationDir, style });
+  const status = stageStatus({ applicationDir, style });
   const requiredFreshStages = [
     "persona",
     "job_analysis",

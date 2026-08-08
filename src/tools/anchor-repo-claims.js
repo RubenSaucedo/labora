@@ -90,12 +90,12 @@ function latestSnapshotDir(personaRoot) {
   return path.join(base, dated[dated.length - 1]);
 }
 
-export function anchorRepoClaims({ personaRoot, repoRoot = process.cwd() }) {
+export function anchorRepoClaims({ personaRoot, workspaceRoot = process.cwd() }) {
   const snapshotDir = latestSnapshotDir(personaRoot);
   const mdPath = path.join(snapshotDir, "repositories.md");
   const markdown = fs.readFileSync(mdPath, "utf8");
   const fileHash = crypto.createHash("sha256").update(markdown).digest("hex");
-  const relPath = path.relative(repoRoot, mdPath).split(path.sep).join("/");
+  const relPath = path.relative(workspaceRoot, mdPath).split(path.sep).join("/");
 
   const blocks = parseSnapshot(markdown);
   const ledgerPath = path.join(personaRoot, "profile", "generated", "claims.json");

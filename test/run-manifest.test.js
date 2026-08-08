@@ -48,11 +48,11 @@ test("invalidates a recorded stage when an upstream input changes", () => {
   fs.writeFileSync(path.join(generated, "claims.json"), "{}");
   fs.writeFileSync(path.join(generated, "accomplishments.json"), "{}");
 
-  recordStage({ repoRoot: root, applicationDir: app, stage: "persona", style: 1 });
-  assert.equal(stageStatus({ repoRoot: root, applicationDir: app, style: 1 }).stages.persona.fresh, true);
+  recordStage({ applicationDir: app, stage: "persona", style: 1 });
+  assert.equal(stageStatus({ applicationDir: app, style: 1 }).stages.persona.fresh, true);
 
   fs.writeFileSync(path.join(profile, "career.md"), "Career v2");
-  assert.equal(stageStatus({ repoRoot: root, applicationDir: app, style: 1 }).stages.persona.fresh, false);
+  assert.equal(stageStatus({ applicationDir: app, style: 1 }).stages.persona.fresh, false);
 });
 
 test("invalidates persona when raw evidence changes", () => {
@@ -71,11 +71,11 @@ test("invalidates persona when raw evidence changes", () => {
   fs.writeFileSync(path.join(generated, "accomplishments.json"), "{}");
   const { rawPath } = writeValidEvidence(persona);
 
-  recordStage({ repoRoot: root, applicationDir: app, stage: "persona", style: 1 });
+  recordStage({ applicationDir: app, stage: "persona", style: 1 });
   fs.writeFileSync(rawPath, "pdf-v2");
 
   assert.equal(
-    stageStatus({ repoRoot: root, applicationDir: app, style: 1 }).stages.persona.fresh,
+    stageStatus({ applicationDir: app, style: 1 }).stages.persona.fresh,
     false
   );
 });
@@ -97,7 +97,7 @@ test("accepts dated evidence layouts", () => {
   writeValidEvidence(persona, "pdf-v1", ["2026"]);
 
   assert.doesNotThrow(() =>
-    recordStage({ repoRoot: root, applicationDir: app, stage: "persona", style: 1 })
+    recordStage({ applicationDir: app, stage: "persona", style: 1 })
   );
 });
 
@@ -121,7 +121,7 @@ test("persona cannot be recorded with failed evidence cleaning", () => {
   fs.writeFileSync(validationPath, JSON.stringify(validation));
 
   assert.throws(
-    () => recordStage({ repoRoot: root, applicationDir: app, stage: "persona", style: 1 }),
+    () => recordStage({ applicationDir: app, stage: "persona", style: 1 }),
     /assurance checks failed/
   );
 });
@@ -162,11 +162,11 @@ test("propagates artifact staleness into judges and the quality gate", () => {
     "persona", "job_analysis", "application_strategy", "tailor", "format", "validate_claims",
     "validate_artifact", "judge_ats", "judge_engineer", "judge_hr", "quality_gate",
   ]) {
-    recordStage({ repoRoot: root, applicationDir: app, stage, style: 1 });
+    recordStage({ applicationDir: app, stage, style: 1 });
   }
 
   fs.unlinkSync(path.join(app, "final-resume-style-1.pdf"));
-  const status = stageStatus({ repoRoot: root, applicationDir: app, style: 1 });
+  const status = stageStatus({ applicationDir: app, style: 1 });
   assert.equal(status.stages.format.fresh, false);
   assert.equal(status.stages.judge_ats.fresh, false);
   assert.equal(status.stages.quality_gate.fresh, false);
@@ -187,7 +187,6 @@ test("every persona-stage output lives under profile/generated/", () => {
   fs.mkdirSync(generated, { recursive: true });
 
   const definitions = stageDefinitions({
-    repoRoot: root,
     personaRoot: path.join(root, "data", "personas", "example"),
     applicationDir: app,
     style: 1,
@@ -209,7 +208,6 @@ test("no stage writes to a human-authored profile source", () => {
   const app = path.join(persona, "applications", "job");
   const profile = path.join(persona, "profile");
   const definitions = stageDefinitions({
-    repoRoot: root,
     personaRoot: persona,
     applicationDir: app,
     style: 1,
