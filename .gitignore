@@ -1,6 +1,9 @@
 node_modules/
 .DS_Store
-eng.traineddata
+
+# Downloaded at run time, not authored: OCR language data and any other
+# machine-local artifact the tools cache next to the plugin.
+.cache/
 
 docs/
 
@@ -38,3 +41,22 @@ prompts/**/.improve/
 # Playwright MCP session artifacts. Page snapshots and console logs from an
 # authenticated browsing session can contain personal data; never commit them.
 .playwright-mcp/
+
+# >>> kai workspace (managed by workflow-workspace-init) >>>
+# Raw kai runs and personal material are local-only.
+/.kai/runs/
+/kai/personal/
+# Retired local state stays private during explicit migration.
+/.persona-self/
+/.kai/local.json
+# Retired schema-1 root-level personal lane stays private until migration completes.
+/personal/
+# Heavy binaries stay ignored inside the committed library.
+kai/library/**/*.mp3
+kai/library/**/*.har
+kai/library/**/*.zip
+kai/library/**/audio/
+kai/library/**/raw/
+kai/library/**/screenshots/
+**/storageState*.json
+# <<< kai workspace <<<
