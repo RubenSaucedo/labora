@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = path.join(repoRoot, "skills");
 const agentsDir = path.join(repoRoot, "agents");
-const commandsDir = path.join(repoRoot, ".claude", "commands");
 
 function frontmatter(file) {
   const raw = fs.readFileSync(file, "utf8");
@@ -64,21 +63,56 @@ test("user-invocable skills carry an argument hint and a description", () => {
   assert.ok(invocable.length > 0, "no user-invocable entry points; the plugin has no front door");
 });
 
-test("commands reference skills and agents that exist", () => {
-  const missing = [];
-  for (const file of fs.readdirSync(commandsDir).filter((f) => f.endsWith(".md"))) {
-    const text = fs.readFileSync(path.join(commandsDir, file), "utf8");
-
-    for (const [, skill] of text.matchAll(/skills\/([a-z0-9-]+)\/SKILL\.md/g)) {
-      if (!skillDirs.includes(skill)) missing.push(`${file} -> skills/${skill}/SKILL.md`);
-    }
-    for (const [, agent] of text.matchAll(/agents\/([a-z0-9-]+)\.agent\.md/g)) {
-      if (!fs.existsSync(path.join(agentsDir, `${agent}.agent.md`))) {
-        missing.push(`${file} -> agents/${agent}.agent.md`);
-      }
-    }
+// `user-invocable` defaults to TRUE in Claude Code, so a skill that omits it is
+// published as a slash command by accident. Internal pipeline stages must say
+// `false` out loud; leaving it off would expose the judges and the tailoring
+// stage as a public API the operator can invoke outside its isolated agent.
+test("every skill declares user-invocable explicitly", () => {
+  const undeclared = [];
+  for (const dir of skillDirs) {
+    const { field } = frontmatter(path.join(skillsDir, dir, "SKILL.md"));
+    const declared = field("user-invocable");
+    if (declared !== "true" && declared !== "false") undeclared.push(dir);
   }
-  assert.deepEqual(missing, [], `commands point at files that do not exist:\n${missing.join("\n")}`);
+  assert.deepEqual(
+    undeclared,
+    [],
+    "these skills omit user-invocable, so the runtime default decides whether " +
+      `they are public:\n${undeclared.join("\n")}`,
+  );
+});
+
+// The stages below either write profile/generated/, run inside a deliberately
+// isolated agent, or grade the pipeline. Exposing any of them as a slash command
+// hands the operator a documented way around the boundary it enforces.
+test("isolated and generated-writing stages stay internal", () => {
+  const mustBeInternal = [
+    "judge-ats",
+    "judge-engineer",
+    "judge-hr",
+    "resume-persona",
+    "resume-tailor",
+    "scaffold-persona",
+  ];
+  const exposed = [];
+  for (const dir of mustBeInternal) {
+    assert.ok(skillDirs.includes(dir), `skills/${dir} is missing`);
+    const { field } = frontmatter(path.join(skillsDir, dir, "SKILL.md"));
+    if (field("user-invocable") !== "false") exposed.push(dir);
+  }
+  assert.deepEqual(exposed, [], `these must not be user-invocable:\n${exposed.join("\n")}`);
+});
+
+// Slash commands only ship from skills/. `.claude/` is project configuration:
+// Copilot CLI's plugin loader recognises *.agent.md, **\/SKILL.md, mcp-config.json
+// and plugin.json, and nothing else, so anything left there reaches only people
+// sitting in this repo.
+test("no slash commands hide in project-scoped .claude/", () => {
+  assert.equal(
+    fs.existsSync(path.join(repoRoot, ".claude", "commands")),
+    false,
+    ".claude/commands/ is project config, not a plugin path; installed users never see it",
+  );
 });
 
 // Agents are only reachable as task agent_types once the plugin is installed.

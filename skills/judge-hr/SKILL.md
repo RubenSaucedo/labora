@@ -2,6 +2,7 @@
 name: judge-hr
 description: "Recruiter / hiring-manager screening judge. Emulates how an expert technical recruiter actually screens: a 6-second scan then a 45-90s full read, scoring role fit, impact/ownership, credibility, red flags, and clarity. Writes applications/<slug>/judges/hr.json validated against ZHrJudgeOutput. Invoke as the screening evaluation phase. Load resume-conventions first."
 tools: [bash, view, glob, grep, edit, create]
+user-invocable: false
 ---
 
 # judge-hr — would a technical recruiter advance this resume?

@@ -2,6 +2,7 @@
 name: resume-job-analysis
 description: "Builds applications/<slug>/job-spec.json from job.md using the deterministic analyzer, then reviews the extracted required/preferred/responsibility constraints without inventing requirements. Runs before tailoring."
 tools: [bash, view, glob, grep, edit, create]
+user-invocable: false
 ---
 
 # resume-job-analysis

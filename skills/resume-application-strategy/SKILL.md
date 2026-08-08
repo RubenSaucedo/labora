@@ -2,6 +2,7 @@
 name: resume-application-strategy
 description: "Builds a claim-grounded positioning brief before tailoring: the three strongest hiring signals, likely objections, first-page proof hierarchy, and targeted evidence questions. It distinguishes evidence absent from experience absent and never treats a chat answer as verified evidence."
 tools: [bash, view, glob, grep, edit, create, ask_user]
+user-invocable: false
 ---
 
 # resume-application-strategy

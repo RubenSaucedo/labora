@@ -1,7 +1,7 @@
 {
   "name": "labora",
   "description": "Evidence-grounded resume pipeline with structured job analysis, claim provenance, deterministic artifact gates, independent ATS/engineer/HR judges, and a final release decision.",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "author": {
     "name": "RubenSaucedo",
     "url": "https://github.com/RubenSaucedo"

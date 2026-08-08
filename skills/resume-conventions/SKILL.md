@@ -2,6 +2,7 @@
 name: resume-conventions
 description: "Authoritative resume-builder contract for paths, schemas, provenance, deterministic tools, freshness, privacy, and release gates. Every resume skill and agent loads this first. Never invent a path or treat an uncalibrated score as hiring probability."
 tools: [bash, view, glob, grep, edit, create]
+user-invocable: false
 ---
 
 # Resume-builder conventions

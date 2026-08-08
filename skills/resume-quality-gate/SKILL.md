@@ -2,6 +2,7 @@
 name: resume-quality-gate
 description: "Runs after deterministic validations and all judges, aggregates them into release.json, permits one bounded truthful remediation cycle, and blocks sending unless state is send_ready."
 tools: [bash, view, glob, grep, edit, create]
+user-invocable: false
 ---
 
 # resume-quality-gate

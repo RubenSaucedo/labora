@@ -1,49 +1,27 @@
 ---
 name: new-applicant
-description: "Scaffolds a new persona workspace under <workspace>/personas/<persona>/ from templates/profile/, then asks the operator for search-preferences.json. Preferences are asked while a human is present and never templated or inferred, because a placeholder would validate and send scouts searching against invented titles. Invoke for a new applicant, a new persona, or to start a resume for someone new."
-tools: [bash, view, glob, grep, edit, create, ask_user]
+description: "Entry point for someone with no persona yet. Launches the applicant-intake agent, which interviews the operator for contact details, career history, evidence sources and search preferences, then dispatches profile-researcher and profile-builder. Invoke for a new applicant, a new persona, or to start a resume for someone new."
+tools: [bash, view, glob, grep]
 user-invocable: true
 argument-hint: "<persona>"
 ---
-# New applicant
 
-Scaffold a new persona workspace.
+# /new-applicant — onboard a brand-new applicant
 
-Create:
+Launch the `applicant-intake` agent and hand it the persona name.
 
 ```text
-<workspace>/personas/<persona>/
-├── profile/{contact.md,background.md}
-│   ├── career.md    # optional; skip when cleaned per-review evidence covers
-│   │                # the same periods, so one career has one account
-│   ├── search-preferences.json   # asked, never templated (see below)
-│   └── generated/   # profile-builder writes this; never hand-author it
-├── evidence/performance-reviews/{raw,extracted,text,validations}
-├── evidence/references/
-└── applications/
+task(agent_type: "labora:applicant-intake", prompt: "<persona>")
 ```
 
-Copy the `templates/profile/` tree into the persona's `profile/`. It carries the
-human-authored sources plus an empty `generated/` folder with its ownership
-contract; `resume-persona` fills that folder. Never
-commit real persona data.
+Do not scaffold, interview, or write profile sources in the calling context.
 
-Then **ask the operator** for `search-preferences.json` — target titles and
-levels, locations and remote preference, minimum compensation and currency,
-must-haves, **companies they want to explore**, companies to avoid, job sources,
-career goals, and timezone. Validate the answers against `ZSearchPreferences` in
-`src/schemas/job-search.js`.
+Scaffolding is only the last step of intake, and it is the cheap one. The
+expensive part is the interview: `profile/` sources ground every later claim, so
+an answer that was never spoken aloud is an answer nobody can be held to. A
+persona scaffolded without it validates cleanly and is empty of evidence — the
+one failure this pipeline is built to make impossible.
 
-Ask for target titles in the forms employers actually post. Many companies list
-"Software Engineer" and assign the level after the interview, so a list of only
-"Senior …" titles hides those openings from every scout. Target companies are a
-first-class field rather than prose in `notes`, because coverage is reported per
-company: a named company that returned nothing is a finding, and prose cannot be
-checked against a run.
-
-It is deliberately **not** in `templates/`. Every other template file is inert
-until filled, but a placeholder preferences file would validate, and scouts would
-then run a real overnight search against invented titles. Preferences describe
-what the operator wants, so no evidence can supply them and no agent may infer
-them — ask while the operator is present, rather than leaving `job-explorer` to
-discover the gap mid-run.
+If you only need to re-run the mechanical scaffold for a persona whose intake
+already happened, that procedure is the internal `scaffold-persona` skill, which
+`applicant-intake` follows on your behalf.

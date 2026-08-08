@@ -2,6 +2,7 @@
 name: application-outcomes
 description: "Records objective, operator-confirmed application funnel events such as submission, recruiter screen, interview, rejection, and offer. It never infers causality or claims that a resume caused an outcome."
 tools: [bash, view]
+user-invocable: false
 ---
 
 # application-outcomes

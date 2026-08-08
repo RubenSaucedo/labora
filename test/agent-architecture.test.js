@@ -185,7 +185,7 @@ test("the curator is denied the persona's search preferences", () => {
 
 test("search preferences are asked for while the operator is present", () => {
   const onboarding = fs.readFileSync(
-    path.join(repoRoot, "skills/new-applicant/SKILL.md"),
+    path.join(repoRoot, "skills/scaffold-persona/SKILL.md"),
     "utf8",
   );
   assert.match(
@@ -477,7 +477,7 @@ test("intake never handles the operator's credentials", () => {
 
 test("scaffolding asks for the preferences a run is reported against", () => {
   const skill = fs.readFileSync(
-    path.join(repoRoot, "skills/new-applicant/SKILL.md"),
+    path.join(repoRoot, "skills/scaffold-persona/SKILL.md"),
     "utf8",
   );
   assert.match(
