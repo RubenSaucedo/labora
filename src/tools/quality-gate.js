@@ -38,7 +38,7 @@ function sha256(filePath) {
 
 const applicationArg = process.argv[2];
 if (!applicationArg) {
-  process.stderr.write("Usage: node src/tools/quality-gate.js <application-dir> [--style N] [--artifact <resume.docx|resume.pdf>]\n");
+  process.stderr.write("Usage: labora quality-gate <application-dir> [--style N] [--artifact <resume.docx|resume.pdf>]\n");
   process.exit(1);
 }
 

@@ -5,7 +5,7 @@
 // faithfully clean. Extraction only — it never rewrites or interprets content.
 //
 // Usage:
-//   node src/tools/pdf-text.js <input.pdf> [output.md] [--ocr] [--metadata output.json]
+//   labora pdf-text <input.pdf> [output.md] [--ocr] [--metadata output.json]
 //   - output.md omitted -> prints extracted text to stdout
 //   - --ocr             -> force OCR on every page (skip the text-layer pass)
 import crypto from "node:crypto";
@@ -46,7 +46,7 @@ const outputPath = positional[1];
 
 if (!inputPath) {
   process.stderr.write(
-    "Usage: node src/tools/pdf-text.js <input.pdf> [output.md] [--ocr] [--metadata output.json]\n"
+    "Usage: labora pdf-text <input.pdf> [output.md] [--ocr] [--metadata output.json]\n"
   );
   process.exit(1);
 }

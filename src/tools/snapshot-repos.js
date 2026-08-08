@@ -11,7 +11,7 @@
 // self-reported and must be treated as such downstream.
 //
 // Usage:
-//   node src/tools/snapshot-repos.js --persona <name> [--owner <login>]
+//   labora snapshot-repos --persona <name> [--owner <login>]
 //                                    [--include-forks] [--since <YYYY-MM-DD>]
 
 import fs from "fs";
@@ -167,7 +167,7 @@ function renderMarkdown(owner, repos, retrievedAt) {
     `Retrieved: ${retrievedAt}`,
     "",
     "Every fact below is reported by the GitHub API and can be re-fetched with",
-    "`node src/tools/snapshot-repos.js`. Commit counts are commits attributed to",
+    "`labora snapshot-repos`. Commit counts are commits attributed to",
     "the owner on each repository's default branch; they measure sustained",
     "activity, not impact. A public repository is verifiable by any reader; a",
     "private one is self-reported and must be presented as such.",
@@ -203,7 +203,7 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.persona) {
     process.stderr.write(
-      "Usage: node src/tools/snapshot-repos.js --persona <name> [--owner <login>] [--include-forks] [--since YYYY-MM-DD] [--verify-urls]\n"
+      "Usage: labora snapshot-repos --persona <name> [--owner <login>] [--include-forks] [--since YYYY-MM-DD] [--verify-urls]\n"
     );
     process.exit(1);
   }

@@ -7,7 +7,7 @@ import { ZJobSpec } from "../schemas/job-spec.js";
 const jobPath = process.argv[2];
 const outputPath = process.argv[3];
 if (!jobPath) {
-  process.stderr.write("Usage: node src/tools/analyze-job.js <job.md> [job-spec.json]\n");
+  process.stderr.write("Usage: labora analyze-job <job.md> [job-spec.json]\n");
   process.exit(1);
 }
 

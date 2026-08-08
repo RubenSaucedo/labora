@@ -17,7 +17,7 @@ const resumePath = process.argv[2];
 const outputPath = process.argv[3];
 if (!resumePath || !outputPath) {
   process.stderr.write(
-    "Usage: node src/tools/format-pdf.js <resume.json> <out.pdf> --contact <contact.md> --job <job.md> [--style N]\n"
+    "Usage: labora format-pdf <resume.json> <out.pdf> --contact <contact.md> --job <job.md> [--style N]\n"
   );
   process.exit(1);
 }

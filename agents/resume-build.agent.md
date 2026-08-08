@@ -15,7 +15,7 @@ Resolve:
 
 Start every run with:
 
-`node src/tools/run-state.js check <application-dir> --style <N>`
+`labora run-state check <application-dir> --style <N>`
 
 Reuse only stages reported fresh. Existing files with stale or missing hashes
 must be rebuilt from the earliest stale dependency.

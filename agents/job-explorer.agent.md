@@ -47,10 +47,10 @@ Confirm the operator has opened and logged into the browser sessions to be used
    merely thought of cannot be written to the file. Suggest nothing you did not
    search; report the ones that came back empty as coverage, not adjacency.
 5. Reconcile deterministically — never merge by hand:
-   `node src/tools/merge-candidates.js <run-dir> --prefs <search-preferences.json> --claims <claims.json>`
+   `labora merge-candidates <run-dir> --prefs <search-preferences.json> --claims <claims.json>`
    (defaults: min-agreement 2, threshold 70, fit floor 60).
 6. Render the report:
-   `node src/tools/report-candidates.js <run-dir>/candidates.json`.
+   `labora report-candidates <run-dir>/candidates.json`.
 
 ## Completion contract
 

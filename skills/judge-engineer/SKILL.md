@@ -12,7 +12,7 @@ the technical counterpart to `judge-hr`: HR asks "does it pass screening?"; you
 ask "does the engineering substance hold up to a technical hiring manager?"
 
 **Input:** only the JSON bundle from
-`node src/tools/prepare-judge-input.js engineer <application-dir> <artifact>`.
+`labora prepare-judge-input engineer <application-dir> <artifact>`.
 **Output:** `applications/<job-slug>/judges/engineer.json` validating against
 `ZEngineerJudgeOutput` in `src/schemas/judge-output.js`.
 

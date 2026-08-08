@@ -142,3 +142,58 @@ test("skills dispatching to agents name real agents", () => {
   }
   assert.deepEqual(missing, [], missing.join("\n"));
 });
+
+// A plugin is installed to an unpredictable path and invoked from the persona
+// workspace, so "node src/tools/x.js" resolves to nothing. Every documented
+// invocation has to go through the dispatcher, which locates itself.
+test("no instruction file tells an agent to run a tool by relative path", () => {
+  const offenders = [];
+  const roots = ["skills", "agents", "templates", "src"];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(md|js)$/.test(entry.name)) {
+        const raw = fs.readFileSync(full, "utf8");
+        if (raw.includes("node src/tools/")) {
+          offenders.push(path.relative(repoRoot, full));
+        }
+      }
+    }
+  };
+  for (const root of roots) walk(path.join(repoRoot, root));
+  assert.deepEqual(
+    offenders,
+    [],
+    `these tell the caller to run a tool relative to the plugin root, which is not the working directory:\n${offenders.join("\n")}`,
+  );
+});
+
+// The dispatcher's whole job is to report a broken install. If it imported a
+// dependency it would crash exactly when it is most needed.
+test("the dispatcher depends on nothing but Node itself", () => {
+  const raw = fs.readFileSync(path.join(repoRoot, "bin", "labora"), "utf8");
+  const external = [...raw.matchAll(/^import\s+.*?from\s+"([^"]+)"/gm)]
+    .map(([, spec]) => spec)
+    .filter((spec) => !spec.startsWith("node:"));
+  assert.deepEqual(
+    external,
+    [],
+    `bin/labora must run on an install where nothing is installed, but imports ${external.join(", ")}`,
+  );
+  assert.ok(raw.startsWith("#!/usr/bin/env node"), "bin/labora needs a shebang to be executable");
+  // eslint-disable-next-line no-bitwise
+  assert.ok(fs.statSync(path.join(repoRoot, "bin", "labora")).mode & 0o111, "bin/labora must be executable");
+});
+
+// The hook is what tells the model where the dispatcher actually lives.
+test("the plugin registers a hook that announces the dispatcher", () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, "plugin.json"), "utf8"));
+  assert.equal(manifest.hooks, "hooks.json", "plugin.json must point at the hook file");
+  const hooks = JSON.parse(fs.readFileSync(path.join(repoRoot, manifest.hooks), "utf8"));
+  const commands = (hooks.sessionStart || []).map((h) => h.bash || h.command || "");
+  assert.ok(
+    commands.some((c) => c.includes("PLUGIN_ROOT") && c.includes("bin/labora")),
+    "the sessionStart hook must resolve bin/labora through the plugin root the runtime provides",
+  );
+});

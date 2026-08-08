@@ -152,7 +152,7 @@ const invokedDirectly = process.argv[1] && import.meta.url === `file://${process
 if (invokedDirectly) {
   const { persona } = parseArgs(process.argv.slice(2));
   if (!persona) {
-    console.error("usage: node src/tools/anchor-repo-claims.js --persona <name>");
+    console.error("usage: labora anchor-repo-claims --persona <name>");
     process.exit(1);
   }
   const personaRoot = resolvePersonaRoot(persona);

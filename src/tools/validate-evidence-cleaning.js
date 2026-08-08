@@ -16,7 +16,7 @@ const metadataPath = flag("--metadata");
 
 if (!extractedPath || !cleanedPath || !metadataPath) {
   process.stderr.write(
-    "Usage: node src/tools/validate-evidence-cleaning.js <extracted.md> <cleaned.md> --metadata <extracted.json> [--output <validation.json>]\n"
+    "Usage: labora validate-evidence-cleaning <extracted.md> <cleaned.md> --metadata <extracted.json> [--output <validation.json>]\n"
   );
   process.exit(1);
 }

@@ -5,7 +5,7 @@ FROZEN EVIDENCE FILE. Durable self-reported facts only.
 
 claims.json anchors to this file by content hash and exact line range, so any
 edit invalidates the claims grounded here until they are re-verified with
-  node src/tools/validate-claims.js
+  labora validate-claims
 
 Belongs here: positions held, education, side projects, certifications, awards.
 Does NOT belong here: profile summaries, resume bullets for periods that have a

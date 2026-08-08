@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // resume-text.js — serialize a structured resume JSON to plain text.
 // Used as the input the HR / engineer judges read.
-// Usage: node src/tools/resume-text.js <resume.json>
+// Usage: labora resume-text <resume.json>
 import fs from "node:fs";
 import { resumeToText } from "../lib/resume-to-text.js";
 
 const resumePath = process.argv[2];
 if (!resumePath) {
-  process.stderr.write("Usage: node src/tools/resume-text.js <resume.json>\n");
+  process.stderr.write("Usage: labora resume-text <resume.json>\n");
   process.exit(1);
 }
 

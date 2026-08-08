@@ -11,8 +11,8 @@ const command = process.argv[2];
 const applicationArg = process.argv[3];
 if (!["check", "record"].includes(command) || !applicationArg) {
   process.stderr.write(
-    "Usage: node src/tools/run-state.js check <application-dir> [--style N]\n" +
-    "       node src/tools/run-state.js record <application-dir> <stage> [--style N] [--model ID]\n"
+    "Usage: labora run-state check <application-dir> [--style N]\n" +
+    "       labora run-state record <application-dir> <stage> [--style N] [--model ID]\n"
   );
   process.exit(1);
 }

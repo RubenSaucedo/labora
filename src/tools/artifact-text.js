@@ -7,7 +7,7 @@ import { extractTextFromPdf } from "../utils/pdf-to-md.js";
 
 const artifactPath = process.argv[2];
 if (!artifactPath) {
-  process.stderr.write("Usage: node src/tools/artifact-text.js <resume.docx|resume.pdf>\n");
+  process.stderr.write("Usage: labora artifact-text <resume.docx|resume.pdf>\n");
   process.exit(1);
 }
 

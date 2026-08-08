@@ -14,7 +14,7 @@ import {
  * drift, per-model bias, and cross-judge agreement are observable over time.
  *
  * Usage:
- *   node src/tools/calibrate-judges.js [--personas <dir>] [--persona <name>] \
+ *   labora calibrate-judges [--personas <dir>] [--persona <name>] \
  *     [--out <calibration.json>]
  *
  * Walks data/personas/<persona>/applications/<slug>/judges/{ats,engineer,hr}.json.

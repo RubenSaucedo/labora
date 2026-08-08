@@ -1,0 +1,192 @@
+#!/usr/bin/env node
+// labora's single entry point for every deterministic tool.
+//
+// This file imports nothing outside Node's standard library, on purpose. It has
+// to be able to run and explain itself on a fresh plugin install, which is
+// exactly the situation where no dependency is installed yet.
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// bin/labora -> the plugin root is one level up. Derived from this file's own
+// location rather than the caller's, because a plugin is installed to a path
+// nobody can predict and is invoked from a directory that is never it.
+const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const toolsDir = path.join(pluginRoot, "src", "tools");
+const binPath = path.join(pluginRoot, "bin", "labora");
+const SETUP_COMMAND = "labora setup";
+
+function pluginVersion() {
+  const manifest = path.join(pluginRoot, "package.json");
+  if (!fs.existsSync(manifest)) return "(unknown version)";
+  return JSON.parse(fs.readFileSync(manifest, "utf8")).version || "(unknown version)";
+}
+
+function availableTools() {
+  if (!fs.existsSync(toolsDir)) return [];
+  return fs
+    .readdirSync(toolsDir)
+    .filter((entry) => entry.endsWith(".js"))
+    .map((entry) => entry.slice(0, -3))
+    .sort();
+}
+
+function declaredDependencies() {
+  const manifest = path.join(pluginRoot, "package.json");
+  if (!fs.existsSync(manifest)) return [];
+  const parsed = JSON.parse(fs.readFileSync(manifest, "utf8"));
+  return Object.keys(parsed.dependencies || {}).sort();
+}
+
+// A package is present only when its own manifest is readable. A bare directory
+// can survive a partial or interrupted install.
+function missingDependencies() {
+  return declaredDependencies().filter(
+    (name) => !fs.existsSync(path.join(pluginRoot, "node_modules", name, "package.json"))
+  );
+}
+
+function fail(message) {
+  process.stderr.write(`labora: ${message}\n`);
+  process.exit(1);
+}
+
+function reportMissingDependencies(missing) {
+  process.stderr.write(
+    `labora: ${missing.length} dependenc${missing.length === 1 ? "y is" : "ies are"} not installed: ` +
+    `${missing.join(", ")}\n` +
+    `\nA plugin install copies these sources but never runs "npm install", so the\n` +
+    `deterministic tools cannot load. Install them once:\n\n  ${SETUP_COMMAND}\n\n` +
+    `Refusing to run the tool. A gate that cannot execute must not look like one that passed.\n`
+  );
+  process.exit(1);
+}
+
+function runSetup() {
+  const useCleanInstall = fs.existsSync(path.join(pluginRoot, "package-lock.json"));
+  const args = useCleanInstall
+    ? ["ci", "--omit=dev"]
+    : ["install", "--omit=dev", "--no-audit", "--no-fund"];
+  process.stderr.write(`labora: installing dependencies into ${pluginRoot}\n`);
+  process.stderr.write(`labora: npm ${args.join(" ")}\n`);
+  const result = spawnSync("npm", args, {
+    cwd: pluginRoot,
+    stdio: "inherit",
+    // Puppeteer's postinstall downloads a ~1.9 GB browser. Setup must not do
+    // that silently; PDF rendering reports its own requirement when used.
+    env: { ...process.env, PUPPETEER_SKIP_DOWNLOAD: "1" },
+  });
+  if (result.error) fail(`could not run npm: ${result.error.message}`);
+  if (result.status !== 0) process.exit(result.status ?? 1);
+
+  const stillMissing = missingDependencies();
+  if (stillMissing.length) fail(`setup finished but these are still missing: ${stillMissing.join(", ")}`);
+  process.stderr.write("labora: dependencies ready\n");
+}
+
+function runDoctor() {
+  const missing = missingDependencies();
+  const tools = availableTools();
+  const lines = [
+    `plugin root   ${pluginRoot}`,
+    `working dir   ${process.cwd()}`,
+    `node          ${process.version}`,
+    `tools         ${tools.length} available`,
+    `dependencies  ${missing.length === 0 ? "ready" : `MISSING: ${missing.join(", ")}`}`,
+  ];
+  process.stdout.write(lines.join("\n") + "\n");
+  if (missing.length) {
+    process.stdout.write(`\nRun "${SETUP_COMMAND}" to install the missing dependencies.\n`);
+    process.exit(1);
+  }
+}
+
+// Emitted by the sessionStart hook. Skills refer to the tools as "labora
+// <tool>", but a plugin is installed to an unpredictable path that is not on
+// PATH, so the model has no way to discover it. This binds that name to this
+// absolute path for the session, and states up front whether the tools can
+// actually run - a stage that cannot execute must never be mistaken for one
+// that passed. It is strictly read-only: installing is the operator's call.
+function announce() {
+  const missing = missingDependencies();
+  const lines = [
+    `labora plugin ${pluginVersion()} is installed at ${pluginRoot}.`,
+    ``,
+    `Skills and agents invoke deterministic tools as "labora <tool> [args]".`,
+    `That command is not on PATH. Run it as:`,
+    `  ${binPath} <tool> [args]`,
+    `Run "${binPath} list" for the ${availableTools().length} available tools.`,
+  ];
+  if (missing.length) {
+    lines.push(
+      ``,
+      `WARNING: ${missing.length} dependencies are not installed (${missing.join(", ")}),`,
+      `so every deterministic tool will fail. No pipeline stage can be`,
+      `validated until the operator runs:`,
+      `  ${binPath} setup`,
+      `Do not run that yourself and do not work around the tools by`,
+      `reimplementing their checks - report the gap and stop.`
+    );
+  }
+  process.stdout.write(JSON.stringify({ additionalContext: lines.join("\n") }) + "\n");
+}
+
+function usage() {
+  process.stdout.write(
+    `labora — deterministic tools for the labora resume pipeline\n\n` +
+    `Usage:\n` +
+    `  labora <tool> [args...]   run a tool\n` +
+    `  labora list               list available tools\n` +
+    `  labora doctor             report install health\n` +
+    `  labora setup              install dependencies into the plugin\n` +
+    `  labora announce           emit session context (used by the plugin hook)\n\n` +
+    `Tools:\n` +
+    availableTools().map((tool) => `  ${tool}`).join("\n") + "\n"
+  );
+}
+
+const [command, ...rest] = process.argv.slice(2);
+
+if (!command || command === "help" || command === "--help" || command === "-h") {
+  usage();
+  process.exit(0);
+}
+if (command === "list") {
+  process.stdout.write(availableTools().join("\n") + "\n");
+  process.exit(0);
+}
+if (command === "doctor") {
+  runDoctor();
+  process.exit(0);
+}
+if (command === "setup") {
+  runSetup();
+  process.exit(0);
+}
+if (command === "announce") {
+  announce();
+  process.exit(0);
+}
+
+// Reject anything that is not a plain tool name before it reaches the
+// filesystem, so an argument can never be turned into a path.
+if (!/^[a-z0-9][a-z0-9-]*$/.test(command)) {
+  fail(`"${command}" is not a valid tool name. Run "labora list".`);
+}
+const toolPath = path.join(toolsDir, `${command}.js`);
+if (!availableTools().includes(command) || !fs.existsSync(toolPath)) {
+  fail(`unknown tool "${command}". Run "labora list".`);
+}
+
+const missing = missingDependencies();
+if (missing.length) reportMissingDependencies(missing);
+
+// Spawn rather than import: the tool reads process.argv and calls process.exit,
+// so importing it would hand it this dispatcher's arguments and let it end this
+// process. Spawning preserves its argv, its exit code, and the caller's cwd -
+// which is the persona workspace and must stay that way.
+const result = spawnSync(process.execPath, [toolPath, ...rest], { stdio: "inherit" });
+if (result.error) fail(`could not run ${command}: ${result.error.message}`);
+if (result.signal) fail(`${command} terminated with signal ${result.signal}`);
+process.exit(result.status ?? 1);

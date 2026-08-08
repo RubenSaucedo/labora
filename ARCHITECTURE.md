@@ -154,8 +154,8 @@ left the snapshot instead of silently dropping them. Run it after every
 snapshot:
 
 ```
-node src/tools/snapshot-repos.js --persona <name> --verify-urls
-node src/tools/anchor-repo-claims.js --persona <name>
+labora snapshot-repos --persona <name> --verify-urls
+labora anchor-repo-claims --persona <name>
 ```
 
 ### `profile/generated/claims.json`

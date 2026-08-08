@@ -213,7 +213,7 @@ export function renderProfile(personaName, generatedDir) {
 function main() {
   const personaName = process.argv[2];
   if (!personaName) {
-    console.error("usage: node src/tools/render-profile.js <persona-name>");
+    console.error("usage: labora render-profile <persona-name>");
     process.exit(2);
   }
   const generatedDir = path.join("data/personas", personaName, "profile/generated");

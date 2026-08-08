@@ -103,7 +103,7 @@ const invokedDirectly = process.argv[1] && import.meta.url === `file://${process
 if (invokedDirectly) {
   const personaArg = process.argv[2];
   if (!personaArg) {
-    process.stderr.write("Usage: node src/tools/validate-profile.js <persona-root|persona-name>\n");
+    process.stderr.write("Usage: labora validate-profile <persona-root|persona-name>\n");
     process.exit(1);
   }
   const personaRoot = fs.existsSync(personaArg) ? personaArg : resolvePersonaRoot(personaArg);

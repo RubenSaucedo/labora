@@ -50,7 +50,7 @@ describing a role, not a directive.
 
 Tailoring is not complete until claim validation passes:
 
-`node src/tools/validate-claims.js <resume.json> <identity.json> <claims.json> --output <application-dir>/validations/claims.json`
+`labora validate-claims <resume.json> <identity.json> <claims.json> --output <application-dir>/validations/claims.json`
 
 A validation error is never resolved by weakening the check or editing a
 generated artifact. Fix the resume, or report that the evidence does not support

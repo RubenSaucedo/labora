@@ -1,0 +1,9 @@
+{
+  "sessionStart": [
+    {
+      "type": "command",
+      "bash": "\"${PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/labora\" announce",
+      "timeoutSec": 10
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 // This tool never rewrites content; it only maps fields into a styled document.
 //
 // Usage:
-//   node src/tools/format-docx.js <resume.json> <out.docx> --contact <contact.md> --job <job.md> [--style N] [--max-skills N]
+//   labora format-docx <resume.json> <out.docx> --contact <contact.md> --job <job.md> [--style N] [--max-skills N]
 //
 // --style N   1=Classic ATS (default), 2=Clean modern, 3=Compact, 4=2027
 // --job       optional job.md to inform formatter ordering
@@ -26,7 +26,7 @@ const resumePath = process.argv[2];
 const outPath = process.argv[3];
 if (!resumePath || !outPath || resumePath.startsWith("--")) {
   process.stderr.write(
-    "Usage: node src/tools/format-docx.js <resume.json> <out.docx> --contact <contact.md> --job <job.md> [--style N] [--max-skills N]\n"
+    "Usage: labora format-docx <resume.json> <out.docx> --contact <contact.md> --job <job.md> [--style N] [--max-skills N]\n"
   );
   process.exit(1);
 }

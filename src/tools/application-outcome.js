@@ -22,7 +22,7 @@ const eventType = process.argv[4];
 
 if (!applicationDir || !["show", "record"].includes(command)) {
   process.stderr.write(
-    `Usage: node src/tools/application-outcome.js <application-dir> show|record [${OUTCOME_EVENTS.join("|")}] [--at ISO] [--channel text] [--note text]\n`
+    `Usage: labora application-outcome <application-dir> show|record [${OUTCOME_EVENTS.join("|")}] [--at ISO] [--channel text] [--note text]\n`
   );
   process.exit(1);
 }

@@ -242,8 +242,8 @@ cannot be written to the file at all. "Figma is like Adobe" is a guess;
 
 | Need | Command |
 |---|---|
-| Reconcile scouts into candidates.json | `node src/tools/merge-candidates.js <run-dir> --prefs <search-preferences.json> --claims <claims.json> [--min-agreement N] [--threshold N] [--fit-floor N]` |
-| Render the human report | `node src/tools/report-candidates.js <run-dir>/candidates.json [report.md]` |
+| Reconcile scouts into candidates.json | `labora merge-candidates <run-dir> --prefs <search-preferences.json> --claims <claims.json> [--min-agreement N] [--threshold N] [--fit-floor N]` |
+| Render the human report | `labora report-candidates <run-dir>/candidates.json [report.md]` |
 
 Schemas: `src/schemas/job-search.js` (`ZSearchPreferences`, `ZDiscoveryReport`,
 `ZScoutReport`, `ZJobSearchReport`). Validate before writing; schemas are strict.

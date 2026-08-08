@@ -17,7 +17,7 @@ const limit = Number(flag("--limit") ?? 0);
 
 if (!bankPath || !jobSpecPath) {
   process.stderr.write(
-    "Usage: node src/tools/rank-accomplishments.js <accomplishments.json> <job-spec.json> [--limit <n>] [--output <ranking.json>]\n"
+    "Usage: labora rank-accomplishments <accomplishments.json> <job-spec.json> [--limit <n>] [--output <ranking.json>]\n"
   );
   process.exit(1);
 }

@@ -27,7 +27,7 @@ const outputPath = flag("--output");
 const jobPath = flag("--job");
 const crossParser = hasFlag("--cross-parser");
 if (!resumePath || !artifactPath || !contactPath || !jobPath) {
-  process.stderr.write("Usage: node src/tools/validate-artifact.js <resume.json> <resume.docx|resume.pdf> --contact <contact.md> --job <job.md> [--output <validation.json>] [--cross-parser]\n");
+  process.stderr.write("Usage: labora validate-artifact <resume.json> <resume.docx|resume.pdf> --contact <contact.md> --job <job.md> [--output <validation.json>] [--cross-parser]\n");
   process.exit(1);
 }
 try {

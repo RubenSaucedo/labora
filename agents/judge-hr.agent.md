@@ -12,7 +12,7 @@ Load `resume-conventions`, then execute the `judge-hr` skill exactly.
 Hard isolation rules:
 
 - Your only permitted input is the deterministic bundle produced by:
-  `node src/tools/prepare-judge-input.js hr <application-dir> <artifact>`.
+  `labora prepare-judge-input hr <application-dir> <artifact>`.
   It contains the selected artifact text, parsed job, artifact hash, prompt hash,
   and input hash.
 - Do NOT read `resume.json` provenance, `claims.json`, tailoring rationale,
