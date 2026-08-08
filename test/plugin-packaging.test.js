@@ -36,6 +36,19 @@ test("plugin.json declares directories that exist", () => {
   }
 });
 
+// The manifest and the package describe the same artifact. Bumping one and
+// forgetting the other publishes a version that resolves differently depending
+// on which file the consumer trusts.
+test("plugin.json and package.json versions match", () => {
+  const plugin = JSON.parse(fs.readFileSync(path.join(repoRoot, "plugin.json"), "utf8"));
+  const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
+  assert.equal(
+    plugin.version,
+    pkg.version,
+    `plugin.json is ${plugin.version} but package.json is ${pkg.version}`,
+  );
+});
+
 test("every skill name matches its directory", () => {
   assert.ok(skillDirs.length > 0, "no skills found");
   for (const dir of skillDirs) {

@@ -71,3 +71,27 @@ user data**: `<workspace>` is a directory you own that contains `personas/`, and
 the normal way to select it is to run from it. `$LABORA_WORKSPACE` and a
 `labora.json` pointer override that for unusual setups. Only the synthetic
 `example` persona is committed. See `README.md` and `ARCHITECTURE.md`.
+
+## Delivering a change
+
+Every change reaches `main` the same way, including one-line fixes:
+
+1. **Branch.** `<type>/<slug>` — `fix/`, `feat/`, `docs/`, `chore/`, `refactor/`.
+   Never commit to `main` directly.
+2. **Commit and PR body explain the problem, then the fix.** State what was
+   broken and how you know, not just what changed; a reader who disagrees with
+   the diff should be able to tell whether they disagree with the diagnosis or
+   the remedy. Name what you deliberately did *not* do, and why.
+3. **Bump the version** in `plugin.json` **and** `package.json`, which must
+   always match — the plugin manifest and the npm package describe the same
+   artifact, and a consumer that trusts the wrong one installs a version that
+   does not exist. Semver is judged from the **installed** surface: user-invocable
+   skills, agent names, and tool CLIs are public; internal stages are not.
+   Renaming or hiding a shipped `user-invocable` skill is breaking.
+4. **`npm test` passes**, and the three required checks
+   (`test (22.x)`, `test (24.x)`, `persona-data`) are green before merge.
+5. **Add the regression test with the fix**, in the same PR. A bug that shipped
+   once can ship again, and the test is the only part of the fix that still
+   works after everyone forgets the context.
+
+Squash-merge, and delete the branch.
