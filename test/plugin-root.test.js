@@ -37,7 +37,10 @@ test("pluginRoot is the plugin's own directory, not the caller's", () => {
     fs.existsSync(path.join(pluginRoot, "src", "lib", "run-manifest.js")),
     "pluginRoot must contain labora's sources"
   );
-  assert.ok(fs.existsSync(path.join(pluginRoot, "plugin.json")));
+  assert.ok(
+    fs.existsSync(path.join(pluginRoot, ".claude-plugin", "plugin.json")),
+    "pluginRoot must contain the plugin manifest"
+  );
 });
 
 test("stage dependencies on labora's own sources resolve from an unrelated cwd", () => {

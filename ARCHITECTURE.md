@@ -418,7 +418,7 @@ job-explorer (conductor)
   structural boundary, not a convention: a gitignore negation pattern
   (`data/personas/*` plus `!example/`) guarding performance reviews and
   compensation is one `git add -f` from failing, and there is no undo for
-  disclosure. It also makes the plugin correct — `plugin.json` declares labora
+  disclosure. It also makes the plugin correct — the manifest declares labora
   installable, and an installed plugin's `process.cwd()` is the *user's*
   directory, where an in-repo `data/personas/` would not exist at all.
 - **Provenance is persona-relative so it travels with the persona.** A claim

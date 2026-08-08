@@ -59,7 +59,7 @@ imitate one, silently removes every boundary the stage exists to enforce. If an
 agent is unavailable because the plugin is not installed, say so and stop.
 
 Slash commands ship **only** from `skills/`. Copilot CLI's plugin loader
-recognises `*.agent.md`, `**/SKILL.md`, `mcp-config.json` and `plugin.json` and
+recognises `*.agent.md`, `**/SKILL.md`, `mcp-config.json` and the plugin manifest and
 nothing else, so a command placed anywhere else reaches only people sitting in
 this repo. Every skill must declare `user-invocable` explicitly — it defaults to
 `true`, so omitting it publishes an internal stage by accident. Only the eight
@@ -95,7 +95,7 @@ Every change reaches `main` the same way, including one-line fixes:
    broken and how you know, not just what changed; a reader who disagrees with
    the diff should be able to tell whether they disagree with the diagnosis or
    the remedy. Name what you deliberately did *not* do, and why.
-3. **Bump the version** in `plugin.json` **and** `package.json`, which must
+3. **Bump the version** in `.claude-plugin/plugin.json` **and** `package.json`, which must
    always match — the plugin manifest and the npm package describe the same
    artifact, and a consumer that trusts the wrong one installs a version that
    does not exist. Semver is judged from the **installed** surface: user-invocable
