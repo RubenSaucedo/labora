@@ -22,22 +22,31 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the contracts.
 
 ## Quick start
 
-**1. Install the plugin**, then restart the CLI so the agents register:
+**1. Add the marketplace and install the plugin**, then restart the CLI so the
+agents register:
 
 ```bash
-/plugin install RubenSaucedo/labora
+/plugin marketplace add RubenSaucedo/labora
+/plugin install labora@labora
 ```
+
+Direct repo installs (`/plugin install RubenSaucedo/labora`) still work, but the
+CLI now warns that only `plugin@marketplace` installs will be supported.
 
 **2. Install its dependencies.** The deterministic tools are Node scripts with
-real runtime dependencies (`zod`, `docx`, `mammoth`, `pdf-parse`, `tesseract.js`,
-`puppeteer`). The plugin installer git-clones the repo but does **not** run
-`npm install`, so without this step every tool fails with
-`ERR_MODULE_NOT_FOUND`:
+real runtime dependencies (`zod`, `docx`, `mammoth`, `pdf-parse`,
+`puppeteer-core`). A plugin installer git-clones the repo but never runs
+`npm install`, so without this step every tool fails to load:
 
 ```bash
-cd ~/Library/Caches/copilot/marketplaces/RubenSaucedo--labora   # macOS
-npm install --omit=dev
+labora setup
 ```
+
+`labora` is the dispatcher at `<plugin>/bin/labora`; the session-start hook
+prints its absolute path. `labora doctor` reports install health, including
+whether a Chrome was found for PDF rendering. Labora does not download a
+browser — set `LABORA_CHROME` if yours is somewhere unusual. OCR for scanned
+PDFs is optional; install it with `npm install tesseract.js` inside the plugin.
 
 **3. Create a workspace** — a directory you own that holds `personas/`. Your
 career data lives here, never in the plugin:

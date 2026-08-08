@@ -1,0 +1,25 @@
+{
+  "name": "labora",
+  "owner": {
+    "name": "RubenSaucedo",
+    "url": "https://github.com/RubenSaucedo"
+  },
+  "plugins": [
+    {
+      "name": "labora",
+      "source": "./",
+      "description": "Evidence-grounded resume assurance and job discovery. Every resume line maps to a verified claim, with isolated ATS/engineer/HR judges and a release gate.",
+      "version": "3.5.0",
+      "license": "MIT",
+      "homepage": "https://github.com/RubenSaucedo/labora",
+      "keywords": [
+        "resume",
+        "ats",
+        "job-application",
+        "job-search",
+        "evidence",
+        "workflow-automation"
+      ]
+    }
+  ]
+}

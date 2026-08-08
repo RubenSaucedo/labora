@@ -1,12 +1,14 @@
 {
   "name": "labora",
   "description": "Evidence-grounded resume pipeline with structured job analysis, claim provenance, deterministic artifact gates, independent ATS/engineer/HR judges, and a final release decision.",
-  "version": "3.4.1",
+  "version": "3.5.0",
   "author": {
     "name": "RubenSaucedo",
     "url": "https://github.com/RubenSaucedo"
   },
   "license": "MIT",
+  "homepage": "https://github.com/RubenSaucedo/labora",
+  "repository": "https://github.com/RubenSaucedo/labora",
   "keywords": [
     "copilot",
     "copilot-cli",

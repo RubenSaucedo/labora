@@ -6,6 +6,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const MANIFEST_PATH = path.join(repoRoot, ".claude-plugin", "plugin.json");
+const MARKETPLACE_PATH = path.join(repoRoot, ".claude-plugin", "marketplace.json");
 const skillsDir = path.join(repoRoot, "skills");
 const agentsDir = path.join(repoRoot, "agents");
 
@@ -25,7 +27,7 @@ const skillDirs = fs
   .filter((d) => fs.existsSync(path.join(skillsDir, d, "SKILL.md")));
 
 test("plugin.json declares directories that exist", () => {
-  const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, "plugin.json"), "utf8"));
+  const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
   for (const key of ["name", "description", "version", "agents", "skills"]) {
     assert.ok(manifest[key], `plugin.json is missing "${key}"`);
   }
@@ -41,7 +43,7 @@ test("plugin.json declares directories that exist", () => {
 // forgetting the other publishes a version that resolves differently depending
 // on which file the consumer trusts.
 test("plugin.json and package.json versions match", () => {
-  const plugin = JSON.parse(fs.readFileSync(path.join(repoRoot, "plugin.json"), "utf8"));
+  const plugin = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
   assert.equal(
     plugin.version,
@@ -194,7 +196,7 @@ test("the dispatcher depends on nothing but Node itself", () => {
 // "hooks must be an object" to a debug log and starts normally, so the only
 // visible symptom is a hook that never runs. This shipped once already.
 test("the plugin registers a hook that announces the dispatcher", () => {
-  const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, "plugin.json"), "utf8"));
+  const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
   assert.equal(manifest.hooks, "hooks.json", "plugin.json must point at the hook file");
   const config = JSON.parse(fs.readFileSync(path.join(repoRoot, manifest.hooks), "utf8"));
 
@@ -235,4 +237,64 @@ test("announce emits exactly one line of parseable hook output", () => {
     parsed.additionalContext.includes(path.join(repoRoot, "bin", "labora")),
     "the announcement must carry the absolute dispatcher path; that is its whole purpose",
   );
+});
+
+// Direct repo installs are deprecated: "Only plugin@marketplace installs will be
+// supported in a future release." Without a marketplace the plugin becomes
+// uninstallable through the only path that will keep working.
+test("the repo serves itself as a marketplace", () => {
+  assert.ok(
+    fs.existsSync(MARKETPLACE_PATH),
+    "a marketplace is the only non-deprecated way to install this plugin",
+  );
+  const market = JSON.parse(fs.readFileSync(MARKETPLACE_PATH, "utf8"));
+  assert.ok(market.name, "the marketplace name becomes the part after @ in labora@<name>");
+  assert.ok(Array.isArray(market.plugins) && market.plugins.length > 0);
+
+  const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
+  const entry = market.plugins.find((p) => p.name === manifest.name);
+  assert.ok(
+    entry,
+    `the marketplace must list a plugin named "${manifest.name}"; the install command is <name>@<marketplace>`,
+  );
+  assert.equal(entry.source, "./", "this repo is the plugin it serves, so the source is the repo root");
+});
+
+// Three manifests carry a version. Any one of them drifting misreports what a
+// user actually installed.
+test("every declared version agrees", () => {
+  const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
+  const market = JSON.parse(fs.readFileSync(MARKETPLACE_PATH, "utf8"));
+  const entry = market.plugins.find((p) => p.name === manifest.name);
+  if (entry?.version !== undefined) {
+    assert.equal(
+      entry.version,
+      manifest.version,
+      "the marketplace advertises a different version than the plugin declares",
+    );
+  }
+});
+
+// Copilot CLI searches several locations and takes the first hit. Two manifests
+// would let the served one and the tested one drift apart silently.
+test("there is exactly one plugin manifest", () => {
+  const candidates = [
+    "plugin.json",
+    path.join(".plugin", "plugin.json"),
+    path.join(".github", "plugin", "plugin.json"),
+    path.join(".claude-plugin", "plugin.json"),
+  ].filter((rel) => fs.existsSync(path.join(repoRoot, rel)));
+  assert.deepEqual(
+    candidates,
+    [path.join(".claude-plugin", "plugin.json")],
+    "both tools read .claude-plugin/plugin.json; a second manifest elsewhere can silently win",
+  );
+});
+
+// The repo advertises Claude Code support, whose canonical manifest path this is.
+test("the manifest carries the metadata a marketplace listing shows", () => {
+  const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
+  for (const key of ["description", "license", "homepage", "repository"]) {
+    assert.ok(manifest[key], `plugin.json is missing "${key}", which a listing displays`);
+  }
 });
