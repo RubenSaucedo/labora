@@ -2,8 +2,7 @@
 name: resume-persona
 description: "Builds the job-agnostic identity spine, the verified profile/generated/claims.json ledger, and the profile/generated/accomplishments.json bank from career, context, and cleaned evidence. Assigns stable experience/claim IDs and source spans; contact remains blank for deterministic injection."
 tools: [bash, view, glob, grep, edit, create]
-user-invocable: true
-argument-hint: "<persona>"
+user-invocable: false
 ---
 
 # resume-persona

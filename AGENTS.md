@@ -45,6 +45,25 @@ auditable. Running a stage inline, or hand-priming a generic sub-agent to
 imitate one, silently removes every boundary the stage exists to enforce. If an
 agent is unavailable because the plugin is not installed, say so and stop.
 
+Slash commands ship **only** from `skills/`. Copilot CLI's plugin loader
+recognises `*.agent.md`, `**/SKILL.md`, `mcp-config.json` and `plugin.json` and
+nothing else, so a command placed anywhere else reaches only people sitting in
+this repo. Every skill must declare `user-invocable` explicitly — it defaults to
+`true`, so omitting it publishes an internal stage by accident. Only the eight
+entry points in `README.md` are `true`; a stage that runs inside an isolated
+agent or writes `profile/generated/` is always `false`.
+
+Coordination and planning state for this repo lives under `kai/` (kai workspace,
+`schema_version 2`); `.kai/` holds its manifest. Two rules follow from labora
+being **public**:
+
+- `.kai/runs/` and `kai/personal/` are local-only and gitignored. Never commit
+  them, and never move anything out of them to get it tracked.
+- `kai/library/` **is** committed, so promoting a record publishes it. Promote
+  only de-identified, repo-relevant outcomes. Persona, evidence, resume and
+  application material is never repo-relevant — it belongs in the private
+  persona workspace, which is not this repo.
+
 Human-authored profile sources live at `<workspace>/personas/<name>/profile/`,
 generated artifacts under `profile/generated/`; every job and all outputs live
 together under `applications/<job-slug>/`. labora is a **plugin and stores no

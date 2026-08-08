@@ -65,7 +65,7 @@ test("the cwd itself is a workspace when it holds personas/ (zero-config plugin 
 test("an unrelated cwd does not become a persona write target", () => {
   const plain = tmpdir();
   // Without a personas/ directory the cwd must not be treated as a workspace,
-  // or `new-applicant` would scaffold a persona into whatever directory the
+  // or `scaffold-persona` would scaffold a persona into whatever directory the
   // operator happened to be standing in.
   const roots = personaSearchPaths({ cwd: plain, env: {} });
   assert.ok(!roots.includes(path.join(plain, "personas")),

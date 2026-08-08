@@ -2,6 +2,7 @@
 name: judge-ats
 description: "ATS gate judge: combines structured coverage with an LLM read of the selected rendered DOCX/PDF delivery text. Writes applications/<slug>/judges/ats.json with the selected artifact hash."
 tools: [bash, view, glob, grep, edit, create]
+user-invocable: false
 ---
 
 # judge-ats — will it clear the ATS filter?

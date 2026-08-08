@@ -2,8 +2,7 @@
 name: resume-tailor
 description: "Produces one truthful tailored resume from the identity record, claims, and job-spec; maps every bullet and displayed skill to verified claims, then runs structured coverage and deterministic claim validation."
 tools: [bash, view, glob, grep, edit, create]
-user-invocable: true
-argument-hint: "<persona> <job-slug>"
+user-invocable: false
 ---
 
 # resume-tailor

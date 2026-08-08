@@ -59,9 +59,23 @@ build a resume for <persona> for <job-slug>
 judge <persona> <job-slug>
 ```
 
-Claude Code users get the same entry points as `/new-applicant`, `/init-resume`,
-`/profile`, `/find-jobs`, `/build-resume`, `/resume-tailor`, `/resume-format` and
-`/judge-resume` from `.claude/commands/`.
+Every entry point is also a slash command, in Copilot CLI and Claude Code alike:
+
+| command | does |
+| --- | --- |
+| `/new-applicant <persona>` | interview and onboard someone with no persona yet |
+| `/profile <persona> [--research]` | build or refresh the verified profile |
+| `/resume-evidence <persona>` | extract and clean newly dropped evidence PDFs |
+| `/job-search <persona>` | discover and rank real openings |
+| `/prepare-resume <persona> <job-slug>` | analyse a job and tailor against it |
+| `/resume-format <persona> <job-slug> [--style N]` | render the delivery artifacts |
+| `/judge-resume <persona> <job-slug> [--style N]` | run the three independent gates |
+| `/build-resume <persona> <job-slug> [--style N]` | all of it, through the release decision |
+
+Those eight are the whole public surface. The remaining skills are internal
+pipeline stages, marked `user-invocable: false` because each one runs inside an
+isolated agent or writes `profile/generated/`, and invoking it directly would
+walk around the boundary it exists to enforce.
 
 The `resume-build` agent checks content hashes, rebuilds stale stages, and writes
 `release.json` with one of:

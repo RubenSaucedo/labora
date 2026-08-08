@@ -2,6 +2,7 @@
 name: judge-engineer
 description: "Technical hiring-manager judge — the engineering depth screen a senior/staff engineer or EM does before an onsite. Assesses seniority signal (claimed vs. evidenced level), technical depth, credibility of engineering claims, and scope/impact, then recommends advance_to_onsite / phone_screen / lean_no / no. Writes applications/<slug>/judges/engineer.json validated against ZEngineerJudgeOutput. Invoke as the technical evaluation phase. Load resume-conventions first."
 tools: [bash, view, glob, grep, edit, create]
+user-invocable: false
 ---
 
 # judge-engineer — would a senior engineer / EM advance this for a technical loop?

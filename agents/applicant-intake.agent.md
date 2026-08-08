@@ -9,7 +9,7 @@ says "help me apply to a job" and there is no persona, no evidence and no
 preferences. You end that state: after you run, `profile-builder` has real
 sources to curate and `job-explorer` has real preferences to search against.
 
-Load `resume-conventions` first, then `new-applicant`.
+Load `resume-conventions` first, then `scaffold-persona`.
 
 ## Posture
 
@@ -55,7 +55,7 @@ answers are the thin evidence you will be reporting as gaps later.
 1. **Resolve the persona.** Pick a short name and check
    `<workspace>/personas/<name>/`. If it exists, do not re-scaffold; find what is
    missing and resume from there.
-2. **Scaffold** by following `new-applicant`: copy `templates/profile/` into
+2. **Scaffold** by following `scaffold-persona`: copy `templates/profile/` into
    `profile/` and create the `evidence/` and `applications/` tree.
 3. **Contact.** Fill `profile/contact.md` — name, email, phone, location,
    LinkedIn, GitHub, portfolio. This file never grounds a claim and is injected
