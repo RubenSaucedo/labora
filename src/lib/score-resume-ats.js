@@ -1,4 +1,4 @@
-import { extractJobRequirements, significantRequirementTokens } from "./job-requirements.js";
+import { authorizationSentences, extractJobRequirements, significantRequirementTokens } from "./job-requirements.js";
 import { SKILL_ALIASES, containsSurfaceForm } from "./skill-aliases.js";
 import { clearanceMatched } from "./eligibility.js";
 
@@ -84,11 +84,21 @@ function candidateYears(resume, canonicalTerms = []) {
   return merged.reduce((total, [start, end]) => total + (end - start), 0);
 }
 
+// The jurisdiction must come from the sentence that states the gate, not from
+// the whole line and not from any sentence that merely mentions the subject. A
+// scraped line runs the gate together with a legal footer or an unrelated offer
+// naming a different country -- "must be authorized to work in Canada. Visa
+// sponsorship is available for positions in the United States." -- and reading
+// either of those wider scopes matched a US-authorized resume against a
+// Canadian gate, a false pass on the one requirement no resume can talk its way
+// past.
 function authorizationJurisdiction(text) {
-  if (/\b(?:united states|u\.?s\.?a?)\b/i.test(text)) return "us";
-  if (/\bcanada|canadian\b/i.test(text)) return "canada";
-  if (/\b(?:united kingdom|u\.?k\.?|britain|british)\b/i.test(text)) return "uk";
-  if (/\b(?:european union|e\.?u\.?)\b/i.test(text)) return "eu";
+  const stating = authorizationSentences(text);
+  const scope = stating.length > 0 ? stating.join(" ") : text;
+  if (/\b(?:united states|u\.?s\.?a?)\b/i.test(scope)) return "us";
+  if (/\bcanada|canadian\b/i.test(scope)) return "canada";
+  if (/\b(?:united kingdom|u\.?k\.?|britain|british)\b/i.test(scope)) return "uk";
+  if (/\b(?:european union|e\.?u\.?)\b/i.test(scope)) return "eu";
   return null;
 }
 

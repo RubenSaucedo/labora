@@ -323,6 +323,15 @@ Requirements carry both employer priority and release severity. Missing
 `preferred` and `soft_signal` gaps remain advisory. None of the scores is a
 hiring probability.
 
+`analyze-job` flags non-requirement prose — EEO paragraphs, pay ranges,
+benefits blocks — in `nonRequirements` with a reason. The flag is advisory and
+never removes the line from scoring, because a wrongly withheld requirement is
+invisible while a retained one is merely noisy. Each entry carries its reason so
+the filter can be audited rather than trusted. Work-authorization detection is
+negation-aware in both directions: an equal-opportunity paragraph ("without
+regard to … citizenship status") is never an eligibility gate, and a refusal to
+sponsor ("no visa sponsorship is available") always is.
+
 `--cross-parser` extracts the rendered artifact a second time with an independent
 parser (OCR render for PDF, mammoth HTML for DOCX) and reports fields the two
 parsers disagree on — a real-world ATS fragility signal. Divergences are advisory
