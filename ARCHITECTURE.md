@@ -296,6 +296,75 @@ Each also carries release severity: `hard_eligibility`, `core`, `preferred`, or
 `soft_signal`. Compound requirements retain `all`/`any` semantics and exact
 source text.
 
+`nonRequirements` flags posting prose that reads as boilerplate — EEO
+paragraphs, pay ranges, benefits blocks — with a reason for each. The flag is
+**advisory: it never removes the line from the requirement set.** The line is
+still extracted and still scored; the classification exists so a human can see
+what the tool believes it is.
+
+That is a deliberate reversal of an earlier design that dropped the flagged
+lines, and it is the single most important property of this stage. The two
+failure directions are not symmetric. A retained non-requirement is visible and
+merely noisy. A dropped requirement is invisible: it leaves the scoring
+denominator, so coverage rises and `core_requirements_missing` shrinks, and the
+tool reports a better fit than the evidence supports. Adversarial review of the
+subtractive design found that failure repeatedly and in ordinary prose — "Create
+the pay range for each role based on qualifications and location", "Manage the
+benefits package for all employees", "The candidate will manage the benefits
+package" — each of which returned zero requirements and 100% coverage. Every fix
+admitted the next construction, because deciding whose sentence a line is, from
+prose alone, is not something pattern matching can be relied on to do. Removing
+the subtraction removes the whole class of failure by construction rather than
+by better patterns.
+
+Separately, a line carrying a hard-eligibility gate is never flagged at all,
+since scraped postings routinely run the gate and the legal footer together in
+one unbroken paragraph.
+
+This matters because a flat scraped posting has no headings, so the last section
+seen carries forward to the end of the document and every trailing legal
+paragraph lands inside "Requirements". Two failures followed from that, and both
+are now regression-tested. An EEO paragraph reads "...without regard to national
+origin, citizenship status..." and the bare token `citizenship` classified it as
+`authorization`, which carries `hard_eligibility`, which no resume can satisfy,
+which hard-blocks a legitimate application. In the other direction, "No visa
+sponsorship is available" contains "sponsorship is available", so a
+negation-blind guard downgraded a genuine gate to a soft signal and reported a
+job as open to a candidate it excluded.
+
+Both are fixed by classifying one **clause** at a time rather than one line at a
+time, which is the unit the meaning actually lives in. Lines are split into
+sentences and sentences into clauses, because a clause is the smallest span
+whose subject and polarity are constant. A scraped paragraph routinely states
+the gate and the legal footer together, so a whole-line verdict has to be wrong
+about one of them: judged as a line, "U.S. citizens only. Acme is an equal
+opportunity employer." either loses the gate or gains a false one. Clause scope
+confines each signal to the span that carries it, so an EEO mention of
+citizenship suppresses only its own clause, a sponsorship offer for a different
+role cannot cancel a gate beside it, and "We do not require a degree, but
+require U.S. citizenship" keeps the gate the disclaimer does not cover.
+
+Clause splitting replaced two earlier attempts that both leaked in the dangerous
+direction: bounded wildcards, which silently crossed clause boundaries, and then
+positional arithmetic comparing where a disclaimer ended against where a demand
+began, which could not help when the disclaimer's own span consumed the demand.
+Splitting first makes the boundary explicit, and it degrades safely — an
+over-split fragment is still classified on its own, and a fragment stating a
+gate still produces one. Within a clause the order is precedence-based: an
+explicit denial of sponsorship and an explicit demand on the applicant are
+decided before any protective or EEO cue is consulted, and only genuinely
+ambiguous phrasings fall through to them. Where a phrase is ambiguous the
+classifier requires the clause to state an obligation, so "all employees have
+the right to work in an environment free from discrimination" is not read as a
+work-authorization gate.
+
+The honest limit is that all of this is pattern matching over prose, so it is
+accurate on the phrasings it has seen and silent about the rest. Known gaps are
+tracked as issues rather than claimed as solved: employer-subject authorization
+prose and administrative licence duties can still be misread as candidate gates.
+That limit is exactly why the asymmetry is enforced structurally rather than
+trusted. Classification can be wrong; it cannot delete a requirement.
+
 ### `applications/<slug>/application-strategy.json`
 
 Private positioning brief with the three strongest claim-backed hiring signals,
