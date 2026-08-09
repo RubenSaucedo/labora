@@ -174,3 +174,85 @@ test("no status collapses into a single pending bucket", () => {
     ["adjacent", "collectible", "real_gap", "unmined"]
   );
 });
+
+// Found by running triage against a real Vercel posting: a claim about payroll
+// work was listed as adjacent to an evals requirement because both texts
+// contained the word "including". Adjacency is what keeps a requirement from
+// being reported as a real gap, so the listing itself is not the defect -- but
+// calling it a reason to question a human is.
+//
+// The word has to be uncommon enough in the corpus to survive the
+// uninformative-term cut and still be meaningless, which is exactly what the
+// real corpus looked like: `including` in 8 of 188 claims.
+const NOISE_CORPUS = [
+  "Ran payroll reconciliation including quarterly reports.",
+  "Migrated the billing service including its schema.",
+  "Rewrote the notification pipeline for the mobile clients.",
+  "Documented the deployment runbook and the rollback path.",
+  "Audited vendor invoices against the signed statements of work.",
+  "Tuned the nightly batch job to finish inside its window.",
+  "Replaced the legacy cron scheduler with a managed queue.",
+  "Backfilled the customer address table after the merge.",
+  "Split the monolith test suite so it could run in parallel.",
+  "Consolidated three staging environments into one.",
+];
+
+const asLedger = (facts) => ({
+  claims: facts.map((fact, i) => ({ id: `c-${i + 1}`, fact, status: "verified" })),
+});
+
+test("a shared function word is incidental adjacency, not a question", () => {
+  const found = findAdjacentClaims(
+    asLedger(NOISE_CORPUS),
+    { text: "Experience including distributed tracing" }
+  );
+  const payroll = found.find((c) => c.fact.includes("payroll"));
+  assert.ok(payroll, "the claim is still listed, so this is not reported as a real gap");
+  assert.equal(payroll.basis, "incidental");
+  assert.deepEqual(payroll.distinctiveTerms, []);
+});
+
+test("incidental adjacency alone does not escalate to a human", () => {
+  const result = triageRequirement(
+    { text: "Experience including distributed tracing" },
+    { personaRoot: persona({}), ledger: asLedger(NOISE_CORPUS), identity: {} }
+  );
+  assert.equal(result.status, GAP_STATUS.ADJACENT, "still not a real gap");
+  assert.equal(result.escalateToHuman, false, "noise must not interrupt a human");
+  assert.notEqual(result.routes[0].kind, "ask_scoped_question");
+});
+
+// The counterpart: a genuinely specific shared term must still reach a human.
+test("a distinctive shared term still produces a scoped question", () => {
+  const result = triageRequirement(
+    { text: "Experience with durable execution guarantees" },
+    {
+      personaRoot: persona({}),
+      ledger: asLedger([
+        "Designed the durable execution semantics for our workflow engine.",
+        ...NOISE_CORPUS,
+      ]),
+      identity: {},
+    }
+  );
+  assert.equal(result.status, GAP_STATUS.ADJACENT);
+  assert.equal(result.escalateToHuman, true);
+  assert.equal(result.routes[0].kind, "ask_scoped_question");
+});
+
+// Ranking must not be by raw count, or five function words would outrank one
+// precise term.
+test("relatedness ranks a precise match above several vague ones", () => {
+  const facts = [
+    "Designed durable execution semantics for the workflow engine.",
+    "Delivered a project with a team using a process for a product with results.",
+    "Shipped work on a product with results for a team using a process.",
+    "Led a project for a product with results and a team.",
+    "Ran a process for a team on a product with results.",
+  ];
+  const found = findAdjacentClaims(
+    { claims: facts.map((fact, i) => ({ id: `c-${i + 1}`, fact, status: "verified" })) },
+    { text: "durable execution for a product with results for a team using a process" }
+  );
+  assert.match(found[0].fact, /durable execution/);
+});
