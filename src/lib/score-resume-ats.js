@@ -236,18 +236,46 @@ function requirementMatch(requirement, resumeText, resume) {
     };
   }
 
+  // No deterministic matcher applies. Everything above resolves a requirement
+  // against something checkable -- a categorical kind, or canonical terms the
+  // extractor recognised. What is left is prose the scorer cannot adjudicate:
+  //
+  //   "You think in systems. You naturally build reusable abstractions,
+  //    composable components, and clean APIs rather than one-off solutions."
+  //
+  // This used to fall through to literal token overlap against the whole
+  // paragraph, needing 60% of its words to appear in the resume. A real run
+  // scored 25% coverage with five core requirements "missing" while the claims
+  // satisfying four of them were rendered and present in `provenance`, and the
+  // engineer judge -- reading the same document semantically -- returned
+  // advance_to_onsite at 82.
+  //
+  // The measurement was not merely noisy, it was pointed the wrong way. The
+  // only way to move it is to parrot the posting's sentences, which is the
+  // keyword stuffing the truth rules exist to prevent. So the scorer now
+  // declines to answer instead of answering wrongly, and says which requirement
+  // it declined on. Deciding these needs a semantic read; that is the judges'
+  // job, not a token counter's.
+  //
+  // Checkability is defined by matcher capability, deliberately not by
+  // detecting "prose". A style detector would be another unbounded vocabulary
+  // list, and this file has already lost that argument three times: "You must
+  // have Kubernetes experience" is second-person and perfectly checkable, while
+  // "Exceptional systems thinker" is short and not checkable at all.
   const tokens = significantRequirementTokens(requirement.text);
-  if (!tokens.length) return { matched: false, matchedSignals: [] };
   const matchedTokens = tokens.filter((token) => containsSurfaceForm(resumeText, token));
-  const threshold = requirement.priority === "responsibility" ? 0.4 : 0.6;
   return {
-    matched: matchedTokens.length / tokens.length >= threshold,
+    matched: false,
+    checkable: false,
     matchedSignals: matchedTokens,
   };
 }
 
+// `null`, never 100. An empty denominator means nothing was measured, and
+// reporting that as a perfect score is exactly the invisible-improvement
+// failure this scorer is being fixed for.
 function percentage(matched, total) {
-  return total === 0 ? 100 : Math.round((matched / total) * 100);
+  return total === 0 ? null : Math.round((matched / total) * 100);
 }
 
 function formatRisks(resume) {
@@ -273,14 +301,26 @@ export function scoreAts({ resume, job, jobSpec }) {
     description: job?.raw || job?.description || "",
     sourcePath: "",
   });
-  const evaluations = spec.requirements.map((requirement) => ({
-    requirement,
-    ...requirementMatch(requirement, resumeText, resume),
-  }));
+  const evaluations = spec.requirements.map((requirement) => {
+    const result = requirementMatch(requirement, resumeText, resume);
+    const checkable = result.checkable !== false;
+    return {
+      requirement,
+      ...result,
+      checkable,
+      assessment: !checkable
+        ? "semantic_review_required"
+        : result.matched
+          ? "matched"
+          : "unmatched",
+    };
+  });
 
   const required = evaluations.filter((evaluation) => evaluation.requirement.priority === "required");
   const preferred = evaluations.filter((evaluation) => evaluation.requirement.priority === "preferred");
   const responsibilities = evaluations.filter((evaluation) => evaluation.requirement.priority === "responsibility");
+  const checkableOf = (group) => group.filter((evaluation) => evaluation.checkable);
+  const semanticReview = evaluations.filter((evaluation) => !evaluation.checkable);
 
   const canonicalTerms = [...new Set(spec.requirements.flatMap((requirement) => requirement.canonicalTerms))];
   const fallbackTerms = [...new Set(spec.requirements
@@ -296,10 +336,17 @@ export function scoreAts({ resume, job, jobSpec }) {
   const matchedTerms = lexicalItems.filter((item) => item.matched).map((item) => item.term);
   const missingTerms = lexicalItems.filter((item) => !item.matched).map((item) => item.term);
 
-  const requiredMatched = required.filter((evaluation) => evaluation.matched).length;
-  const preferredMatched = preferred.filter((evaluation) => evaluation.matched).length;
-  const responsibilityMatched = responsibilities.filter((evaluation) => evaluation.matched).length;
-  const mustHaveMissing = required
+  const requiredCheckable = checkableOf(required);
+  const requiredMatched = requiredCheckable.filter((evaluation) => evaluation.matched).length;
+  const preferredMatched = checkableOf(preferred).filter((evaluation) => evaluation.matched).length;
+  const responsibilityMatched = checkableOf(responsibilities)
+    .filter((evaluation) => evaluation.matched).length;
+
+  // Only a requirement the scorer could actually check may be reported missing.
+  // A requirement it declined to adjudicate is `unknown`, and unknown is not a
+  // deficit -- reporting it as one is what made a strong application read as a
+  // 25% match.
+  const mustHaveMissing = requiredCheckable
     .filter((evaluation) => !evaluation.matched)
     .map((evaluation) => evaluation.requirement.text);
   const missingBySeverity = Object.fromEntries(
@@ -307,16 +354,21 @@ export function scoreAts({ resume, job, jobSpec }) {
       severity,
       evaluations
         .filter((evaluation) =>
-          evaluation.requirement.severity === severity && !evaluation.matched
+          evaluation.requirement.severity === severity
+          && evaluation.checkable
+          && !evaluation.matched
         )
         .map((evaluation) => evaluation.requirement.text),
     ])
   );
 
-  const requirementCoverage = percentage(requiredMatched, required.length);
+  const requirementCoverage = percentage(requiredMatched, requiredCheckable.length);
   const lexicalCoverage = percentage(matchedTerms.length, lexicalItems.length);
-  const preferredCoverage = percentage(preferredMatched, preferred.length);
-  const responsibilityCoverage = percentage(responsibilityMatched, responsibilities.length);
+  const preferredCoverage = percentage(preferredMatched, checkableOf(preferred).length);
+  const responsibilityCoverage = percentage(
+    responsibilityMatched,
+    checkableOf(responsibilities).length
+  );
 
   const actions = [];
   if (missingBySeverity.hard_eligibility.length) {
@@ -329,7 +381,12 @@ export function scoreAts({ resume, job, jobSpec }) {
       `Surface truthful evidence for core signals: ${missingBySeverity.core.slice(0, 5).join("; ")}.`
     );
   }
-  if (lexicalCoverage < 65) {
+  if (semanticReview.length) {
+    actions.push(
+      `${semanticReview.length} requirement(s) cannot be settled by keyword matching and need a semantic read of the document: ${semanticReview.slice(0, 3).map((evaluation) => evaluation.requirement.text.slice(0, 60)).join("; ")}.`
+    );
+  }
+  if (lexicalCoverage != null && lexicalCoverage < 65) {
     actions.push("Mirror supported job language naturally in the summary, skills, and experience bullets.");
   }
   if (!actions.length) {
@@ -337,7 +394,30 @@ export function scoreAts({ resume, job, jobSpec }) {
   }
 
   return {
-    metric_version: "2.0",
+    metric_version: "3.0",
+    // What was actually measured, always visible alongside the percentage. A
+    // coverage figure whose denominator is not reported can be improved by
+    // shrinking the denominator, which is the failure mode this fix would
+    // otherwise introduce.
+    required_assessment: {
+      total_count: required.length,
+      checkable_count: requiredCheckable.length,
+      matched_count: requiredMatched,
+      unmatched_count: requiredCheckable.length - requiredMatched,
+      semantic_review_count: required.length - requiredCheckable.length,
+      checkable_match_percent: requirementCoverage,
+    },
+    // Requirements the deterministic scorer declined to adjudicate. These are
+    // not missing and must not be reported as gaps -- they are handed to the
+    // judges, which read the rendered document rather than counting tokens.
+    semantic_review_required: semanticReview.map((evaluation) => ({
+      id: evaluation.requirement.id,
+      priority: evaluation.requirement.priority,
+      severity: evaluation.requirement.severity,
+      text: evaluation.requirement.text,
+      reason: "no_deterministic_matcher",
+      partial_signals: evaluation.matchedSignals,
+    })),
     coverage_percent: lexicalCoverage,
     lexical_coverage_percent: lexicalCoverage,
     requirement_coverage_percent: requirementCoverage,
@@ -357,6 +437,8 @@ export function scoreAts({ resume, job, jobSpec }) {
       kind: evaluation.requirement.kind,
       text: evaluation.requirement.text,
       matched: evaluation.matched,
+      checkable: evaluation.checkable,
+      assessment: evaluation.assessment,
       matched_signals: evaluation.matchedSignals,
     })),
     format_risks: formatRisks(resume),
