@@ -341,3 +341,68 @@ test("runtime, schema and skill table agree on the status vocabulary", () => {
     .sort();
   assert.deepEqual(documented, statuses, "skill table drifted from GAP_STATUS");
 });
+
+// `body.includes(term)` matched substrings, so `rust` was satisfied by "trust"
+// and `top` by "topics". `unmined` is the least alarming status and it *closes*
+// the requirement -- no question, no route -- so a false one is silent. The
+// candidate was told he was covered for a clearance he does not hold.
+test("a term must match a whole word, not a fragment inside one", () => {
+  const root = persona({
+    "evidence/reviews/2025/text/review.md":
+      "Built trust across the org while explaining complex topics such as deployment pipelines, and led the evaluation of vendor options.",
+  });
+  for (const text of [
+    "Experience with Rust systems programming",
+    "Must hold an active US Top Secret security clearance",
+    "Experience building eval harnesses",
+  ]) {
+    const hits = searchCorpus(root, { text });
+    assert.deepEqual(hits, [], `"${text}" must not match on a substring`);
+  }
+});
+
+// Tokens keep `+`, `#` and `.` so these stay single words rather than
+// fragmenting into pieces that match everything.
+test("punctuated skill names survive tokenisation", () => {
+  const root = persona({
+    "evidence/reviews/2025/text/review.md":
+      "Ported the c++ renderer to node.js and shipped the .net service.",
+  });
+  for (const term of ["c++", "node.js", ".net"]) {
+    assert.ok(
+      searchCorpus(root, { text: `Ported the ${term} renderer service` }).length > 0,
+      `${term} should match as one token`
+    );
+  }
+});
+
+// The lexicon is a closed list, so the "a named skill must actually appear"
+// guard silently vanished for any skill it had not been taught -- and the
+// fallback, any two shared words, is something a real corpus always satisfies.
+// The corpus itself says which term is specific: a requirement's rarest term is
+// what it is really about, and a corpus that never contains it is not answering
+// it.
+test("prose around an unrecognised skill is not coverage of that skill", () => {
+  const root = persona({
+    "evidence/reviews/2025/text/review.md":
+      "Held an active role on the security review board and presented systems programming guidance to the top of the org.",
+  });
+  const result = triageRequirement(
+    { text: "Must hold an active US Top Secret security clearance" },
+    { personaRoot: root, ledger: ledger([]), identity: {} }
+  );
+  assert.notEqual(result.status, GAP_STATUS.UNMINED);
+  assert.deepEqual(searchCorpus(root, { text: "Experience with Rust systems programming" }), []);
+});
+
+// The guard must not swing so far that genuine coverage is discarded: when the
+// corpus does contain the specific term, the hit still stands.
+test("an unrecognised skill the corpus actually names is still a hit", () => {
+  const root = persona({
+    "evidence/reviews/2025/text/review.md":
+      "Wrote the Rust ingestion service and its systems programming test harness.",
+  });
+  const hits = searchCorpus(root, { text: "Experience with Rust systems programming" });
+  assert.equal(hits.length, 1);
+  assert.ok(hits[0].matchedTerms.includes("rust"));
+});
