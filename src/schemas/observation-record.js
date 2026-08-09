@@ -13,13 +13,21 @@ import { z } from "zod";
 // The target is usually the persona's own live work. It is not under
 // evaluation and perfection is not the bar.
 
+// One axis only: who can re-verify this, and when. Deliberately not a measure
+// of authorship or of strength -- see `skills/evidence-exploration/SKILL.md`.
+//
+// There is no `self_reported` member. A thing the persona merely stated was
+// never observed, so it cannot be an observation; it belongs in the profile as
+// a self-reported fact. Allowing it here would let the record launder an
+// assertion into a verification.
 const ZEvidenceTier = z.enum([
-  // Anyone can reproduce the check from the public internet.
+  // A reviewer can repeat the steps unaided, from the public internet.
   "publicly_reproducible",
-  // Observed directly by the researcher, but behind a login or a local run.
-  "observed_privately",
-  // The persona stated it. Never silently promoted; see PHILOSOPHY.md.
-  "self_reported",
+  // Repeatable with access the operator can grant: a demo, a login, a
+  // walkthrough. NOT a lower grade -- most production work lives here.
+  "operator_reproducible",
+  // Observed once, on a date, and not currently re-checkable.
+  "point_in_time",
 ]);
 
 export const ZObservation = z.object({
@@ -43,7 +51,7 @@ export const ZObservation = z.object({
   // authorship, user counts, quality, or impact.
   doesNotEstablish: z.array(z.string().min(1)).min(1),
 
-  tier: ZEvidenceTier.default("observed_privately"),
+  tier: ZEvidenceTier.default("operator_reproducible"),
   observedAt: z.string().min(1),
   url: z.string().default(""),
   artifacts: z.array(z.string()).default([]),
