@@ -72,5 +72,10 @@ missingSignals[]}`, `recommendations[] {priority, action, expectedImpact}`
 []`. Cite specifics from the resume and job; do not invent facts. Validate against
 `ZHrJudgeOutput`. Print score + verdict to the user.
 
-Include `metadata` with rubric version, model identifier, evaluation timestamp,
-and the bundle's `evaluatedArtifactHash`, `promptHash`, and `inputHash`.
+Include `metadata` with the rubric version, the evaluation timestamp, and the
+bundle's `model`, `evaluatedArtifactHash`, `promptHash`, and `inputHash` copied
+**verbatim**. Do not state which model you are. You cannot observe it: asked
+directly, a model will answer with a plausible name that may be wrong, and a
+confidently wrong answer is indistinguishable from a correct one. `model` is
+supplied to you from the runtime configuration and is compared by the quality
+gate, so a value you author instead of copy will be rejected as stale.

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { assertSafeDocument } from "./file-safety.js";
+import { configuredModelLabel, defaultSettingsPath, judgeModelReport } from "./copilot-settings.js";
 import { loadJobFromFile } from "./job-parser.js";
 import { pluginRoot as PLUGIN_ROOT } from "./paths.js";
 import { extractTextFromDocx } from "../utils/docx-to-text.js";
@@ -130,6 +131,7 @@ export async function expectedJudgeMetadata({
   applicationDir,
   artifactPath,
   judge,
+  settingsPath = defaultSettingsPath(),
 }) {
   if (!JUDGES.has(judge)) throw new Error(`Unknown judge "${judge}".`);
 
@@ -148,6 +150,11 @@ export async function expectedJudgeMetadata({
     ? visualPreview(resolvedApplication, evaluatedArtifactHash)
     : { status: "not_applicable", paths: [], manifestHash: null };
   const metadata = {
+    // Read from the runtime's configuration, never from the judge. A judge
+    // cannot see its own model and will invent a plausible name when asked, so
+    // this field is supplied here and compared by the quality gate exactly like
+    // the hashes beside it.
+    model: configuredModelLabel(judgeModelReport({ settingsPath }), `judge-${judge}`),
     evaluatedArtifactHash,
     promptHash: computePromptHash(pluginRoot, judge),
     inputHash: sha256(JSON.stringify({

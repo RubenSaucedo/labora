@@ -1,3 +1,5 @@
+import { UNKNOWN_MODEL } from "./copilot-settings.js";
+
 export function evaluateQualityGate({
   applicationStrategy,
   strategyValidation,
@@ -13,6 +15,7 @@ export function evaluateQualityGate({
   artifactType,
   judgeValidationErrors = [],
   pipelineErrors = [],
+  judgeModels = null,
 }) {
   const hardBlockers = [];
   const reviewReasons = [];
@@ -64,7 +67,19 @@ export function evaluateQualityGate({
   const judgeMetadataValid = {};
   for (const [name, judge] of Object.entries(judges)) {
     const expected = expectedJudgeMetadata[name];
-    const fields = ["evaluatedArtifactHash", "promptHash", "inputHash"];
+    // `model` is compared like the hashes because it is supplied by tooling,
+    // not authored by the judge. A mismatch means either the judge rewrote a
+    // field it was told to copy verbatim, or the model configuration changed
+    // after the verdict was produced -- in both cases the verdict is stale.
+    //
+    // It is skipped when either side is the unknown sentinel. An unreadable or
+    // unreachable settings file says nothing about the model that judged, so
+    // letting it invalidate three correct verdicts would turn a check that
+    // could not run into a check that failed.
+    const modelComparable = ![judge?.metadata?.model, expected?.model].includes(UNKNOWN_MODEL);
+    const fields = modelComparable
+      ? ["model", "evaluatedArtifactHash", "promptHash", "inputHash"]
+      : ["evaluatedArtifactHash", "promptHash", "inputHash"];
     const mismatches = fields.filter((field) =>
       judge && expected && judge.metadata?.[field] !== expected[field]
     );
@@ -146,5 +161,11 @@ export function evaluateQualityGate({
     hardBlockers,
     reviewReasons,
     gates,
+    // Recorded, not gated. Model diversity is a property of the operator's
+    // runtime rather than of this application, and a signal that fires on every
+    // default install is a signal nobody reads. It is written here so a
+    // send_ready record can never be mistaken for evidence that the three
+    // judges were independent all the way down to the model.
+    judgeModels,
   };
 }

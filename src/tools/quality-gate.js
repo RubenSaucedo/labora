@@ -11,6 +11,7 @@ import {
 } from "../schemas/judge-output.js";
 import { stageStatus } from "../lib/run-manifest.js";
 import { expectedJudgeMetadata } from "../lib/judge-input.js";
+import { judgeModelReport } from "../lib/copilot-settings.js";
 
 function readJson(filePath) {
   return fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, "utf8")) : null;
@@ -114,6 +115,7 @@ try {
     artifactType,
     judgeValidationErrors,
     pipelineErrors,
+    judgeModels: judgeModelReport(),
   }));
   const outputPath = path.join(applicationDir, "release.json");
   fs.writeFileSync(outputPath, JSON.stringify(result, null, 2) + "\n");

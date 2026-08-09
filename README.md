@@ -311,6 +311,7 @@ labora validate-artifact <resume.json> <out.docx|out.pdf> --contact <contact.md>
 labora prepare-judge-input <ats|engineer|hr> <application-dir> <artifact>
 labora run-state check <application-dir> --style 1
 labora quality-gate <application-dir> --artifact <selected.docx|selected.pdf>
+labora check-judge-models [--json] [--settings <path>]
 labora merge-candidates <run-dir> --prefs <search-preferences.json> --claims <claims.json> [--fit-floor 60] [--seen <seen.json>] [--suppress-seen]
 labora calibrate-judges [--persona <name>] [--out <calibration.json>]
 labora application-outcome <application-dir> show|record <event>
@@ -334,6 +335,38 @@ judge also views rendered page previews; career gaps, current employment status,
 school prestige, and protected-trait proxies are not screening criteria. Preview
 manifests bind the page hashes to the selected PDF hash; stale or mismatched
 images are withheld from the judge.
+
+### Judge model diversity
+
+Three judges sharing one model share that model's blind spots, so unanimity
+means less than it appears. Which model backs a sub-agent is an operator
+setting rather than something a plugin can select — it lives in the CLI's
+`subagents.agents.<name>.model` configuration (`/subagents`, or `settings.json`):
+
+```json
+{ "subagents": { "agents": { "judge-engineer": { "model": "<other-model>" } } } }
+```
+
+`labora check-judge-models` reports the configured model for `resume-tailor`
+and each judge and exits `0` when at least one judge differs, `1` when they all
+share the tailor's model, and `2` when the configuration cannot be read — an
+unanswerable check is never reported as a passing or a failing one. The result
+is recorded in `release.json` as `judgeModels`. It is evidence, not a gate: it
+does not change the release state, because model choice is a property of your
+runtime rather than a defect in an application.
+
+Judges never report their own model. Asked directly, a model answers with a
+plausible name that may be wrong — one runtime model reported itself as "Claude
+3.5 Sonnet" while running as `claude-haiku-4.5`. `metadata.model` is therefore
+supplied from the resolved configuration and compared by the quality gate like
+the hashes beside it, except when either side is `unknown`: an unreadable
+config file must not invalidate three otherwise correct verdicts.
+
+Three honest limits. The check reads the user settings file, so configuration
+in other scopes can only make your real setup *more* diverse than reported.
+Under Claude Code, or any host without a `~/.copilot` directory, the check
+reports `unsupported` rather than guessing. And configured is not observed — it
+never proves which model produced a verdict.
 
 `merge-candidates --seen` persists a per-persona ledger so overnight runs mark
 only genuinely new leads (`isNew`, `newLeadCount`) and stop re-surfacing postings
