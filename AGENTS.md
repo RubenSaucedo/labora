@@ -1,7 +1,17 @@
 # Labora
 
 Copilot/Claude-compatible resume assurance plugin. Load
-`skills/resume-conventions/SKILL.md` before any resume task.
+[`PHILOSOPHY.md`](PHILOSOPHY.md) first — it states what this exists to do and
+outranks every rule below it. Then load `skills/resume-conventions/SKILL.md`
+before any resume task.
+
+Labora helps a person get a job. An assurance pipeline drifts toward saying no,
+because a blocked good application is silent while a passed bad one is felt. So
+a gap is an opportunity with a named next step, never a verdict; *we have no
+evidence of X* is never *the candidate lacks X*; and Labora never emits "not a
+fit" — it reports coverage and lets the human decide whether to apply. That
+flexibility governs what we look for and ask about. It never governs what we
+print: every rendered bullet still maps to a verified claim ID.
 
 Pipeline:
 
@@ -27,7 +37,16 @@ for any job-discovery task.
 
 Core rules:
 
-- Never invent or infer unsupported experience.
+- Never invent or infer unsupported experience. Flexibility in what Labora asks
+  about never becomes flexibility in what it prints.
+- A gap is reported with the route that would close it. A negative finding with
+  no route attached is unfinished work, not a result.
+- Report absence of evidence as a fact about the corpus, never about the person.
+  Where evidence shows adjacent work, ask a confirming question instead of
+  scoring a miss.
+- Inaccessible evidence is not absent evidence. Private repositories, internal
+  documents and NDA'd work are where most senior work lives; judge the strength
+  of the signal and record honestly how it was attested.
 - Every bullet and displayed skill maps to verified claim IDs.
 - Contact remains blank until deterministic rendering from `profile/contact.md`.
 - `profile/generated/` is written by the `profile-builder` agent only; every
