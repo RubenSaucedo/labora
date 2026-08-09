@@ -39,6 +39,38 @@ export const ZApplicationStrategy = z.object({
     requirementId: z.string().min(1),
     question: z.string().min(1),
     acceptableSources: z.array(z.string().min(1)).min(1),
+
+    // Four statuses, because they need four different actions and used to share
+    // one bucket called "pending". Most declared gaps were never gaps: they were
+    // evidence sitting unmined in the corpus, or facts obtainable in minutes
+    // from something the candidate already owns.
+    //
+    // `unmined` is a statement about labora's bookkeeping. `real_gap` is a
+    // statement about a corpus. Neither is a statement about a person.
+    status: z.enum([
+      "unmined",
+      "collectible",
+      "adjacent",
+      "real_gap",
+    ]).nullable().default(null),
+
+    // Where in the corpus the answer already sits, when it does.
+    foundIn: z.array(z.string()).default([]),
+
+    // Verified work that is related without establishing the requirement. This
+    // is a question to ask, never a conclusion in either direction.
+    adjacentClaimIds: z.array(z.string()).default([]),
+
+    // What the candidate could actually do next. A route that ignores their
+    // time is not a route, so effort and horizon are required.
+    routes: z.array(z.object({
+      kind: z.string().min(1),
+      action: z.string().min(1),
+      effort: z.enum(["minutes", "hours", "days", "weeks"]),
+      horizon: z.enum(["today", "this_week", "this_application", "next_role"]),
+      target: z.string().default(""),
+    }).strict()).default([]),
+
     resolution: z.enum([
       "pending",
       "source_added",
