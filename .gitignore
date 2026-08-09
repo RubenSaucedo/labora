@@ -42,21 +42,16 @@ prompts/**/.improve/
 # authenticated browsing session can contain personal data; never commit them.
 .playwright-mcp/
 
-# >>> kai workspace (managed by workflow-workspace-init) >>>
-# Raw kai runs and personal material are local-only.
-/.kai/runs/
-/kai/personal/
+# >>> kai workspace >>>
+# labora is a distributable plugin, not a kai-stewarded product repo. The kai
+# workspace here is developer-local: it must not ship in the marketplace package
+# and it must not leave `git status` permanently dirty, because a working copy
+# that is never clean trains everyone to ignore the one file that does matter.
+/kai/
+/.kai/
 # Retired local state stays private during explicit migration.
 /.persona-self/
-/.kai/local.json
 # Retired schema-1 root-level personal lane stays private until migration completes.
 /personal/
-# Heavy binaries stay ignored inside the committed library.
-kai/library/**/*.mp3
-kai/library/**/*.har
-kai/library/**/*.zip
-kai/library/**/audio/
-kai/library/**/raw/
-kai/library/**/screenshots/
 **/storageState*.json
 # <<< kai workspace <<<
