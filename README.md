@@ -7,6 +7,13 @@ The system improves confidence in factual integrity, requirement coverage,
 document parseability, and recruiter readability. It does not claim to emulate
 every commercial ATS or guarantee an interview.
 
+Labora exists to help a person get a job, which means a gap is an opportunity
+with a next step rather than a verdict, and *we have no evidence of X* is never
+*the candidate lacks X*. That flexibility governs what labora looks for and asks
+about — never what it prints, where every rendered bullet still maps to a
+verified claim. [`PHILOSOPHY.md`](PHILOSOPHY.md) states the rules in full and
+outranks the rest of the documentation.
+
 ## Architecture
 
 Reasoning lives in Copilot skills. Stable and safety-critical work lives in Node
@@ -414,11 +421,83 @@ data already sent to a cloud model or written to logs.
 npm test
 ```
 
-The regression suite covers requirement extraction, metadata contamination,
-unsupported metrics, duplicate claims, contact injection, DOCX round trips,
-artifact freshness, cross-parser divergence, job-search consensus and cross-run
-dedup, fit-floor enforcement, application strategy references, isolated judge
-bundles, application outcomes, judge calibration, and release decisions.
+The regression suite covers two distinct classes of guarantee.
+
+**Pipeline correctness** — requirement extraction and eligibility-gate
+attribution, metadata contamination, unsupported metrics, duplicate claims,
+contact injection, DOCX round trips, artifact freshness, cross-parser
+divergence, job-search consensus and cross-run dedup, fit-floor enforcement,
+application strategy references, isolated judge bundles, application outcomes,
+judge calibration, and release decisions.
+
+**Packaging invariants** — the things that break only after a real install, and
+so cannot be caught by running the pipeline locally:
+
+| Test | Guards |
+|---|---|
+| `test/plugin-root.test.js` | plugin files resolve against `pluginRoot`, never `process.cwd()`, so a workspace containing `agents/` cannot supply the prompt a judge is certified against |
+| `test/plugin-packaging.test.js` | the dispatcher, hook and manifests ship and stay consistent |
+| `test/heavy-deps.test.js` | optional and heavy dependencies stay lazily loaded, so a missing browser or OCR engine degrades instead of breaking every tool |
+
+The prose in `agents/` and `skills/` is asserted on directly, so rewording a
+rule is expected to break the build.
+
+## Troubleshooting
+
+Run `labora doctor` first. It reports every failure below in one pass:
+
+```text
+plugin root   /path/to/labora
+working dir   /path/to/your-workspace
+node          v22.19.0
+tools         29 available
+dependencies  ready
+pdf renderer  /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+```
+
+| Symptom | Cause | Remedy |
+|---|---|---|
+| Every tool refuses to run, naming missing packages | A plugin installer git-clones the repo but never runs `npm install` | `labora setup` |
+| `dependencies` reports missing after `setup` | Node is older than the supported range | Node `>=20.16 <21` or `>=22.3` — see below |
+| `pdf renderer` reports none found | Labora never downloads a browser | Install Chrome, or set `LABORA_CHROME` to its binary |
+| A scanned PDF yields no text | OCR is an optional dependency | `npm install tesseract.js` inside the plugin directory |
+| Skills tell you to run `labora <tool>`, but your shell has no such command | `bin/labora` is deliberately not added to `PATH` | See *How the agent finds the tools* below |
+| A tool reports a stage is stale | File existence is not freshness | `labora run-state` reports what must re-run |
+
+### Supported Node versions
+
+```json
+"engines": { "node": ">=20.16.0 <21 || >=22.3.0" }
+```
+
+The floor is set by `pdf-parse`, not by labora itself. Node 21 is excluded
+because it is out of support. On an unsupported runtime the tools fail at
+import, which looks like a missing-dependency error but is not — check
+`labora doctor` before reinstalling anything.
+
+### How the agent finds the tools
+
+`bin/labora` lives inside the plugin, and a plugin install lands at an
+unpredictable path that differs per machine and per install method. Putting it
+on `PATH` would make the plugin mutate the user's shell environment, so labora
+does not.
+
+Instead, the `sessionStart` hook in `hooks.json` runs `labora announce`, which
+returns the absolute path as session context:
+
+```json
+{ "additionalContext": "labora plugin <version> is installed at /path/to/labora.\n\nSkills and agents invoke deterministic tools as \"labora <tool> [args]\".\nThat command is not on PATH. Run it as:\n  /path/to/labora/bin/labora <tool> [args]" }
+```
+
+That is the only reason the agent knows where the tools are. **If you disable
+hooks, every skill instruction that says `labora <tool>` will fail** — the agent
+has no way to resolve it. Either re-enable the hook, or tell the agent the
+absolute path to `bin/labora` once at the start of a session.
+
+This also explains a rule that otherwise looks arbitrary: skills invoke
+`labora <tool>`, never `node src/tools/<tool>.js`. A relative path resolves
+against the workspace you are working in, not the plugin, so it resolves to
+nothing.
 
 ## Contributing
 
