@@ -329,3 +329,81 @@ test("compound years and professional license cannot bypass eligibility", () => 
     "5+ years of nursing experience and a current RN license required",
   ]);
 });
+
+// --- #2: a requirement the scorer cannot check is not a requirement missing --
+
+// Both requirements below are taken verbatim from the production run in #2,
+// which scored 25% coverage with five core requirements reported missing while
+// the claims satisfying four of them were rendered in the resume.
+const proseJob = {
+  title: "Senior Product Engineer",
+  company: "Example",
+  description: `### Requirements
+- Drive performance as a core feature. Profile, measure, and optimize aggressively. Every interaction should feel instant.
+- You think in systems. You naturally build reusable abstractions, composable components, and clean APIs rather than one-off solutions.
+- Expert in React and TypeScript`,
+};
+
+test("prose requirements are deferred for semantic review, not reported missing", () => {
+  const result = scoreAts({ resume: resume(), job: proseJob });
+
+  const deferred = result.semantic_review_required.map((item) => item.text);
+  assert.ok(deferred.some((text) => text.includes("Drive performance as a core feature")));
+  assert.ok(deferred.some((text) => text.includes("You think in systems")));
+
+  // The whole point: they must not appear as gaps anywhere.
+  const reportedMissing = [
+    ...result.core_requirements_missing,
+    ...result.must_have_missing,
+    ...result.preferred_requirements_missing,
+    ...result.soft_signals_missing,
+  ].join(" ");
+  assert.ok(!reportedMissing.includes("You think in systems"));
+  assert.ok(!reportedMissing.includes("Drive performance as a core feature"));
+
+  for (const item of result.semantic_review_required) {
+    assert.equal(item.reason, "no_deterministic_matcher");
+  }
+});
+
+test("the denominator is reported alongside the percentage", () => {
+  const result = scoreAts({ resume: resume(), job: proseJob });
+  const assessment = result.required_assessment;
+
+  // Coverage may only shrink the denominator if it says so out loud, otherwise
+  // deferring a requirement silently improves the score.
+  assert.equal(
+    assessment.total_count,
+    assessment.checkable_count + assessment.semantic_review_count
+  );
+  assert.ok(assessment.semantic_review_count >= 2);
+  assert.equal(
+    assessment.checkable_count,
+    assessment.matched_count + assessment.unmatched_count
+  );
+  assert.equal(assessment.checkable_match_percent, result.requirement_coverage_percent);
+});
+
+test("nothing measurable yields null coverage, never a perfect score", () => {
+  const result = scoreAts({
+    resume: resume(),
+    job: {
+      title: "Engineer",
+      company: "Example",
+      description: `### Requirements
+- You think in systems and care deeply about craft.`,
+    },
+  });
+  assert.equal(result.required_assessment.checkable_count, 0);
+  assert.equal(result.required_assessment.checkable_match_percent, null);
+  assert.notEqual(result.requirement_coverage_percent, 100);
+});
+
+test("a checkable requirement is still reported missing", () => {
+  const result = scoreAts({
+    resume: resume({ skills_primary: [], skills_secondary: [], experience: [] }),
+    job,
+  });
+  assert.ok(result.must_have_missing.length > 0);
+  assert.ok(result.requirements.some((item) => item.assessment === "unmatched"));
+});

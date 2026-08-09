@@ -153,8 +153,21 @@ pre-baked resume prose that anchors the tailor instead of informing it.
 | Validate evidence cleaning | `labora validate-evidence-cleaning <extracted.md> <cleaned.md> --metadata <extracted.json> --output <validation.json>` |
 
 `coverage_percent` is lexical coverage, not an ATS hiring probability.
-`requirement_coverage_percent` evaluates structured required lines.
-`must_have_missing` contains full unsupported requirement text, not token guesses.
+`requirement_coverage_percent` evaluates structured required lines, and is
+computed over `required_assessment.checkable_count` — the requirements a
+deterministic matcher can actually settle — never over the full requirement
+count. Read `required_assessment` with it: a high percentage over a small
+checkable count is a narrow measurement, not a strong result. It is `null`,
+never 100, when nothing was checkable.
+
+`semantic_review_required` lists requirements the scorer **declined to
+adjudicate** because no deterministic matcher applies, typically prose written
+as self-description. These are not gaps and must never be reported to the
+candidate as missing, counted against coverage, or turned into evidence
+requests. They are handed to the judges, which read the rendered document.
+
+`must_have_missing` contains full unsupported requirement text, not token
+guesses, and only for requirements that were actually checked.
 
 ## Schemas
 

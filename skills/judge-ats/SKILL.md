@@ -44,6 +44,26 @@ content.
 Let the structured requirement evaluations and missing signals anchor you.
 Lexical coverage is diagnostic only.
 
+**`semantic_review_required` is not a list of gaps.** It contains requirements
+the deterministic scorer *declined to adjudicate* because no deterministic
+matcher applies — typically prose written as self-description ("You think in
+systems"). The scorer reports these rather than answering wrongly, and deciding
+them is your job, not its.
+
+Adjudicate each one directly from the artifact text: does the document
+demonstrate it or not? A requirement in this list is neither matched nor
+missing until you read it. **Never treat its presence as a red flag, count it
+toward missing must-haves, or lower the score for it.** Doing so would recreate
+the defect the field exists to fix — a strong application once scored 25%
+coverage with five core requirements reported missing while the claims
+satisfying four of them were rendered in the document you are reading.
+
+`required_assessment` tells you what was actually measured:
+`checkable_match_percent` is computed over `checkable_count`, not
+`total_count`. Read both. A high percentage over a small checkable count is a
+narrow measurement, not a strong result, and `checkable_match_percent` is
+`null` when nothing could be checked at all.
+
 ## Scoring rubric (anchored — apply strictly, do not round up)
 
 - **90–100**: hard eligibility and core signals explicitly matched; ≥80% of
@@ -55,6 +75,11 @@ Lexical coverage is diagnostic only.
 - **30–49**: hard eligibility unsupported, multiple core signals missing, or a
   major level mismatch (≥2 tiers).
 - **0–29**: unparseable or no meaningful overlap.
+
+Apply the rubric to what you judged, not to what the scorer skipped. A
+requirement you read and found demonstrated counts as supported; one you read
+and found absent counts as missing. A requirement nobody adjudicated counts as
+neither.
 
 Verdict: score ≥ 80 → `pass`; 60–79 → `marginal`; <60 → `fail`.
 screeningRisk: `low` for a clean pass with no missing hard/core signals;
