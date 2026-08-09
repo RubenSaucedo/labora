@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import { ZObservation } from "../src/schemas/observation-record.js";
 import { validateObservations } from "../src/lib/validate-observations.js";
 
 function record(overrides = {}) {
@@ -131,4 +133,53 @@ test("an exploration that found only defects has produced no evidence", () => {
     defectAppendix: [{ id: "d-1", summary: "Broken link", blocking: false }],
   }));
   assert.ok(result.warnings.some((e) => e.code === "no_positive_findings"));
+});
+
+// The drift this suite failed to catch once: the skill documented three tiers
+// and the schema accepted a different three, so anyone following the written
+// contract got a rejection. A doc and a schema that disagree is a contract that
+// does not exist, and only a test that reads both can notice.
+test("every tier the skill documents is accepted by the schema", () => {
+  const skill = fs.readFileSync(
+    new URL("../skills/evidence-exploration/SKILL.md", import.meta.url),
+    "utf8"
+  );
+  const documented = [...skill.matchAll(/^\| `([a-z_]+)` \| /gm)].map((m) => m[1]);
+  assert.ok(documented.length >= 3, "expected the skill to document a tier table");
+
+  for (const tier of documented) {
+    const result = validateObservations(record({
+      observations: [{ ...record().observations[0], tier }],
+    }));
+    assert.ok(
+      !result.errors.some((e) => e.code === "schema_invalid"),
+      `the skill documents tier "${tier}" but the schema rejects it`
+    );
+  }
+});
+
+test("the schema accepts no tier the skill leaves undocumented", () => {
+  const skill = fs.readFileSync(
+    new URL("../skills/evidence-exploration/SKILL.md", import.meta.url),
+    "utf8"
+  );
+  const documented = new Set(
+    [...skill.matchAll(/^\| `([a-z_]+)` \| /gm)].map((m) => m[1])
+  );
+  for (const tier of ZObservation.shape.tier.unwrap().options) {
+    assert.ok(
+      documented.has(tier),
+      `the schema accepts tier "${tier}" that the skill never documents`
+    );
+  }
+});
+
+// A thing the persona merely stated was never observed. Accepting it here would
+// let the record launder an assertion into a verification.
+test("self-reported is not an observation tier", () => {
+  const result = validateObservations(record({
+    observations: [{ ...record().observations[0], tier: "self_reported" }],
+  }));
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((e) => e.code === "schema_invalid"));
 });

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { canonicalSkillsInText } from "./skill-aliases.js";
 import { skillVocabulary } from "./skill-vocabulary.js";
+import { validateObservations } from "./validate-observations.js";
 
 const SUPPORT_STOPWORDS = new Set([
   "a", "an", "and", "at", "by", "for", "from", "in", "into", "of", "on",
@@ -184,6 +185,14 @@ function resolveClaimSource(sourcePath, { personaRoot, workspaceRoot }) {
   return { path: preferred, contained: withinAnyRoot(preferred, roots) };
 }
 
+function readJsonOrNull(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 function sourceMayGroundClaims(sourcePath, personaRoot) {
   const resolvedSource = path.resolve(sourcePath);
   const resolvedPersona = path.resolve(personaRoot);
@@ -209,10 +218,29 @@ function sourceMayGroundClaims(sourcePath, personaRoot) {
   // markdown grounds claims, so a hand-edited file cannot enter the corpus
   // under a name the tool would never produce.
   const repositoriesRoot = path.join(resolvedPersona, "evidence", "repositories");
-  return (
+  if (
     withinDir(repositoriesRoot, resolvedSource) &&
     path.basename(resolvedSource) === "repositories.md"
-  );
+  ) {
+    return true;
+  }
+
+  // An observation record grounds claims from any evidence category, because
+  // its authorization comes from its shape rather than its location: every
+  // observation carries a measurement and an explicit boundary, and
+  // `validate-observations` rejects impressions. Without this, the exploration
+  // contract is unusable -- `evidence-exploration` instructs the researcher to
+  // write the record and `profile-builder` to derive claims from it, while the
+  // validator would refuse every one of them.
+  const evidenceDir = path.join(resolvedPersona, "evidence");
+  if (
+    withinDir(evidenceDir, resolvedSource) &&
+    path.basename(resolvedSource) === "observations.json"
+  ) {
+    return validateObservations(readJsonOrNull(resolvedSource) ?? {}).valid;
+  }
+
+  return false;
 }
 
 function periodSupported(period, evidence) {
