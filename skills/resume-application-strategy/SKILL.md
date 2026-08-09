@@ -40,18 +40,28 @@ This is a private planning artifact. It is never rendered into the resume.
    ```
 
    Most declared gaps are not gaps. Each unmatched requirement comes back as
-   one of four statuses, which need four different actions and must never share
+   one of five statuses, which need five different actions and must never share
    one bucket:
 
    | Status | What it means | What to do |
    | --- | --- | --- |
-   | `unmined` | The corpus already answers it; no claim was derived | Re-run `profile-builder`. **Do not ask the operator.** |
+   | `unmined` | The corpus already answers it in the candidate's own voice; no claim was derived | Re-run `profile-builder`. **Do not ask the operator.** |
+   | `mention_only` | The corpus discusses it, but no sentence says *the candidate* did it | Ask one scoped question quoting the passage |
    | `collectible` | Obtainable from something the candidate already owns and can reach | Take the named route — usually minutes |
    | `adjacent` | Related verified work exists without establishing it | Ask one scoped question naming the adjacent claims |
    | `real_gap` | Nothing in the corpus, nothing reachable, nothing adjacent | State it as an absence, never a disqualification |
 
    `unmined` is a statement about labora's bookkeeping. `real_gap` is a
    statement about a corpus. **Neither is a statement about a person.**
+
+   `mention_only` exists because the opposite error is just as bad. A corpus
+   note reading "Priya owns the eval harness" contains the word, so counting it
+   as coverage closed the requirement — no question asked, no route offered,
+   and a resume that quietly implies work someone else did. Coverage and
+   absence are both inferences there; the honest output is a question.
+
+   When asking about a `mention_only`, **quote the corpus passage, not the
+   requirement.** Reading the requirement back supplies the answer.
 
 4. Take every `collectible` route before writing the requirement out as a gap.
    Asking a human is the slowest path available and yields self-report rather

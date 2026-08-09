@@ -20,6 +20,11 @@ import { canonicalSkillsInText } from "./skill-aliases.js";
 export const GAP_STATUS = {
   // The corpus already answers it. A bookkeeping failure, not a candidate one.
   UNMINED: "unmined",
+  // The corpus talks about it, but no sentence says the candidate did it.
+  // "Priya owns the eval harness" is real information about the team and no
+  // information about this candidate; treating it as coverage silently closed
+  // the requirement with no question asked and no route offered.
+  MENTION_ONLY: "mention_only",
   // Obtainable from something the candidate already owns and can reach.
   COLLECTIBLE: "collectible",
   // Related verified work exists. Worth a question, never an assumption.
@@ -27,6 +32,72 @@ export const GAP_STATUS = {
   // Nothing in the corpus, nothing reachable, nothing adjacent.
   REAL_GAP: "real_gap",
 };
+
+/**
+ * Whether a sentence asserts something the *candidate* did.
+ *
+ * The subject is the closed class, which is the lesson this repo keeps
+ * relearning. Trying to enumerate the verbs that denote ownership is unbounded
+ * and loses; asking who the sentence is about is a question with finitely many
+ * answers: the candidate, someone else, or a thing.
+ *
+ * Deliberately *not* a negation detector. "We evaluated Kubernetes and chose
+ * Nomad" is a first-person sentence about real work the candidate did with
+ * Kubernetes, and a claim derived from it would be honest. Negation in English
+ * is unbounded and a detector for it would lose the same way a verb list does.
+ */
+// Irregular past tenses are genuinely a closed class in English, unlike "verbs
+// meaning ownership". Regular ones are caught by the -ed and -ing suffixes.
+const IRREGULAR_PAST = new Set([
+  "built", "wrote", "led", "ran", "made", "took", "drove", "grew", "began",
+  "brought", "chose", "found", "got", "kept", "left", "met", "put", "rebuilt",
+  "ran", "sent", "set", "sold", "spoke", "spent", "stood", "taught", "told",
+  "won", "cut", "held", "read", "rewrote", "oversaw", "undertook", "drew",
+]);
+
+const FIRST_PERSON = /^(?:i|we|my|our)\b/i;
+
+function assertsCandidateAction(sentence, candidateName) {
+  const trimmed = sentence.trim();
+  if (!trimmed) return false;
+  if (FIRST_PERSON.test(trimmed)) return true;
+
+  const names = String(candidateName || "")
+    .split(/\s+/)
+    .filter((part) => part.length > 1)
+    .map((part) => part.toLowerCase());
+  const firstWord = trimmed.split(/[^A-Za-z0-9'’-]+/)[0] || "";
+  const lowered = firstWord.toLowerCase();
+  if (names.includes(lowered)) return true;
+
+  // Resume-register prose drops the subject: "Built the orchestration layer."
+  // The subject is still the candidate, so the sentence is about them.
+  return /(?:ed|ing)$/i.test(lowered) || IRREGULAR_PAST.has(lowered);
+}
+
+/**
+ * Splits into sentences for attribution. Deliberately crude: the question is
+ * only which span a skill token sits in, and over-splitting costs a hit while
+ * under-splitting would let a neighbouring sentence's subject vouch for this
+ * one -- which is the defect being fixed.
+ */
+function sentencesOf(text) {
+  return String(text || "").split(/(?<=[.!?;\n])\s+/);
+}
+
+/**
+ * Whether any sentence mentioning one of `terms` also attributes an action to
+ * the candidate. Returns the attributing sentence when there is one.
+ */
+export function candidateActionFor(body, terms, candidateName) {
+  const lowered = terms.map((t) => String(t).toLowerCase());
+  for (const sentence of sentencesOf(body)) {
+    const haystack = sentence.toLowerCase();
+    if (!lowered.some((term) => haystack.includes(term))) continue;
+    if (assertsCandidateAction(sentence, candidateName)) return sentence.trim();
+  }
+  return null;
+}
 
 const TEXT_FILE = /\.(?:md|txt|json)$/i;
 const SKIP_DIR = /^(?:node_modules|\.git|generated)$/;
@@ -83,17 +154,18 @@ function primaryTerms(requirement) {
  * claims are grounded, never that existing evidence has been mined, so the
  * corpus can hold the answer while the ledger reports a gap and nothing notices.
  */
-export function searchCorpus(personaRoot, requirement, { minTerms = 2 } = {}) {
+export function searchCorpus(personaRoot, requirement, { minTerms = 2, candidateName = "" } = {}) {
   const terms = searchTerms(requirement);
   if (!terms.length) return [];
   const hits = [];
   for (const file of walk(path.join(personaRoot, "evidence"))) {
-    let body;
+    let raw;
     try {
-      body = fs.readFileSync(file, "utf8").toLowerCase();
+      raw = fs.readFileSync(file, "utf8");
     } catch {
       continue;
     }
+    const body = raw.toLowerCase();
     const matched = terms.filter((term) => body.includes(term));
 
     // Two rules, because the requirements differ in kind.
@@ -112,13 +184,24 @@ export function searchCorpus(personaRoot, requirement, { minTerms = 2 } = {}) {
       ? primary.some((term) => body.includes(term))
       : matched.length >= Math.min(minTerms, terms.length);
     if (hit) {
+      // A token appearing is not the candidate having done it. "Priya owns the
+      // eval harness" is real information about the team and none about this
+      // candidate, and counting it as coverage closed the requirement with no
+      // question asked -- the exact inference this module exists to refuse,
+      // running in the opposite direction.
+      const attribution = candidateActionFor(raw, primary.length ? primary : matched, candidateName);
       hits.push({
         path: path.relative(personaRoot, file).split(path.sep).join("/"),
         matchedTerms: matched,
+        attributedToCandidate: Boolean(attribution),
+        attribution: attribution || null,
       });
     }
   }
-  return hits.sort((a, b) => b.matchedTerms.length - a.matchedTerms.length);
+  return hits.sort((a, b) => {
+    if (a.attributedToCandidate !== b.attributedToCandidate) return a.attributedToCandidate ? -1 : 1;
+    return b.matchedTerms.length - a.matchedTerms.length;
+  });
 }
 
 /**
@@ -298,13 +381,15 @@ export function collectionRoutes(identity, requirement) {
  * next -- never a verdict on the person.
  */
 export function triageRequirement(requirement, { personaRoot, ledger, identity } = {}) {
-  const corpusHits = personaRoot ? searchCorpus(personaRoot, requirement) : [];
-  if (corpusHits.length) {
+  const candidateName = identity?.name || "";
+  const corpusHits = personaRoot ? searchCorpus(personaRoot, requirement, { candidateName }) : [];
+  const attributed = corpusHits.filter((hit) => hit.attributedToCandidate);
+  if (attributed.length) {
     return {
       requirement: requirement?.text || String(requirement),
       status: GAP_STATUS.UNMINED,
       because: "The evidence corpus already contains material on this; it has not been derived into a claim.",
-      evidence: corpusHits.slice(0, 5),
+      evidence: attributed.slice(0, 5),
       routes: [{
         kind: "rebuild_ledger",
         effort: "minutes",
@@ -312,6 +397,27 @@ export function triageRequirement(requirement, { personaRoot, ledger, identity }
         action: "Re-run `profile-builder` over the cited files. This is a bookkeeping gap, not a candidate gap.",
       }],
       escalateToHuman: false,
+    };
+  }
+
+  // The corpus talks about this, but no sentence in it says the candidate did
+  // it. That is neither coverage nor a gap, and calling it either would be an
+  // inference. It is a question -- and unlike `unmined`, which quietly closes
+  // the requirement, this one reaches a human.
+  if (corpusHits.length) {
+    return {
+      requirement: requirement?.text || String(requirement),
+      status: GAP_STATUS.MENTION_ONLY,
+      because: "The corpus discusses this, but no sentence attributes the work to the candidate. Coverage and absence are both inferences here.",
+      evidence: corpusHits.slice(0, 5),
+      adjacentClaims: findAdjacentClaims(ledger, requirement),
+      routes: [{
+        kind: "ask_scoped_question",
+        effort: "minutes",
+        horizon: "today",
+        action: `Ask what the candidate's own involvement was, quoting the corpus passage rather than the requirement: ${corpusHits.slice(0, 2).map((h) => h.path).join(", ")}. Anything confirmed still needs a durable source before it can be printed.`,
+      }],
+      escalateToHuman: true,
     };
   }
 
