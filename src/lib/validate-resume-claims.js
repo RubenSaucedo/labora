@@ -266,16 +266,111 @@ function periodSupported(period, evidence) {
   return tokens.every((token) => normalizedEvidence.includes(token));
 }
 
-function recordSupportedByClaims(record, claims, requiredFields) {
-  return claims.some(({ claim, evidence }) =>
-    claim.status === "verified" &&
-    requiredFields.every((field) => {
-      const value = record[field];
-      if (!value) return true;
-      if (field === "period") return periodSupported(value, `${claim.period} ${evidence}`);
-      return normalize(evidence).includes(normalize(value));
-    })
-  );
+/**
+ * How each rendered field of an identity record is grounded.
+ *
+ * The previous version of this check carried a hand-maintained list of field
+ * *names* — `["name"]` for a certification, `["title"]` for an award — sitting
+ * next to a schema that grew independently. Nothing connected the two, so
+ * `issuer` and `year` reached a rendered resume never having been compared
+ * against a source excerpt: a certification could be grounded by evidence
+ * saying "AWS Solutions Architect" and still render "issued by Google, 2024".
+ *
+ * So fields are classified by *kind* instead, and every field of every schema
+ * below appears in exactly one bucket:
+ *
+ *   `prose`      an assertion about the world, checked by containment
+ *   `dates`      the same fact can be written "2019-2021" or "Jan 2019 -
+ *                Mar 2021", so these are compared by date token
+ *   `soft`       grounded the same way as prose, but a mismatch is a warning:
+ *                a source that writes "Seattle" while identity writes
+ *                "Seattle, WA" is a formatting difference, not a false claim
+ *   `composed`   written *from* evidence rather than quoted from it, so it
+ *                carries claim IDs instead (see the prose checks below)
+ *   `notFactual` an identifier or a pointer, asserting nothing checkable
+ *
+ * A test asserts this map covers each schema exactly, so the next field added
+ * to a schema fails loudly here instead of rendering unchecked.
+ */
+export const GROUNDED_RECORD_FIELDS = {
+  experience: {
+    prose: ["role", "company"],
+    dates: ["period"],
+    soft: ["location"],
+    composed: ["progression"],
+    notFactual: ["id"],
+  },
+  education: {
+    prose: ["school", "degree"],
+    dates: ["startDate", "endDate"],
+    soft: ["location"],
+    composed: [],
+    notFactual: [],
+  },
+  projects: {
+    prose: ["name"],
+    dates: [],
+    soft: [],
+    composed: ["description", "highlights"],
+    notFactual: ["link", "claimIds"],
+  },
+  certifications: {
+    prose: ["name", "issuer"],
+    dates: ["year"],
+    soft: [],
+    composed: [],
+    notFactual: ["credential_id", "credential_url"],
+  },
+  awards_or_contributions: {
+    prose: ["title"],
+    dates: ["year"],
+    soft: [],
+    composed: ["description"],
+    notFactual: ["link", "claimIds"],
+  },
+};
+
+function fieldSupported(field, value, kind, claim, evidence) {
+  if (kind === "dates") return periodSupported(value, `${claim.period || ""} ${evidence}`);
+  return normalize(evidence).includes(normalize(value));
+}
+
+/**
+ * Reports which rendered fields of a record no verified claim accounts for.
+ *
+ * Returns `{ grounded, unsupported, empty }`. A record is checked against each
+ * verified claim as a whole rather than field by field across claims, because a
+ * role grounded by one employer's evidence and a period grounded by another's
+ * is not a grounded record.
+ *
+ * `empty` distinguishes a record with nothing checkable from a grounded one.
+ * The previous implementation skipped absent fields — correct, since an absent
+ * field renders nothing — but that made a record whose fields were *all* blank
+ * vacuously supported by any verified claim.
+ */
+function recordGrounding(record, claims, spec) {
+  const required = [...spec.prose, ...spec.dates];
+  const soft = spec.soft || [];
+  const present = [...required, ...soft].filter((field) => record[field]);
+  if (present.length === 0) return { grounded: false, unsupported: [], empty: true };
+
+  let bestUnsupported = null;
+  for (const { claim, evidence } of claims) {
+    if (claim.status !== "verified") continue;
+    const hardMisses = required.filter(
+      (field) => record[field] &&
+        !fieldSupported(field, record[field], spec.dates.includes(field) ? "dates" : "prose", claim, evidence)
+    );
+    if (hardMisses.length > 0) {
+      if (!bestUnsupported || hardMisses.length < bestUnsupported.length) bestUnsupported = hardMisses;
+      continue;
+    }
+    const softMisses = soft.filter(
+      (field) => record[field] && !fieldSupported(field, record[field], "soft", claim, evidence)
+    );
+    return { grounded: true, unsupported: [], empty: false, softMisses };
+  }
+  return { grounded: false, unsupported: bestUnsupported || required.filter((f) => record[f]), empty: false };
 }
 
 /**
@@ -431,29 +526,47 @@ export function validateResumeClaims({
     evidence: `${claim.fact}\n${claimEvidence.get(claim.id) || ""}`,
   }));
   for (const entry of [...(identity.experience || []), ...(identity.other_experience_compacted || [])]) {
-    if (!recordSupportedByClaims(entry, verifiedClaimEvidence, ["company", "role", "period"])) {
+    const label = entry.id || entry.role;
+    const result = recordGrounding(entry, verifiedClaimEvidence, GROUNDED_RECORD_FIELDS.experience);
+    if (!result.grounded) {
       issues.push(issue(
         "error",
         "identity_experience_unproven",
-        `Identity experience "${entry.id || entry.role}" is not grounded in an approved source excerpt.`,
-        `identity.experience:${entry.id || entry.role}`
+        result.empty
+          ? `Identity experience "${label}" carries no role, company or period to ground. Fill it in from an approved source, or remove the entry.`
+          : `Identity experience "${label}" is not grounded in an approved source excerpt: ${result.unsupported.join(", ")}. Add a source excerpt covering ${result.unsupported.length === 1 ? "that field" : "those fields"}, or correct the entry to match the evidence.`,
+        `identity.experience:${label}`
+      ));
+    }
+    for (const field of result.softMisses || []) {
+      issues.push(issue(
+        "warning",
+        "identity_field_unconfirmed",
+        `Identity experience "${label}" renders ${field} "${entry[field]}", which the grounding source excerpt does not state. Confirm it before sending.`,
+        `identity.experience:${label}.${field}`
       ));
     }
   }
-  const structuredChecks = [
-    ["education", ["school", "degree", "endDate"]],
-    ["projects", ["name"]],
-    ["certifications", ["name"]],
-    ["awards_or_contributions", ["title"]],
-  ];
-  for (const [field, requiredFields] of structuredChecks) {
+  for (const [field, spec] of Object.entries(GROUNDED_RECORD_FIELDS)) {
+    if (field === "experience") continue;
     for (const [index, record] of (identity[field] || []).entries()) {
-      if (!recordSupportedByClaims(record, verifiedClaimEvidence, requiredFields)) {
+      const result = recordGrounding(record, verifiedClaimEvidence, spec);
+      if (!result.grounded) {
         issues.push(issue(
           "error",
           "identity_record_unproven",
-          `identity ${field}[${index}] is not grounded in an approved source excerpt.`,
+          result.empty
+            ? `identity ${field}[${index}] carries no checkable content. Fill it in from an approved source, or remove the entry.`
+            : `identity ${field}[${index}] is not grounded in an approved source excerpt: ${result.unsupported.join(", ")}. Add a source excerpt covering ${result.unsupported.length === 1 ? "that field" : "those fields"}, or correct the entry to match the evidence.`,
           `identity.${field}[${index}]`
+        ));
+      }
+      for (const soft of result.softMisses || []) {
+        issues.push(issue(
+          "warning",
+          "identity_field_unconfirmed",
+          `identity ${field}[${index}] renders ${soft} "${record[soft]}", which the grounding source excerpt does not state. Confirm it before sending.`,
+          `identity.${field}[${index}].${soft}`
         ));
       }
     }
