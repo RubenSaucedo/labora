@@ -122,6 +122,83 @@ export function searchCorpus(personaRoot, requirement, { minTerms = 2 } = {}) {
 }
 
 /**
+ * Measures how much each term discriminates between this persona's claims.
+ *
+ * `STOPWORDS` below removes the words that are uninformative in *every* corpus.
+ * It cannot remove the ones that are uninformative in *this* one — a real run
+ * against a Vercel posting matched a claim on `sharedTerms: ["including"]`, and
+ * `including` was simply not on the list. No hand-written list ever contains
+ * the next word; this repo has learned that six times now (#37, #41, the verb
+ * allowlist). So informativeness is measured rather than enumerated.
+ *
+ * A term appearing in most of a persona's claims cannot distinguish between
+ * them, whatever the word is. One appearing twice is strong evidence. That is
+ * document frequency, and it calibrates itself per persona: for someone whose
+ * every claim mentions agents, `agent` correctly stops discriminating, while
+ * for someone with two such claims it correctly dominates.
+ */
+export function termWeights(claims) {
+  const total = claims.length;
+  const docFrequency = new Map();
+  for (const claim of claims) {
+    for (const term of new Set(searchTerms(claim.fact))) {
+      docFrequency.set(term, (docFrequency.get(term) || 0) + 1);
+    }
+  }
+  return { total, docFrequency };
+}
+
+// Above this share of a persona's claims a term is treated as carrying no
+// signal at all, rather than a little. A word in a quarter of everything the
+// candidate has ever done says something about the candidate, not about which
+// claim answers this requirement.
+//
+// The share is only consulted once a term appears in enough claims for the
+// ratio to mean anything. In a corpus of three claims, "appears in all of them"
+// is a sample size, not a finding, and discarding the term would leave the
+// requirement with nothing to match against -- turning a genuinely adjacent
+// claim into a reported gap, which is the outcome this whole module exists to
+// prevent.
+const UNINFORMATIVE_SHARE = 0.25;
+const UNINFORMATIVE_MIN_CLAIMS = 5;
+
+function weightOf(term, { total, docFrequency }) {
+  const df = docFrequency.get(term) || 0;
+  if (df === 0) return 0;
+  if (df >= UNINFORMATIVE_MIN_CLAIMS && df / total > UNINFORMATIVE_SHARE) return 0;
+  // Smoothed, so a term present in every claim of a small corpus still ranks
+  // above one that is absent. Unsmoothed log(total/df) is exactly zero there,
+  // which would silently discard the term for the wrong reason.
+  return Math.log((total + 1) / (df + 1)) + 1;
+}
+
+// A term is distinctive when it points at particular work rather than at the
+// general shape of software jobs. Two ways to qualify, both closed: the skills
+// lexicon recognises it, or it is rare enough in this persona's own claims to
+// single a few of them out.
+//
+// The second threshold is much tighter than UNINFORMATIVE_SHARE because it
+// answers a different question. That one asks "is this word worthless?"; this
+// one asks "is this word strong enough to build a question to a human on?" In
+// a 188-claim corpus `including` appears in 8 (4.3%) -- rare enough not to be
+// discarded, nowhere near specific enough to justify telling someone their
+// payroll work is related to an evals requirement.
+const DISTINCTIVE_SHARE = 0.02;
+
+function distinctiveTerms(terms, weights, requirementSkills) {
+  // Expressed as an absolute count rather than a ratio so it still means
+  // something in a small corpus. At 188 claims this admits terms appearing in
+  // at most 3; at 2 claims it admits terms appearing in one, which is the right
+  // answer there -- a word in both claims of a two-claim ledger distinguishes
+  // nothing, however specific the word is.
+  const ceiling = Math.max(1, Math.floor(DISTINCTIVE_SHARE * weights.total));
+  return terms.filter(({ term }) =>
+    requirementSkills.has(term) ||
+    (weights.docFrequency.get(term) || 0) <= ceiling
+  );
+}
+
+/**
  * Finds verified claims that are related without satisfying the requirement.
  *
  * This is the case the tool used to handle worst. Someone who designed and
@@ -129,22 +206,48 @@ export function searchCorpus(personaRoot, requirement, { minTerms = 2 } = {}) {
  * detail, does not "lack evals" -- but they also cannot claim to have built one.
  * Both of those are true at once, and the honest move is a question, never a
  * verdict in either direction.
+ *
+ * Which makes it load-bearing *why* a claim is listed, not just that it is.
+ * A real run against a Vercel posting listed a claim as adjacent on the shared
+ * word `including`. Adjacency is what keeps a requirement from being reported
+ * as a real gap, so the listing is not simply deleted -- but `basis` records
+ * whether the connection is substantive, and only a substantive one is worth
+ * putting a question to a human about.
  */
 export function findAdjacentClaims(ledger, requirement, { limit = 5 } = {}) {
   const terms = new Set(searchTerms(requirement));
   if (!terms.size) return [];
+  const requirementSkills = new Set(primaryTerms(requirement));
+  const claims = (ledger?.claims || []).filter((c) => c.status !== "rejected");
+  const weights = termWeights(claims);
   const scored = [];
-  for (const claim of ledger?.claims || []) {
-    if (claim.status === "rejected") continue;
+  for (const claim of claims) {
     const claimTerms = new Set(searchTerms(claim.fact));
-    const shared = [...terms].filter((t) => claimTerms.has(t));
-    if (shared.length) {
-      scored.push({ claimId: claim.id, fact: claim.fact, sharedTerms: shared });
-    }
+    const shared = [...terms]
+      .filter((t) => claimTerms.has(t))
+      .map((term) => ({ term, weight: weightOf(term, weights) }))
+      .filter((entry) => entry.weight > 0)
+      .sort((a, b) => b.weight - a.weight);
+    if (!shared.length) continue;
+    const distinctive = distinctiveTerms(shared, weights, requirementSkills);
+    const namedSkill = distinctive.some(({ term }) => requirementSkills.has(term));
+    scored.push({
+      claimId: claim.id,
+      fact: claim.fact,
+      sharedTerms: shared.map((entry) => entry.term),
+      distinctiveTerms: distinctive.map((entry) => entry.term),
+      basis: namedSkill ? "named_skill" : distinctive.length ? "distinctive_terms" : "incidental",
+      relatedness: Number(shared.reduce((sum, e) => sum + e.weight, 0).toFixed(3)),
+    });
   }
   return scored
-    .sort((a, b) => b.sharedTerms.length - a.sharedTerms.length)
+    .sort((a, b) => b.relatedness - a.relatedness)
     .slice(0, limit);
+}
+
+/** Adjacency strong enough to justify interrupting a human with a question. */
+export function isSubstantiveAdjacency(claim) {
+  return claim.basis === "named_skill" || claim.basis === "distinctive_terms";
 }
 
 /**
@@ -228,21 +331,36 @@ export function triageRequirement(requirement, { personaRoot, ledger, identity }
   }
 
   if (adjacent.length) {
+    const substantive = adjacent.filter(isSubstantiveAdjacency);
+    // Incidental adjacency is still adjacency -- it is why this is not reported
+    // as a real gap. But it is not grounds to put a question to a human. A
+    // question built on a shared word like "including" would name work the
+    // candidate never connected to the requirement and invite them to agree
+    // that it is connected, which is a leading question built on noise.
     return {
       requirement: requirement?.text || String(requirement),
       status: GAP_STATUS.ADJACENT,
-      because: "Verified work is related to this without establishing it. That is a question to ask, not a conclusion to draw in either direction.",
+      because: substantive.length
+        ? "Verified work is related to this without establishing it. That is a question to ask, not a conclusion to draw in either direction."
+        : "Verified work overlaps this only in general terms. Related enough not to call it a gap, not specific enough to build a question on.",
       evidence: [],
       adjacentClaims: adjacent,
-      routes: [{
-        kind: "ask_scoped_question",
-        effort: "minutes",
-        horizon: "today",
-        // The question names what is already verified, so the candidate is
-        // confirming a specific boundary rather than being asked to self-assess.
-        action: `Ask what the candidate's actual involvement was, naming the adjacent work: ${adjacent.map((a) => a.claimId).join(", ")}. Anything confirmed still needs a durable source before it can be printed.`,
-      }],
-      escalateToHuman: true,
+      routes: substantive.length
+        ? [{
+          kind: "ask_scoped_question",
+          effort: "minutes",
+          horizon: "today",
+          // The question names what is already verified, so the candidate is
+          // confirming a specific boundary rather than being asked to self-assess.
+          action: `Ask what the candidate's actual involvement was, naming the adjacent work: ${substantive.map((a) => a.claimId).join(", ")}. Anything confirmed still needs a durable source before it can be printed.`,
+        }]
+        : [{
+          kind: "mine_corpus",
+          effort: "minutes",
+          horizon: "today",
+          action: "Re-read the corpus for this requirement directly. The overlap found here is general-purpose language, so it neither establishes nor excludes the requirement.",
+        }],
+      escalateToHuman: substantive.length > 0,
     };
   }
 
