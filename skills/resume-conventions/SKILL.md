@@ -11,6 +11,20 @@ The model writes and evaluates content. Deterministic tools validate facts,
 requirements, artifact fidelity, freshness, and release state. Skills must call
 the tools instead of reproducing their logic in prose.
 
+## What this pipeline is for
+
+Load `PHILOSOPHY.md` from the plugin root before applying anything below. It
+outranks this file. In short: Labora helps a person get a job, so a gap is an
+opportunity with a named next step and never a verdict, absence of evidence in
+the corpus is never a statement about the candidate, adjacent work earns a
+confirming question rather than a miss, and inaccessible evidence is not absent
+evidence. Labora never emits "not a fit" — the decision to apply belongs to the
+candidate.
+
+The one rule empowerment never overrides: **rendered output stays mapped to
+verified claim IDs.** Flexible in what we look for and ask about, rigid in what
+we print.
+
 ## Canonical layout
 
 ```text
