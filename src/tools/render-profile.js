@@ -7,17 +7,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { resolvePersonaRoot } from "../lib/workspace.js";
+import { loadManifest, resolveProvenance, SOURCE_KIND_MEANING } from "../lib/evidence-provenance.js";
 
-const SOURCE_TIERS = [
-  { match: /evidence\/repositories\//, tier: "machine-retrievable", note: "tool snapshot of a repository" },
-  { match: /performance-review|evidence\/performance-reviews\//, tier: "attested", note: "employer performance review" },
-  { match: /profile\/background\.md$/, tier: "self-reported", note: "written by the persona" },
-];
-
-function tierFor(sourcePath) {
-  const hit = SOURCE_TIERS.find((entry) => entry.match.test(sourcePath));
-  return hit ? hit.tier : "other";
-}
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -85,7 +76,7 @@ function renderIdentitySection(title, records, format) {
   return lines;
 }
 
-export function renderProfile(personaName, generatedDir) {
+export function renderProfile(personaName, generatedDir, personaRoot = null) {
   const identity = readJson(path.join(generatedDir, "identity.json"));
   const ledger = readJson(path.join(generatedDir, "claims.json"));
   const bank = readJson(path.join(generatedDir, "accomplishments.json"));
@@ -93,10 +84,32 @@ export function renderProfile(personaName, generatedDir) {
   const claimsById = new Map(ledger.claims.map((claim) => [claim.id, claim]));
   const claimedByUnit = new Set(bank.units.flatMap((unit) => unit.claimIds));
 
-  const tierCounts = {};
+  // Every source, not `sources[0]`. A claim backed by a candidate statement and
+  // an employer document cannot honestly be reduced to whichever happens to be
+  // first, and picking one silently chooses a story about the evidence.
+  const manifest = personaRoot
+    ? loadManifest(personaRoot)
+    : { present: false, sources: new Map(), issues: [] };
+  const kindCounts = {};
+  const undeclaredSources = new Map();
+  const staleSources = new Map();
+  const seen = new Set();
   for (const claim of ledger.claims) {
-    const tier = claim.sources[0] ? tierFor(claim.sources[0].path) : "other";
-    tierCounts[tier] = (tierCounts[tier] || 0) + 1;
+    for (const source of claim.sources) {
+      const resolved = personaRoot
+        ? resolveProvenance(source.path, personaRoot, manifest)
+        : { state: "undeclared", relative: source.path, sourceKind: null };
+      if (resolved.state === "undeclared") {
+        undeclaredSources.set(resolved.relative, (undeclaredSources.get(resolved.relative) || 0) + 1);
+      } else if (resolved.state === "stale") {
+        staleSources.set(resolved.relative, (staleSources.get(resolved.relative) || 0) + 1);
+      }
+      const key = `${claim.id}::${resolved.sourceKind || "undeclared"}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const bucket = resolved.sourceKind || "undeclared";
+      kindCounts[bucket] = (kindCounts[bucket] || 0) + 1;
+    }
   }
 
   const out = [];
@@ -125,22 +138,56 @@ export function renderProfile(personaName, generatedDir) {
   out.push(`| Awards / contributions | ${identity.awards_or_contributions?.length || 0} |`);
   out.push("");
 
-  out.push("## Can a stranger verify this?");
+  out.push("## What backs each claim?");
   out.push("");
-  out.push("The single most useful review question. Claims grouped by what backs them:");
+  out.push(
+    "Grouped by **what kind of source** supports it. This is not a strength ranking "
+    + "and nothing downstream scores or sorts by it — it is here so you know how to "
+    + "talk about each fact, not whether to trust it."
+  );
   out.push("");
-  out.push("| Backing | Claims | What it means to a recruiter |");
+  out.push("| Source kind | Claims | What it means when you are asked about it |");
   out.push("|---|---|---|");
-  const tierMeaning = {
-    "machine-retrievable": "a tool read it from a repository — checkable if the repo is public",
-    attested: "an employer wrote it — real, but not visible outside the company",
-    "self-reported": "the persona wrote it — weakest tier, treat as a lead",
-    other: "uncategorised source — worth a look",
-  };
-  for (const [tier, count] of Object.entries(tierCounts).sort((a, b) => b[1] - a[1])) {
-    out.push(`| ${tier} | ${count} | ${tierMeaning[tier] || ""} |`);
+  for (const [kind, count] of Object.entries(kindCounts).sort((a, b) => b[1] - a[1])) {
+    const meaning = kind === "undeclared"
+      ? "Provenance not yet declared in `evidence/PROVENANCE.json`. Claim grounding is unaffected."
+      : (SOURCE_KIND_MEANING[kind] || "");
+    out.push(`| ${kind} | ${count} | ${meaning} |`);
   }
   out.push("");
+  out.push(
+    "> **Restricted access is not a weak source.** Most real production work sits behind "
+    + "a login, a private repository or an NDA. That changes how you demonstrate it — a demo, "
+    + "a walkthrough, a description of the design — never whether it counts."
+  );
+  out.push("");
+
+  // Two separate statements, deliberately. Claim integrity is a hard property
+  // that either holds or does not. Provenance coverage is metadata debt. Merging
+  // them into one table is how "an employer wrote it" got attached to 62 claims
+  // nobody had ever said that about.
+  if (undeclaredSources.size || staleSources.size || manifest.issues.length) {
+    out.push("### Provenance metadata");
+    out.push("");
+    out.push("_Claim grounding is validated separately by `labora validate-profile` and is not affected by anything in this section._");
+    out.push("");
+    for (const issue of manifest.issues) {
+      out.push(`- **${issue.code}** — ${issue.message}`);
+    }
+    if (staleSources.size) {
+      out.push(`- **Stale entries (${staleSources.size} sources).** The manifest classifies different bytes than are on disk, so the classification is not current. Re-run \`profile-builder\` after updating \`evidence/PROVENANCE.json\`:`);
+      for (const [file, count] of [...staleSources].sort((a, b) => b[1] - a[1])) {
+        out.push(`  - \`${file}\` — ${count} claim references`);
+      }
+    }
+    if (undeclaredSources.size) {
+      out.push(`- **Undeclared (${undeclaredSources.size} sources).** Add an entry to \`evidence/PROVENANCE.json\` for each, then re-run \`profile-builder\`. Ranked by how many claims are affected:`);
+      for (const [file, count] of [...undeclaredSources].sort((a, b) => b[1] - a[1])) {
+        out.push(`  - \`${file}\` — ${count} claim references`);
+      }
+    }
+    out.push("");
+  }
 
   const publicLinks = [
     ...(identity.projects || []).filter((p) => p.link).map((p) => `${p.name} — ${p.link}`),
@@ -253,7 +300,7 @@ function main() {
     process.exit(2);
   }
   const target = path.join(generatedDir, "PROFILE.md");
-  fs.writeFileSync(target, renderProfile(personaName, generatedDir));
+  fs.writeFileSync(target, renderProfile(personaName, generatedDir, personaRoot));
   console.log(`wrote ${target}`);
 }
 

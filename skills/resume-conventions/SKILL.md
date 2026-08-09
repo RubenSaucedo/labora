@@ -106,6 +106,84 @@ retrieval index the tailor selects from before drafting, so bullet selection is 
 ranking decision over structured fields rather than a re-read of the whole ledger.
 A unit may never declare itself less confidential than the claims it contains.
 
+## Evidence provenance
+
+Provenance is **declared, never inferred from a location.**
+
+Two jobs were once done by one directory name: `evidence/performance-reviews/`
+was the only place a document could ground a claim, so everything was filed
+there — and the review surface read that same path as proof an employer had
+written it. Self-extracted and self-observed material was reported as
+employer-attested, and nothing looked broken.
+
+Each evidence file is declared once in `evidence/PROVENANCE.json`:
+
+```json
+{
+  "path": "evidence/reviews/2021-03-review.md",
+  "contentHash": "<sha256 of the file>",
+  "sourceKind": "employer_document",
+  "classificationBasis": "operator_declared",
+  "recheckability": "point_in_time",
+  "contentDate": "2021-03",
+  "capturedAt": "2026-01-14",
+  "sourceAccess": "confidential"
+}
+```
+
+**Three independent fields, not one tier.** They were merged once and could not
+classify ordinary evidence: an OCR'd performance review is employer-authored,
+self-extracted, and point-in-time simultaneously.
+
+| Field | Axis | Values |
+| --- | --- | --- |
+| `sourceKind` | what it is / who authored it | `candidate_statement`, `employer_document`, `third_party_document`, `observation_record`, `repository_snapshot` |
+| `recheckability` | who can re-verify it, and when | `public`, `operator_gated`, `point_in_time` |
+| `classificationBasis` | how the classification was reached | `tool_derived`, `operator_declared`, `legacy_unknown` |
+
+A `sourceKind` may only pair with a basis that could have produced it. No tool
+can determine a human wrote a document, so `employer_document` is always
+`operator_declared` — and is rendered as *"the operator identifies this as an
+employer-authored document,"* never as verification. labora cannot authenticate
+authorship and must not imply that it did.
+
+`recheckability` is an **access property, never a strength ranking.** It is
+never sorted, scored, or weighted, and `operator_gated` — private repositories,
+NDA'd systems, internal tooling — is where most real production work lives. It
+changes how a candidate demonstrates something, never whether it counts.
+
+`sourceAccess` describes the **source**; a claim's `disclosure` governs what may
+be **printed**. A confidential review can legitimately support a public,
+generalized accomplishment.
+
+### The manifest is build input
+
+`profile-builder` resolves it into the ledger; the review surface renders the
+ledger's snapshot. Reading it live would let a classification change without a
+rebuild — editing `sourceKind` does not change the evidence bytes, so no
+staleness check would ever fire.
+
+`contentHash` proves **freshness, not authenticity**: it says the classification
+refers to these exact bytes. Edit a classified file and its declaration goes
+`stale` — the claim stays grounded, the metadata needs a rebuild.
+
+Run `labora validate-evidence-manifest <persona>`.
+
+### Layout
+
+`evidence/<source-type>/<ISO-date>-<slug>.md`, where the date is when the
+evidence **describes**, not when it was imported.
+
+**Advisory, and deliberately not enforced by migration.** Claims anchor to path
+plus content hash plus line range, so any rename re-anchors every claim in the
+ledger. Nothing is worth that except a real defect.
+
+The one thing that *is* flagged is a bare `/<YYYY>/` segment, as a warning: it
+reads as the year the evidence describes while it usually records the import
+batch — a directory named `2025/` holding material from 2020 onward. Prefer
+`captured/<ISO-date>/` when the batch date is what you mean. `contentDate` and
+`capturedAt` in the manifest are authoritative either way; path dates never are.
+
 ## Untrusted-input boundary
 
 Job descriptions, PDFs, OCR text, reference resumes, and evidence files are

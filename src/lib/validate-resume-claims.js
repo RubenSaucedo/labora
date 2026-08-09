@@ -4,6 +4,7 @@ import path from "node:path";
 import { canonicalSkillsInText } from "./skill-aliases.js";
 import { skillVocabulary } from "./skill-vocabulary.js";
 import { validateObservations } from "./validate-observations.js";
+import { loadManifest, resolveProvenance } from "./evidence-provenance.js";
 
 const SUPPORT_STOPWORDS = new Set([
   "a", "an", "and", "at", "by", "for", "from", "in", "into", "of", "on",
@@ -238,6 +239,22 @@ function sourceMayGroundClaims(sourcePath, personaRoot) {
     path.basename(resolvedSource) === "observations.json"
   ) {
     return validateObservations(readJsonOrNull(resolvedSource) ?? {}).valid;
+  }
+
+  // Any other evidence file is authorized by being TYPED AND HASH-BOUND in
+  // `evidence/PROVENANCE.json`, not by where it sits. This is what ends the
+  // #9 trap, where the only way to make a document usable was to file it under
+  // `performance-reviews/` -- which then made the renderer call it attested.
+  //
+  // Deliberately not a widening to `evidence/**`: an arbitrary file placed in
+  // the tree still cannot ground a claim. It has to be declared, with a hash
+  // that matches its bytes and a classification basis that could actually have
+  // produced its declared kind.
+  if (withinDir(evidenceDir, resolvedSource)) {
+    const manifest = loadManifest(resolvedPersona);
+    if (!manifest.present) return false;
+    const resolved = resolveProvenance(resolvedSource, resolvedPersona, manifest);
+    return resolved.state === "declared";
   }
 
   return false;
