@@ -93,7 +93,8 @@ export function candidateActionFor(body, terms, candidateName) {
   const lowered = terms.map((t) => String(t).toLowerCase());
   for (const sentence of sentencesOf(body)) {
     const haystack = sentence.toLowerCase();
-    if (!lowered.some((term) => haystack.includes(term))) continue;
+    const { tokens, joined } = bodyIndex(sentence);
+    if (!lowered.some((term) => containsTerm(tokens, joined, term))) continue;
     if (assertsCandidateAction(sentence, candidateName)) return sentence.trim();
   }
   return null;
@@ -121,6 +122,48 @@ const STOPWORDS = new Set([
   "will", "are", "any", "all", "this", "that", "such", "over",
 ]);
 
+// One splitter for both sides of every comparison. `+`, `#` and `.` are kept
+// inside tokens so `c++`, `node.js` and `.net` survive as single words rather
+// than fragmenting into things that match everything.
+const TOKEN_SPLIT = /[^a-z0-9+#.]+/;
+
+
+function tokenize(text) {
+  return String(text || "")
+    .toLowerCase()
+    .split(TOKEN_SPLIT)
+    // Keeping `.` inside tokens is what preserves `node.js` and `.net`, but it
+    // also glues sentence-ending punctuation on: `service.` would never equal
+    // `service` once matching is by whole word rather than by substring. A
+    // trailing dot is always punctuation; a leading or internal one is not.
+    .map((w) => w.replace(/\.+$/, ""))
+    .filter(Boolean);
+}
+
+/**
+ * Whether a term occurs in a body as a *word*.
+ *
+ * `body.includes(term)` matched substrings, so `rust` was satisfied by "trust",
+ * `top` by "topics" and `eval` by "evaluation". Against a real corpus that
+ * returned `unmined` -- "already covered, no question needed" -- for a Top
+ * Secret clearance the candidate does not hold. `unmined` closes a requirement,
+ * so a false one is silent.
+ *
+ * Multi-word surface forms ("machine learning") still need phrase matching, but
+ * anchored at token edges rather than anywhere inside a word.
+ */
+export function containsTerm(tokens, joined, term) {
+  const parts = tokenize(term);
+  if (parts.length === 0) return false;
+  if (parts.length === 1) return tokens.has(parts[0]);
+  return joined.includes(` ${parts.join(" ")} `);
+}
+
+function bodyIndex(text) {
+  const list = tokenize(text);
+  return { tokens: new Set(list), joined: ` ${list.join(" ")} ` };
+}
+
 function searchTerms(requirement) {
   const text = String(requirement?.text || requirement || "");
   // Surface forms, not just the canonical id: a corpus that says "k8s" answers
@@ -130,9 +173,7 @@ function searchTerms(requirement) {
     hit.canonicalId,
     ...(hit.surfaceForms || []),
   ]);
-  const words = text
-    .toLowerCase()
-    .split(/[^a-z0-9+#.]+/)
+  const words = tokenize(text)
     .filter((w) => w.length > 2 && !STOPWORDS.has(w) && !/^\d+$/.test(w));
   return [...new Set([...canonical, ...words].map((t) => String(t).toLowerCase()))];
 }
@@ -157,7 +198,12 @@ function primaryTerms(requirement) {
 export function searchCorpus(personaRoot, requirement, { minTerms = 2, candidateName = "" } = {}) {
   const terms = searchTerms(requirement);
   if (!terms.length) return [];
-  const hits = [];
+  const primary = primaryTerms(requirement);
+
+  // Read once, decide after. Whether a matched term means anything depends on
+  // how many other files also contain it, which is not knowable while still
+  // walking.
+  const files = [];
   for (const file of walk(path.join(personaRoot, "evidence"))) {
     let raw;
     try {
@@ -165,34 +211,56 @@ export function searchCorpus(personaRoot, requirement, { minTerms = 2, candidate
     } catch {
       continue;
     }
-    const body = raw.toLowerCase();
-    const matched = terms.filter((term) => body.includes(term));
+    const { tokens, joined } = bodyIndex(raw);
+    files.push({ file, raw, matched: terms.filter((term) => containsTerm(tokens, joined, term)) });
+  }
 
+  // How many files each term appears in. Terms the corpus never contains at all
+  // are the point of the requirement: nothing in this evidence says `rust`,
+  // `clearance` or `harnesses`. What matched was the prose around them.
+  const spread = new Map(terms.map((t) => [t, 0]));
+  for (const { matched } of files) {
+    for (const term of new Set(matched)) spread.set(term, (spread.get(term) || 0) + 1);
+  }
+  const rarest = Math.min(...terms.map((t) => spread.get(t) || 0));
+
+  const hits = [];
+  for (const { file, raw, matched } of files) {
     // Two rules, because the requirements differ in kind.
     //
-    // When the requirement names a specific skill, that skill must appear --
-    // matching only the surrounding prose ("production", "experience") is how a
-    // real gap gets waved away. But a named skill appearing IS the signal; it
-    // does not need corroborating filler words, or a corpus that says
-    // "Kubernetes migration" would fail a requirement worded "Kubernetes in
-    // production".
+    // When the requirement names a skill the lexicon knows, that skill must
+    // appear -- matching only the surrounding prose ("production",
+    // "experience") is how a real gap gets waved away. But a named skill
+    // appearing IS the signal; it does not need corroborating filler words, or
+    // a corpus that says "Kubernetes migration" would fail a requirement worded
+    // "Kubernetes in production".
     //
-    // When the requirement names no skill at all, fall back to requiring
-    // several shared words, since any single one would be a coincidence.
-    const primary = primaryTerms(requirement);
+    // That guard used to disappear whenever the lexicon did not recognise the
+    // skill -- and the lexicon is a closed list, so `Rust` and `Top Secret
+    // clearance` fell through to "any two shared words", which a real corpus
+    // always satisfies. "Must hold an active US Top Secret security clearance"
+    // matched `hold`, `active`, `top` and `security` and came back `unmined`:
+    // already covered, no question asked, for a clearance nobody holds.
+    //
+    // So the fallback asks the corpus itself which term is specific, with no
+    // list to fall off. A requirement's rarest term is what it is really about,
+    // and if the corpus never contains it, the corpus is not answering it.
+    const specific = matched.filter((term) => (spread.get(term) || 0) === rarest);
     const hit = primary.length
-      ? primary.some((term) => body.includes(term))
-      : matched.length >= Math.min(minTerms, terms.length);
+      ? primary.some((term) => matched.includes(term))
+      : specific.length > 0 && matched.length >= Math.min(minTerms, terms.length);
     if (hit) {
       // A token appearing is not the candidate having done it. "Priya owns the
       // eval harness" is real information about the team and none about this
       // candidate, and counting it as coverage closed the requirement with no
       // question asked -- the exact inference this module exists to refuse,
       // running in the opposite direction.
-      const attribution = candidateActionFor(raw, primary.length ? primary : matched, candidateName);
+      const basis = primary.length ? primary : specific;
+      const attribution = candidateActionFor(raw, basis, candidateName);
       hits.push({
         path: path.relative(personaRoot, file).split(path.sep).join("/"),
         matchedTerms: matched,
+        specificTerms: specific,
         attributedToCandidate: Boolean(attribution),
         attribution: attribution || null,
       });
