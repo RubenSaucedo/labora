@@ -32,12 +32,27 @@ check for a deterministic tool and prefer it:
 | Category | Tool |
 | --- | --- |
 | `repositories/` | `labora snapshot-repos --persona <name> --verify-urls` |
+| live products, deployed services, public sites | load `evidence-exploration`, then `labora validate-observations` |
 
 When no tool exists for a source you are asked to capture, say so and propose
 adding one rather than hand-writing the file. Hand-typing a retrieved fact
 silently demotes it from machine-retrievable to self-reported, which changes how
 it may be presented for the rest of the pipeline. A tool that writes the file is
 worth more than a faster transcription.
+
+## Exploring something the persona built
+
+When the source is a running system rather than a document, load
+`evidence-exploration` **before** you start and follow its output contract. An
+exploration produces a neutral `observations.json` — what the system did when
+acted upon, how it was verified, and what each finding does **not** establish —
+separately from any written evaluation. Only the former may ground a claim.
+
+Without that split you will produce a defect list, and a defect list makes the
+persona's own shipped product read as a liability while establishing nothing a
+claim can be derived from. Defects belong in the appendix, non-blocking. A
+product behind a login is `operator_reproducible` evidence, not missing
+evidence.
 
 Record what you actually observed, including negatives: a private repository is
 private, an unreachable URL is unreachable, an enrolment is not a completion. A

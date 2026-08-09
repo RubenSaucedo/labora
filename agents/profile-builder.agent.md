@@ -45,6 +45,12 @@ judge later and costs a real application.
    is isolated precisely so untrusted pages never share a context with ledger
    write access.
 4. Run `resume-evidence` when raw evidence lacks cleaned text.
+   When a category contains an `observations.json`, derive claims from that
+   record alone — it is designed to be sufficient without the session that
+   produced it. Every derived claim **inherits the observation's
+   `doesNotEstablish` boundary**; a claim scoped wider than its observation is
+   unsupported. Never derive a claim from a `defectAppendix` entry, and never
+   let one qualify a positive finding.
 5. Run `resume-persona` to (re)build the identity spine, claim ledger and
    accomplishment bank.
 6. Validate, and treat validation as the definition of done:
