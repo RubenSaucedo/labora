@@ -100,8 +100,9 @@ control back.
 ### 2. Match is weighed by severity, not counted
 
 Job descriptions are wish lists assembled from several people's jobs.
-Nobody matches all of one, and a candidate covering most of a posting is
-usually a strong applicant.
+Nobody matches all of one, and employers demonstrably hire people who do
+not — see the evidence appendix, which also explains why labora names no
+percentage threshold.
 
 But coverage is weighed, never tallied: eight peripheral matches do not
 outweigh missing the role's central capability. Labora may call an
@@ -233,3 +234,55 @@ perfectly truthful and still a serious breach.
 
 Where the two genuinely conflict, **report the conflict** rather than
 silently resolving it.
+
+## What this document is grounded in
+
+A tool whose central rule is *do not assert what you cannot ground* has
+no licence to argue from folklore. So the claims above that are
+empirical rather than ethical carry their evidence, including where the
+evidence is weaker than the popular version of it.
+
+**The "apply if you meet 60%" advice is not evidence-based.** The
+statistic behind it traces to an unpublished internal Hewlett-Packard
+report described in a [2014 HBR article][hbr], not an auditable study. A
+[Behavioural Insights Team experiment][bit] with 10,468 participants
+found a far smaller effect than the folklore — willingness to apply at
+roughly 52% of requirements for men and 56% for women.
+
+Labora therefore names **no threshold at all**. Principle 2 weighs
+requirements by consequence precisely because no percentage is
+defensible, and a tool that adopted 60% would be repeating a number
+nobody has verified.
+
+**Employers do hire people who do not match.** A [Robert Half survey][rh]
+of 300+ HR managers and 2,800 workers reported 84% of managers at least
+somewhat open to hiring and training someone missing a required skill,
+and 62% of workers receiving an offer without matching the stated
+qualifications. Survey evidence, not causal — but it is the reason
+principle 1 treats a gap as a costed step rather than an exit.
+
+**ATS auto-rejection is real, and it is not lexical.** Greenhouse
+documents [auto-reject rules][gh] driven by *application question*
+answers, such as lacking a required licence — categorical facts, not
+resume wording. Greenhouse's own [Talent Matching][gh-tm] explicitly
+ranks without advancing or rejecting. Keyword search does affect
+retrieval, since recruiters query resumes directly.
+
+What is *not* established, and no source found supports it: that a
+lexical match score predicts callbacks, that 75% or 80% is any real
+system's cutoff, or that repeating keywords advances a candidate.
+
+This is why **lexical coverage may never block a release** and is never
+reported as a probability of being hired. Coverage answers "would a
+recruiter searching this term find this resume" — a retrieval question,
+worth optimising, and not a forecast. The [*Hidden Workers*][hbs]
+research does show rigid filters excluding qualified candidates, but its
+filters are credentials, experience minimums and employment gaps, and it
+should not be reduced to evidence about keywords.
+
+[hbr]: https://hbr.org/2014/08/why-women-dont-apply-for-jobs-unless-theyre-100-qualified
+[bit]: https://www.bi.team/blogs/women-only-apply-when-100-qualified-fact-or-fake-news/
+[rh]: https://press.roberthalf.com/2019-03-19-Survey-42-Percent-Of-Job-Applicants-Dont-Meet-Skills-Requirements-But-Companies-Are-Willing-To-Train-Up
+[gh]: https://support.greenhouse.io/hc/en-us/articles/360000653472-Auto-reject
+[gh-tm]: https://support.greenhouse.io/hc/en-us/articles/41396009937307-Talent-Matching
+[hbs]: https://www.hbs.edu/managing-the-future-of-work/research/hidden-workers-untapped-talent
