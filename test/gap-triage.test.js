@@ -166,13 +166,69 @@ test("routes are only offered for relevant assets", () => {
   assert.deepEqual(routes, [], "an unrelated project is not a route to the requirement");
 });
 
-// The status vocabulary is the contract: four statuses that need four different
-// actions, never one bucket called "pending".
+// The status vocabulary is the contract: each status needs a different action,
+// never one bucket called "pending".
 test("no status collapses into a single pending bucket", () => {
   assert.deepEqual(
     Object.values(GAP_STATUS).sort(),
-    ["adjacent", "collectible", "real_gap", "unmined"]
+    ["adjacent", "collectible", "mention_only", "real_gap", "unmined"]
   );
+});
+
+// A skill token appearing in the corpus is not the candidate having done it.
+// This ran in the wrong direction from the usual failure: the tool concluded
+// the evidence was already there and closed the requirement, so no question was
+// asked and no route was offered.
+test("a teammate's work in the corpus is not the candidate's coverage", () => {
+  const root = persona({
+    "evidence/notes/team.md": "Priya owns the evaluation harness and reports on it weekly.",
+  });
+  const result = triageRequirement(
+    { text: "Experience with an evaluation harness" },
+    { personaRoot: root, ledger: ledger([]), identity: { name: "Ruben Saucedo" } }
+  );
+  assert.equal(result.status, GAP_STATUS.MENTION_ONLY);
+  assert.equal(result.escalateToHuman, true, "a mention must reach a human, not close the requirement");
+  assert.equal(result.routes[0].kind, "ask_scoped_question");
+});
+
+test("the candidate's own work in the corpus is still unmined", () => {
+  const root = persona({
+    "evidence/notes/mine.md": "I built the evaluation harness and ran it against every release.",
+  });
+  const result = triageRequirement(
+    { text: "Experience with an evaluation harness" },
+    { personaRoot: root, ledger: ledger([]), identity: { name: "Ruben Saucedo" } }
+  );
+  assert.equal(result.status, GAP_STATUS.UNMINED);
+  assert.equal(result.escalateToHuman, false);
+});
+
+// Resume-register prose drops the subject; the subject is still the candidate.
+test("subject-dropped resume prose counts as the candidate's action", () => {
+  const root = persona({
+    "evidence/notes/resume.md": "Built the evaluation harness used across three teams.",
+  });
+  const result = triageRequirement(
+    { text: "Experience with an evaluation harness" },
+    { personaRoot: root, ledger: ledger([]), identity: { name: "Ruben Saucedo" } }
+  );
+  assert.equal(result.status, GAP_STATUS.UNMINED);
+});
+
+// Deliberately not a negation detector. "We evaluated X and chose Y" is a
+// first-person sentence about real work, and a claim derived from it would be
+// honest. Negation in English is unbounded; a detector loses the same way a
+// verb list does.
+test("a first-person sentence with a negative outcome is still the candidate's work", () => {
+  const root = persona({
+    "evidence/notes/decision.md": "We evaluated the evaluation harness approach and chose not to adopt it.",
+  });
+  const result = triageRequirement(
+    { text: "Experience with an evaluation harness" },
+    { personaRoot: root, ledger: ledger([]), identity: { name: "Ruben Saucedo" } }
+  );
+  assert.equal(result.status, GAP_STATUS.UNMINED);
 });
 
 // Found by running triage against a real Vercel posting: a claim about payroll
@@ -255,4 +311,33 @@ test("relatedness ranks a precise match above several vague ones", () => {
     { text: "durable execution for a product with results for a team using a process" }
   );
   assert.match(found[0].fact, /durable execution/);
+});
+
+// The status vocabulary lives in three places: the runtime enum, the schema
+// agents write against, and the table agents read. #37 was a doc and a schema
+// that disagreed, which is a contract that does not exist, and only a test
+// reading both could notice. Same shape here, with one more source.
+test("runtime, schema and skill table agree on the status vocabulary", () => {
+  const schema = fs.readFileSync(
+    new URL("../src/schemas/application-strategy.js", import.meta.url), "utf8"
+  );
+  const skill = fs.readFileSync(
+    new URL("../skills/resume-application-strategy/SKILL.md", import.meta.url), "utf8"
+  );
+  const statuses = Object.values(GAP_STATUS).sort();
+
+  // Anchored on a member rather than on the field name: the schema has more
+  // than one `status` enum, and the first is the strategy's own readiness.
+  const start = schema.lastIndexOf("z.enum([", schema.indexOf('"unmined"'));
+  const schemaEnum = schema
+    .slice(start, schema.indexOf("])", start))
+    .match(/"([a-z_]+)"/g)
+    .map((s) => s.replace(/"/g, ""))
+    .sort();
+  assert.deepEqual(schemaEnum, statuses, "schema enum drifted from GAP_STATUS");
+
+  const documented = [...skill.matchAll(/^\s*\|\s*`([a-z_]+)`\s*\|/gm)]
+    .map((m) => m[1])
+    .sort();
+  assert.deepEqual(documented, statuses, "skill table drifted from GAP_STATUS");
 });

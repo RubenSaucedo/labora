@@ -49,6 +49,7 @@ export const ZApplicationStrategy = z.object({
     // statement about a corpus. Neither is a statement about a person.
     status: z.enum([
       "unmined",
+      "mention_only",
       "collectible",
       "adjacent",
       "real_gap",
