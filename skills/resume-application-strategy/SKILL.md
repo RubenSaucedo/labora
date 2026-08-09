@@ -33,11 +33,48 @@ This is a private planning artifact. It is never rendered into the resume.
    - `supported`: verified evidence exists;
    - `unsupported`: the current corpus has no support;
    - `uncertain`: the corpus is ambiguous or incomplete.
-3. For each unsupported or uncertain hard/core requirement, formulate one
-   concrete evidence question. Ask the operator one question at a time.
-4. A conversational answer is a lead, not verified evidence. To use it, the
+3. **Triage before you call anything a gap.** Run:
+
+   ```
+   labora triage-gaps <persona> --requirements <job-spec.json> --output validations/gap-triage.json
+   ```
+
+   Most declared gaps are not gaps. Each unmatched requirement comes back as
+   one of four statuses, which need four different actions and must never share
+   one bucket:
+
+   | Status | What it means | What to do |
+   | --- | --- | --- |
+   | `unmined` | The corpus already answers it; no claim was derived | Re-run `profile-builder`. **Do not ask the operator.** |
+   | `collectible` | Obtainable from something the candidate already owns and can reach | Take the named route — usually minutes |
+   | `adjacent` | Related verified work exists without establishing it | Ask one scoped question naming the adjacent claims |
+   | `real_gap` | Nothing in the corpus, nothing reachable, nothing adjacent | State it as an absence, never a disqualification |
+
+   `unmined` is a statement about labora's bookkeeping. `real_gap` is a
+   statement about a corpus. **Neither is a statement about a person.**
+
+4. Take every `collectible` route before writing the requirement out as a gap.
+   Asking a human is the slowest path available and yields self-report rather
+   than evidence, so it is the last resort and never the first move. Evidence
+   collection also validates: an observation run once contradicted a claim
+   already marked verified, and skipping it lets that reach a rendered resume.
+
+5. For `adjacent`, ask **one scoped question that names the verified work**, so
+   the candidate confirms a specific boundary instead of self-assessing.
+   Someone who shipped agent workflows and reviewed a colleague's evaluation
+   harness in detail does not "lack evals" — and also cannot claim to have built
+   one. Both are true at once, so the honest move is a question, never a verdict
+   in either direction.
+
+6. A conversational answer is a lead, not verified evidence. To use it, the
    operator must add a durable source to `profile/background.md`, `profile/career.md`
-   or the evidence corpus, then rerun `resume-persona`.
+   or the evidence corpus, then rerun `resume-persona`. **Flexible in what you
+   ask about, rigid in what you print.**
+
+7. A `real_gap` is not a reason to stop. Nobody matches a full job description;
+   postings routinely list everything anyone on the team touches. Report it with
+   what the candidate could build or learn if it matters for the roles they are
+   targeting, and let them decide.
 5. Shortlist accomplishment units. Run
    `labora rank-accomplishments <accomplishments.json> <job-spec.json>`
    for a deterministic starting order, then record `unitShortlist` entries with a
