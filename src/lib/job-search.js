@@ -542,10 +542,18 @@ export function applySeenLedger({ report, ledger, runDate, suppressSeen = false 
 function formatCompensation(compensation) {
   if (!compensation || (compensation.min == null && compensation.max == null)) return "—";
   const currency = compensation.currency || "USD";
-  if (compensation.min != null && compensation.max != null) {
-    return `${currency} ${compensation.min}–${compensation.max}`;
-  }
-  return `${currency} ${compensation.min ?? compensation.max}`;
+  const amount = (value) =>
+    value >= 1000 ? `${Math.round(value / 1000)}K` : String(value);
+  const band =
+    compensation.min != null && compensation.max != null
+      ? `${amount(compensation.min)}–${amount(compensation.max)}`
+      : amount(compensation.min ?? compensation.max);
+  // The band a posting quotes is often for a different city than the one it is
+  // listed under, and reading it as local pay is a real mistake to make.
+  const where = compensation.locationQualifier
+    ? ` (${compensation.locationQualifier})`
+    : "";
+  return `${currency} ${band}${where}`;
 }
 
 function seenLabel(candidate) {

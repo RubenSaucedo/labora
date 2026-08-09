@@ -38,3 +38,22 @@ export function assertSafeDocument(filePath, type) {
   return resolved;
 }
 
+
+/**
+ * Rejects a path that is really a mistyped flag.
+ *
+ * Tools take positional paths, so `--out` in the wrong position was silently
+ * accepted as a directory name and created literally. Because the working
+ * directory is the operator's persona workspace, that dropped untracked output
+ * into their private data repo -- a silent success is the worst outcome here,
+ * since nothing tells them where the files went.
+ */
+export function assertNotAFlag(value, label) {
+  const raw = String(value ?? "");
+  if (raw.startsWith("-")) {
+    throw new Error(
+      `${label} "${raw}" looks like a flag, not a path. Creating it would drop output into the working directory under a flag's name.`
+    );
+  }
+  return raw;
+}
