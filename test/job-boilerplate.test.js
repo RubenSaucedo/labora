@@ -777,3 +777,47 @@ test("a welcome does not protect an authorization demand beside it", () => {
   // "requiring no sponsorship" is the negation of needing it, and is the gate.
   assert.ok(isHardAuthorization("We encourage applicants requiring no sponsorship to apply."));
 });
+
+// --- #26: eligibility gates must be attributed to the candidate -------------
+
+test("administering credentials is a duty, not a gate", () => {
+  assert.equal(
+    isHardEligibility("Maintain professional license records and renewal dates for all clinicians."),
+    false
+  );
+  assert.equal(
+    isHardEligibility("Administer active medical license verification workflows."),
+    false
+  );
+  assert.equal(isHardEligibility("Manage licensure for all clinical staff."), false);
+});
+
+test("a licence demanded of the reader is still a gate", () => {
+  assert.ok(isHardEligibility("Active RN license required."));
+  assert.ok(isHardEligibility("Must hold a valid professional license."));
+  assert.ok(isHardEligibility("Professional license"));
+});
+
+// --- #27: employer process prose is not a candidate demand -----------------
+
+test("employer verification prose is not a candidate gate", () => {
+  assert.equal(
+    isHardAuthorization(
+      "As required by federal law, Acme verifies that all employees are authorized to work in the United States."
+    ),
+    false
+  );
+  assert.equal(isHardAuthorization("Acme participates in E-Verify."), false);
+  // A real demand sharing the sentence still survives the mask.
+  assert.ok(
+    isHardAuthorization(
+      "Acme verifies employment eligibility; candidates must be authorized to work in the United States."
+    )
+  );
+});
+
+test("authorization gates are detected outside the United States", () => {
+  assert.ok(isHardAuthorization("Applicants must hold a valid EU work permit."));
+  assert.ok(isHardAuthorization("You must have indefinite leave to remain in the UK."));
+  assert.ok(isHardAuthorization("Candidates must have the right to work in the UK."));
+});

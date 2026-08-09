@@ -131,6 +131,13 @@ const CONDITIONAL_AUTHORIZATION = [
   /\bright to work\b/i,
   /\beligible to work\b/i,
   /\beligibility to work\b/i,
+  // A gate is a gate outside the United States too. `authorizationJurisdiction`
+  // already resolves `eu` and `uk`, but nothing reached it because every
+  // pattern was anchored on US vocabulary.
+  /\b(?:work|residence|employment) permit\b/i,
+  /\bleave to remain\b/i,
+  /\b(?:eu|eea|uk|swiss|schengen) (?:work|residence) (?:permit|visa|authorisation|authorization)\b/i,
+  /\bsettled status\b/i,
 ];
 
 // Citizenship demands that no equal-opportunity paragraph can produce. "U.S.
@@ -212,7 +219,20 @@ function splitClauses(sentence) {
     .filter(Boolean);
 }
 
-const PROTECTIVE_GLOBAL = PROTECTIVE_SPONSORSHIP.map(
+// An employer describing its own compliance process is not making a demand of
+// the reader. "As required by federal law, Acme verifies that all employees are
+// authorized to work in the United States" states what the company does after
+// hiring; reading it as a gate hard-blocks a candidate who is fully eligible.
+//
+// The subject must be the employer, because the verb alone is ambiguous -- a
+// candidate can be told to verify something too. The subject openers are a
+// closed class, so this cannot drift the way a verb list does.
+const EMPLOYER_VERIFICATION = [
+  /\b(?:we|our company|the company|the employer|[A-Z][A-Za-z&.'’-]+(?:\s+(?:Inc|LLC|Ltd|Corp|Corporation|Co)\b\.?)?)\s+(?:will\s+|may\s+|must\s+|is\s+required\s+to\s+|are\s+required\s+to\s+)?(?:verif(?:y|ies)|confirms?|validates?|re-?verif(?:y|ies))\s+(?:\w+\s+){0,4}?(?:employment eligibility|work eligibility|(?:employment|work) authoriz\w*|authoriz\w* to work|identity and employment)/,
+  /\b(?:participates? in|uses?|is enrolled in|enrolled in)\s+e-?verify\b/i,
+];
+
+const PROTECTIVE_GLOBAL = [...PROTECTIVE_SPONSORSHIP, ...EMPLOYER_VERIFICATION].map(
   (pattern) => new RegExp(pattern.source, `${pattern.flags.replace("g", "")}g`)
 );
 
@@ -326,7 +346,27 @@ function isBareCredentialFragment(text) {
   return PERSONAL_CREDENTIAL.test(trimmed) || CREDENTIAL_ACRONYM.test(trimmed);
 }
 
+// Administering other people's credentials is a *duty*, not a demand to hold
+// one. "Maintain professional license records and renewal dates for all
+// clinicians" names a credential and carries obligation grammar, and was read
+// as a gate no resume can satisfy -- on precisely the compliance and clinical-
+// operations postings whose actual job is managing licensure.
+//
+// The tell is the object, not the verb. A verb list cannot work here: the same
+// verbs ("maintain", "hold", "administer") are at home in both readings, which
+// is the mistake this file has already made twice. What differs is what the
+// credential noun is attached to -- an administrative artefact, or the reader.
+const CREDENTIAL_ADMIN_OBJECT =
+  /\b(?:licen[cs]e|licensure|certification|credential)s?\s+(?:records?|renewals?|verifications?|workflows?|databases?|tracking|compliance|programs?|programmes?|audits?|filings?|expirations?|dates?|status(?:es)?|applications?|submissions?|data|management|administration|process(?:es)?|queue|requirements?|reporting|inventory)\b/i;
+
+// A credential held on someone else's behalf is likewise not a gate.
+const CREDENTIAL_THIRD_PARTY =
+  /\b(?:for|of)\s+(?:all |our |the |each )?(?:\w+\s+){0,2}?(?:clinicians?|staff|employees|providers?|nurses|physicians?|practitioners?|team members|contractors?|therapists?|technicians?|drivers?|consultants?)\b/i;
+
 function sentenceIsProfessionalLicenseRequirement(text) {
+  if (CREDENTIAL_ADMIN_OBJECT.test(text) || CREDENTIAL_THIRD_PARTY.test(text)) {
+    return false;
+  }
   if (
     /\b(?:software|open[- ]source) licenses?\b/i.test(text) ||
     /\b(?:license|licensing) compliance\b/i.test(text) ||
