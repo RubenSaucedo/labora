@@ -56,6 +56,9 @@ const ZCompensation = z.object({
   max: z.number().nonnegative().nullable().default(null),
   currency: z.string().min(1).default("USD"),
   source: z.string().default(""),
+  // The same posting often quotes a band for a location other than the one it
+  // is listed under, which changes what the number means to the reader.
+  locationQualifier: z.string().default(""),
 }).strict();
 
 export const ZDiscoveredJob = z.object({

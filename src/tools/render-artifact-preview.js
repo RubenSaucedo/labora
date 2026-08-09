@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { PDFParse } from "pdf-parse";
-import { assertSafeDocument } from "../lib/file-safety.js";
+import { assertSafeDocument, assertNotAFlag } from "../lib/file-safety.js";
 
 const pdfPath = process.argv[2];
 const outputDir = process.argv[3];
@@ -16,6 +16,8 @@ if (!pdfPath || !outputDir) {
 }
 
 try {
+  assertNotAFlag(pdfPath, "PDF path");
+  assertNotAFlag(outputDir, "Output directory");
   const safePath = assertSafeDocument(pdfPath, "pdf");
   const buffer = fs.readFileSync(safePath);
   const sourceArtifactHash = crypto.createHash("sha256").update(buffer).digest("hex");

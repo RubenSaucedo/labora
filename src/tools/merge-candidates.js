@@ -17,6 +17,7 @@ import {
   ZSeenLedger,
 } from "../schemas/job-search.js";
 import { ZClaimLedger } from "../schemas/provenance.js";
+import { parseCompensation } from "../lib/compensation.js";
 
 /**
  * Reconcile scout reports into candidates.json.
@@ -68,6 +69,24 @@ try {
     JSON.parse(fs.readFileSync(discoveryPath, "utf8"))
   );
   validateDiscoveryReport(discovery, { runDate, timeZone: prefs.timezone });
+
+  // Backfill deterministically rather than trusting each scout to have parsed
+  // it. A run recorded `compensation: null` for every posting while the bands
+  // sat in the captured text, and the report then advised asking the recruiter
+  // about pay that was already published -- advice that shaped ranking, since
+  // preferences carry a minCompensation floor.
+  const bandsRecovered = new Map();
+  for (const job of discovery.jobs) {
+    if (job.compensation) continue;
+    const parsed = parseCompensation(job.postingText);
+    if (parsed) {
+      job.compensation = parsed;
+      bandsRecovered.set(job.jobId, parsed);
+    }
+  }
+  if (bandsRecovered.size) {
+    fs.writeFileSync(discoveryPath, JSON.stringify(discovery, null, 2) + "\n");
+  }
   const scoutFiles = fs.existsSync(rawDir)
     ? fs.readdirSync(rawDir).filter((f) => /^scout-.*\.json$/.test(f)).sort()
     : [];
@@ -117,7 +136,12 @@ try {
     coverage: discovery.coverage,
   });
 
-  const seenPath = arg("--seen");
+  // Cross-run dedup used to require an explicit --seen path, so nothing passed
+  // it and `newLeadCount` was null in every run ever inspected -- a permanently
+  // null field that invites the reader to assume zero new leads. The ledger
+  // belongs to the run directory's parent, so default to it and let --seen
+  // override.
+  const seenPath = arg("--seen", path.join(path.dirname(path.resolve(runDir)), "seen.json"));
   const suppressSeen = hasFlag("--suppress-seen");
   let finalReport = report;
   if (seenPath) {
@@ -136,6 +160,14 @@ try {
     fs.writeFileSync(seenPath, JSON.stringify(ledgerOut, null, 2) + "\n");
   }
 
+  // Carry the recovered band onto the candidate, so the report stops telling
+  // the operator that published pay is unpublished.
+  for (const candidate of finalReport.candidates) {
+    if (!candidate.compensation && bandsRecovered.has(candidate.jobId)) {
+      candidate.compensation = bandsRecovered.get(candidate.jobId);
+    }
+  }
+
   const outPath = path.join(runDir, "candidates.json");
   fs.writeFileSync(outPath, JSON.stringify(finalReport, null, 2) + "\n");
   const newLeads = finalReport.newLeadCount;
@@ -145,7 +177,9 @@ try {
       `, ${countDisposition(finalReport, "watch")} to watch` +
       `, ${countDisposition(finalReport, "blocked")} blocked` +
       `, ${countDisposition(finalReport, "no_fit")} no fit` +
-      ` from ${reports.length} scout(s)\n`
+      ` from ${reports.length} scout(s)` +
+      (bandsRecovered.size ? `, ${bandsRecovered.size} pay band(s) parsed from posting text` : "") +
+      `\n`
   );
 } catch (error) {
   process.stderr.write(`merge-candidates error: ${error.message}\n`);
