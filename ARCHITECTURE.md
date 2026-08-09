@@ -403,6 +403,31 @@ month-over-month drift, and cross-judge agreement (unanimity rate and score
 correlation over complete applications). It is a deterministic observability
 tool, not part of the release gate.
 
+Its per-model breakdown groups on `metadata.model`, which is why that field must
+not be a guess *and* must be a stable model identity. A judge cannot observe its
+own model, so `judge-input.js` supplies the value from the resolved runtime
+configuration (`copilot-settings.js`) and the quality gate compares it alongside
+`evaluatedArtifactHash`, `promptHash`, and `inputHash`. A judge that authors the
+field instead of copying it is reported as stale. The recorded value is the bare
+model name (or `runtime-default`, or `unknown`), never a description of how the
+model was reached — the same model inherited and explicitly pinned must land in
+one calibration bucket, or drift analysis invents a model change that never
+happened. Provenance lives in the separate `source` field.
+
+`check-judge-models.js` reports whether any judge is configured off the
+tailoring model. Its three exit codes keep apart three different answers:
+diverse (`0`), not diverse (`1`), and unreadable configuration (`2`). Read
+status is four-valued for the same reason: `missing` means the config directory
+exists and configures nothing, while `unsupported` means there is no config
+directory at all — under Claude Code, that is "unknown", not "nothing". When the
+configuration is unknown, every per-agent field stays `null` rather than
+defaulting to `differsFromTailor: false`, and the gate skips the `model`
+comparison so an unreadable file cannot invalidate correct verdicts. The report
+is recorded in `release.json` as `judgeModels` but does not affect the release
+state — model choice is a property of the operator's runtime, and a signal that
+fired on every default install would be ignored. The report carries its own
+caveat string so no consumer can quietly upgrade "configured" into "observed".
+
 ## Job discovery (job-explorer)
 
 A parallel system reuses the same evidence layer for finding openings, not just

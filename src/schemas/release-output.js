@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+const ZAgentModel = z.object({
+  agent: z.string().min(1),
+  // null means no model name is configured and the runtime applies its own
+  // default, or that the configuration could not be read at all. `source`
+  // distinguishes the two: it is null only when nothing was resolved.
+  model: z.string().nullable(),
+  source: z.string().min(1).nullable(),
+  label: z.string().min(1),
+}).strict();
+
 export const ZReleaseOutput = z.object({
   schemaVersion: z.literal("1.0"),
   state: z.enum(["send_ready", "human_review", "blocked"]),
@@ -21,4 +31,15 @@ export const ZReleaseOutput = z.object({
     engineerJudge: z.boolean(),
     hrJudge: z.boolean(),
   }).strict(),
+  // Evidence, not a gate. Nullable because a record written before this field
+  // existed is still a valid record.
+  judgeModels: z.object({
+    settingsPath: z.string(),
+    status: z.enum(["ok", "missing", "unsupported", "error"]),
+    error: z.string().nullable(),
+    tailor: ZAgentModel,
+    judges: z.array(ZAgentModel.extend({ differsFromTailor: z.boolean().nullable() }).strict()),
+    diverse: z.boolean().nullable(),
+    caveat: z.string(),
+  }).strict().nullable().default(null),
 }).strict();

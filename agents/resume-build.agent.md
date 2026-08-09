@@ -52,10 +52,15 @@ must be rebuilt from the earliest stale dependency.
    this context can see the tailoring rationale, so its verdict would no longer
    be independent evidence. Launch the three in parallel; they never read
    generator rationale, provenance, or each other's output.
-   Prefer a different model family from the tailoring model for at least the
-   final ATS or HR judge when the runtime supports model selection. Pass each
-   only the application directory and selected artifact path; each judge obtains
-   its complete isolated input through `prepare-judge-input.js`.
+   Model diversity is an operator setting, not something this plugin can
+   choose: per-agent models live in the CLI's `subagents.agents.<name>.model`
+   configuration. Run `labora check-judge-models` to see whether any judge is
+   configured off the tailoring model. It exits 1 when they all share one, and
+   that result is recorded in `release.json` as `judgeModels`. Treat it as
+   context, not proof — it shows what was configured, never which model
+   actually produced a verdict. Pass each judge only the application directory
+   and selected artifact path; each judge obtains its complete isolated input
+   through `prepare-judge-input.js`.
 8. `resume-quality-gate`.
 9. If the gate identifies a fix supported by existing verified claims, permit
    one bounded remediation cycle from tailoring. Never invent around a blocker.
