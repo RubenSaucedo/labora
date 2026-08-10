@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { requiredDependencies } from "../src/lib/tool-dependencies.js";
 
 // bin/labora -> the plugin root is one level up. Derived from this file's own
 // location rather than the caller's, because a plugin is installed to a path
@@ -41,9 +42,32 @@ function declaredDependencies() {
 
 // A package is present only when its own manifest is readable. A bare directory
 // can survive a partial or interrupted install.
+function installedDependencies() {
+  return new Set(
+    declaredDependencies().filter((name) =>
+      fs.existsSync(path.join(pluginRoot, "node_modules", name, "package.json"))
+    )
+  );
+}
+
 function missingDependencies() {
-  return declaredDependencies().filter(
-    (name) => !fs.existsSync(path.join(pluginRoot, "node_modules", name, "package.json"))
+  const installed = installedDependencies();
+  return declaredDependencies().filter((name) => !installed.has(name));
+}
+
+// What one tool needs, not what the plugin declares. Gating every tool on every
+// dependency made a machine that cannot reach the npm registry look like a
+// machine on which nothing works, when a third of the tools import nothing.
+function missingDependenciesForTool(tool) {
+  const installed = installedDependencies();
+  return requiredDependencies(path.join(toolsDir, `${tool}.js`), declaredDependencies())
+    .filter((name) => !installed.has(name));
+}
+
+function dependencyFreeTools() {
+  const declared = declaredDependencies();
+  return availableTools().filter(
+    (tool) => requiredDependencies(path.join(toolsDir, `${tool}.js`), declared).length === 0
   );
 }
 
@@ -61,17 +85,22 @@ function fail(message) {
   process.exit(1);
 }
 
-function reportMissingDependencies(missing) {
+function reportMissingDependencies(missing, tool) {
   process.stderr.write(
-    `labora: ${missing.length} dependenc${missing.length === 1 ? "y is" : "ies are"} not installed: ` +
-    `${missing.join(", ")}\n` +
+    `labora: ${tool} needs ${missing.length} dependenc${missing.length === 1 ? "y" : "ies"} ` +
+    `that ${missing.length === 1 ? "is" : "are"} not installed: ${missing.join(", ")}\n` +
     `\nA plugin install copies these sources but never runs "npm install", so the\n` +
     `deterministic tools cannot load. Install them once:\n\n  ${SETUP_COMMAND}\n\n` +
     `Refusing to run the tool. A gate that cannot execute must not look like one that passed.\n`
   );
+  const runnable = dependencyFreeTools();
+  if (runnable.length) {
+    process.stderr.write(
+      `\nThese tools need no dependency and run now:\n  ${runnable.join(", ")}\n`
+    );
+  }
   process.exit(1);
 }
-
 function runSetup() {
   const useCleanInstall = fs.existsSync(path.join(pluginRoot, "package-lock.json"));
   const args = useCleanInstall
@@ -114,7 +143,7 @@ function runDoctor() {
     `plugin root   ${pluginRoot}`,
     `working dir   ${process.cwd()}`,
     `node          ${process.version}${stale ? "  UNSUPPORTED, needs >=20.16 or >=22.3" : ""}`,
-    `tools         ${tools.length} available`,
+    `tools         ${tools.length} available${missing.length ? `, ${dependencyFreeTools().length} runnable without dependencies` : ""}`,
     `dependencies  ${missing.length === 0 ? "ready" : `MISSING: ${missing.join(", ")}`}`,
     `pdf renderer  ${chrome ? chrome : "no Chrome found — DOCX still works, PDF will not"}`,
   ];
@@ -143,14 +172,19 @@ function announce() {
     `Run "${binPath} list" for the ${availableTools().length} available tools.`,
   ];
   if (missing.length) {
+    const runnable = dependencyFreeTools();
     lines.push(
       ``,
       `WARNING: ${missing.length} dependencies are not installed (${missing.join(", ")}),`,
-      `so every deterministic tool will fail. No pipeline stage can be`,
-      `validated until the operator runs:`,
+      `so ${availableTools().length - runnable.length} of ${availableTools().length} deterministic tools will refuse to run.`,
+      `Every stage that renders, validates or judges is among them, so no such`,
+      `stage can be validated until the operator runs:`,
       `  ${binPath} setup`,
       `Do not run that yourself and do not work around the tools by`,
-      `reimplementing their checks - report the gap and stop.`
+      `reimplementing their checks - report the gap and stop.`,
+      ``,
+      `These ${runnable.length} tools need no dependency and DO run now:`,
+      `  ${runnable.join(", ")}`
     );
   }
   process.stdout.write(JSON.stringify({ additionalContext: lines.join("\n") }) + "\n");
@@ -211,8 +245,8 @@ if (stale) {
   );
 }
 
-const missing = missingDependencies();
-if (missing.length) reportMissingDependencies(missing);
+const missing = missingDependenciesForTool(command);
+if (missing.length) reportMissingDependencies(missing, command);
 
 // Spawn rather than import: the tool reads process.argv and calls process.exit,
 // so importing it would hand it this dispatcher's arguments and let it end this
