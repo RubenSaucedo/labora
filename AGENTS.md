@@ -81,7 +81,7 @@ Slash commands ship **only** from `skills/`. Copilot CLI's plugin loader
 recognises `*.agent.md`, `**/SKILL.md`, `mcp-config.json` and the plugin manifest and
 nothing else, so a command placed anywhere else reaches only people sitting in
 this repo. Every skill must declare `user-invocable` explicitly — it defaults to
-`true`, so omitting it publishes an internal stage by accident. Only the eight
+`true`, so omitting it publishes an internal stage by accident. Only the nine
 entry points in `README.md` are `true`; a stage that runs inside an isolated
 agent or writes `profile/generated/` is always `false`.
 

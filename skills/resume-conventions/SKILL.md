@@ -42,6 +42,8 @@ we print.
 │  ├─ performance-reviews/{raw,extracted,text,validations}
 │  ├─ repositories/<date>/{repositories.md,repositories.json}
 │  └─ references/
+├─ career-issues/                 # career-issue drafts, filed by a human
+│  └─ <date>-<kind>-<slug>.{md,json}
 └─ applications/<job-slug>/
    ├─ job.md
    ├─ job-spec.json
@@ -317,6 +319,11 @@ Validate before writing. Schemas are strict; unexpected fields are errors.
    human-review concern, not an invitation to invent or an automatic rejection.
 7. The final pipeline must produce `release.json`. Only `send_ready` is eligible
    for sending, and human approval is still required.
+8. An open issue is a promise, not evidence. Nothing under `career-issues/`, and
+   no issue filed from it, may ever be read as a claim or counted as coverage —
+   otherwise the ledger becomes gameable by typing. Only merged, shipped or
+   readable work is evidence, and it is evidence because it exists, not because
+   an issue about it was closed.
 
 ## Run summary
 

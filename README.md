@@ -87,8 +87,9 @@ Every entry point is also a slash command, in Copilot CLI and Claude Code alike:
 | `/resume-format <persona> <job-slug> [--style N]` | render the delivery artifacts |
 | `/judge-resume <persona> <job-slug> [--style N]` | run the three independent gates |
 | `/build-resume <persona> <job-slug> [--style N]` | all of it, through the release decision |
+| `/career-issue <persona>` | turn a named gap route into an issue on a repo the persona owns |
 
-Those eight are the whole public surface. The remaining skills are internal
+Those nine are the whole public surface. The remaining skills are internal
 pipeline stages, marked `user-invocable: false` because each one runs inside an
 isolated agent or writes `profile/generated/`, and invoking it directly would
 walk around the boundary it exists to enforce.
@@ -124,6 +125,8 @@ plugin without carrying anyone's history.
 │   ├── performance-reviews/{raw,extracted,text,validations}
 │   ├── repositories/<date>/{repositories.md,repositories.json}
 │   └── references/
+├── career-issues/                  # career-issue drafts; you file them yourself
+│   └── <date>-<kind>-<slug>.{md,json}
 └── applications/<job-slug>/
     ├── job.md
     ├── job-spec.json
@@ -298,6 +301,7 @@ See `ARCHITECTURE.md` for the discovery layout and consensus rule.
 | `judge-hr` | Recruiter-screen rubric — executed by the `judge-hr` agent |
 | `resume-quality-gate` | Aggregate deterministic and model evaluations |
 | `application-outcomes` | Record operator-confirmed funnel events without causal claims |
+| `career-issue` | Draft an issue on a repo the persona owns from a named gap route |
 
 All skills load `skills/resume-conventions/SKILL.md`. Judge skills hold the
 rubric; the matching agents provide the isolated context that runs them.
@@ -322,6 +326,8 @@ labora check-judge-models [--json] [--settings <path>]
 labora merge-candidates <run-dir> --prefs <search-preferences.json> --claims <claims.json> [--fit-floor 60] [--seen <seen.json>] [--suppress-seen]
 labora calibrate-judges [--persona <name>] [--out <calibration.json>]
 labora application-outcome <application-dir> show|record <event>
+labora career-issue draft <persona> --kind <polish|legibility|gap|growth> --repo <owner/repo> --title <text> --problem <text> --route <text> --done-when <text>
+labora career-issue check <persona> <body-file>
 ```
 
 `coverage_percent` is lexical coverage only.
@@ -414,6 +420,17 @@ while a private one is self-reported.
 
 Prefer selective evidence and minimal disclosure. Gitignore does not protect
 data already sent to a cloud model or written to logs.
+
+`labora career-issue` is the one tool whose output is meant to leave the
+workspace, so it is the one that refuses. It drafts an issue for a repository
+the persona owns, derives the terms that must not be published from the
+workspace itself — employers in `identity.json`, target companies and slugs
+under `applications/` — and withholds the `gh issue create` command when the
+draft matches one. The draft is still written, because the workspace is private
+and may hold the real wording; only publication is gated. It never runs `gh`:
+twenty issues appearing on someone's repository in one minute is a worse
+outcome than the gap was. A filed issue is a promise, not evidence, and no
+later stage reads open issues as claims.
 
 ## Tests
 
