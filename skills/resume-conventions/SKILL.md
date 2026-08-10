@@ -204,6 +204,45 @@ per-review evidence already covers the same periods. Neither may hold a profile
 summary, resume bullets for a well-evidenced period, or a skill list — that is
 pre-baked resume prose that anchors the tailor instead of informing it.
 
+## Outbound-disclosure boundary
+
+The inbound rule governs what may instruct you. This one governs what may
+**leave**. It applies to anything published where a stranger can read it — a
+bug report or feature request against labora or any other tool, a public repo,
+a gist, a pasted log.
+
+**Never publish, in any form:**
+
+- Names of people — the persona, a recruiter, a hiring manager, a colleague, a
+  reference.
+- Employers or companies, current, past or target, including the employer
+  behind the posting that motivated the report.
+- Job titles or seniority attached to a real person, and the text, URL or slug
+  of a real posting.
+- Contact details, credentials, tokens, internal hostnames, registry or feed
+  URLs, or ticket IDs.
+- Paths containing a username, persona slug or application slug — including in
+  a stack trace, log excerpt, filename or screenshot.
+- Verbatim excerpts from evidence, reviews, resume bullets, claims or judge
+  feedback. A quoted bullet identifies a person as surely as a name does.
+
+Describe the **class** of problem, not the instance that revealed it: a report
+needs the *shape* of the input, never the input. Reproduce with the synthetic
+`example` persona, which exists for this. A generic report is also a better
+report, because whoever hits it next can recognise their own case in it.
+
+This boundary is easiest to cross precisely when a defect is worth reporting,
+because the defect surfaced while working on a real application and the
+identifying detail is what you are looking at. Convenience and disclosure point
+the same way, so apply the rule deliberately rather than expecting to notice.
+
+**Publication is permanent.** Editing a report does not retract it — the
+original stays in edit history and was already delivered to subscribers. So the
+check happens *before* publishing, every time, including when the operator's own
+request contains real details. Carry the finding across generically; never drop
+a real finding over this, and never publish it verbatim to stay faithful to the
+request. If it cannot be generalised without losing it, keep it in the workspace.
+
 ## Deterministic tools
 
 | Need | Command |
