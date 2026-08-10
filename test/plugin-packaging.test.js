@@ -320,3 +320,22 @@ test("the manifest carries the metadata a marketplace listing shows", () => {
     assert.ok(manifest[key], `plugin.json is missing "${key}", which a listing displays`);
   }
 });
+
+// This repository is public, and an issue cannot be unpublished: an edit keeps
+// the original in history and the first version was already mailed to watchers.
+// The rule is therefore checked rather than assumed, like the persona-data
+// guard in CI - it is the one instruction whose breach has no remedy, so it may
+// not quietly disappear in a reorganisation of the file.
+test("AGENTS.md carries the mandatory no-personal-data rule for public artifacts", () => {
+  const raw = fs.readFileSync(path.join(repoRoot, "AGENTS.md"), "utf8");
+  const heading = raw.split(/^## /m).find((section) => /^Issues, PRs and commits/.test(section));
+  assert.ok(heading, "AGENTS.md must carry a section covering issues, PRs and commits");
+  assert.match(heading, /\*\*Mandatory\.\*\*/, "the rule must be stated as mandatory, not advisory");
+
+  // The categories an agent is most likely to leak while writing up a real
+  // application it was just working on.
+  for (const term of [/\bNames\b/, /Employers or companies/, /Job titles/, /persona slug/]) {
+    assert.match(heading, term, `the rule must name the ${term.source} category`);
+  }
+  assert.match(heading, /example/, "the rule must point at the synthetic persona for reproductions");
+});

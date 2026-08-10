@@ -96,6 +96,43 @@ being **public**:
   application material is never repo-relevant — it belongs in the private
   persona workspace, which is not this repo.
 
+## Issues, PRs and commits carry no personal data
+
+**Mandatory.** Everything published to this repository — issue titles and
+bodies, PR descriptions, commit messages, review comments, discussions — must
+be safe for a stranger to read. This is not a style preference; it is the one
+rule whose breach cannot be undone.
+
+Never include:
+
+- **Names** of people — the persona, a recruiter, a hiring manager, a colleague,
+  a reference.
+- **Employers or companies**, current, past or target, including the employer
+  behind a job posting that motivated the work.
+- **Job titles, roles or seniority** attached to a real person, and the text or
+  URL of a real posting.
+- **Contact details, credentials, tokens, internal hostnames, feed or registry
+  URLs, ticket IDs**, or an internal tool's name.
+- **Filesystem paths that contain a username, persona slug or application
+  slug**, and screenshots or logs holding any of the above.
+
+Describe the *class* of problem instead of the instance that revealed it. A bug
+report needs the shape of the input, not the input: "a posting whose
+requirements section repeats a skill in two casings" says everything "the Senior
+Platform Engineer posting at $COMPANY" does, and says it better, because the
+next reader can recognise their own case in it. If a detail cannot be
+generalised without losing the report, the report belongs in the private persona
+workspace, not here.
+
+Reproductions use the synthetic `example` persona. It exists for exactly this.
+
+Assume publication is permanent. Editing an issue does not retract it: the
+original is preserved in edit history, was mailed to every watcher, and may
+already be indexed. Deleting is not a remedy you can rely on, so the check
+happens **before** the create, every time — including when an operator pastes
+real details into the request that prompted it. Report the gap and write it
+generically rather than declining the work.
+
 Human-authored profile sources live at `<workspace>/personas/<name>/profile/`,
 generated artifacts under `profile/generated/`; every job and all outputs live
 together under `applications/<job-slug>/`. labora is a **plugin and stores no
