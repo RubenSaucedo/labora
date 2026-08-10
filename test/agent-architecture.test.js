@@ -494,3 +494,56 @@ test("scaffolding asks for the preferences a run is reported against", () => {
       "unleveled, which no scout can recover later",
   );
 });
+
+// A defect is almost always found while working on a real application, so the
+// identifying detail is what the author is looking at when they write the
+// report up. The rule that stops it reaching a public tracker has to be loaded
+// by the agents doing that work, not only by contributors to this repo.
+test("the outbound-disclosure boundary is carried by the skill every resume agent loads", () => {
+  const conventions = fs.readFileSync(
+    path.join(repoRoot, "skills/resume-conventions/SKILL.md"), "utf8"
+  );
+  const section = conventions.split(/^## /m).find((s) => /^Outbound-disclosure boundary/.test(s));
+  assert.ok(section, "resume-conventions must carry an outbound-disclosure boundary");
+
+  // Markdown gets reflowed, so a rule must be matched against normalised text
+  // rather than against wherever the line breaks happen to fall today.
+  const flat = section.replace(/\s+/g, " ");
+  for (const term of [
+    /Names of people/, /Employers or companies/, /Job titles/,
+    /persona slug/, /Verbatim excerpts/, /permanent/i,
+  ]) {
+    assert.match(flat, term, `the boundary must cover ${term.source}`);
+  }
+  assert.match(flat, /example/, "it must point at the synthetic persona for reproductions");
+  // A rule that suppresses reports costs more than it protects.
+  assert.match(flat, /never drop a real finding/i, "it must not suppress genuine findings");
+});
+
+test("a scaffolded workspace carries the disclosure rule, and the scaffold cannot clobber one", () => {
+  const template = path.join(repoRoot, "templates/workspace/AGENTS.md");
+  assert.ok(fs.existsSync(template), "templates/workspace/AGENTS.md must ship");
+  const raw = fs.readFileSync(template, "utf8").replace(/\s+/g, " ");
+  assert.match(raw, /\*\*Mandatory\.\*\*/, "the workspace rule must be mandatory, not advisory");
+  for (const term of [/\*\*Names\*\*/, /Employers or companies/, /Verbatim excerpts/]) {
+    assert.match(raw, term, `the workspace rule must cover ${term.source}`);
+  }
+
+  const scaffold = fs.readFileSync(path.join(repoRoot, "skills/scaffold-persona/SKILL.md"), "utf8").replace(/\s+/g, " ");
+  assert.match(scaffold, /templates\/workspace/, "scaffold-persona must place the workspace file");
+  // The workspace root belongs to the operator; a file that governs agents is
+  // the last thing an agent should rewrite unasked.
+  assert.match(
+    scaffold,
+    /only when the workspace root has no `AGENTS\.md`/i,
+    "the scaffold must never overwrite an existing AGENTS.md",
+  );
+});
+
+// Restating the rule in each skill would let the copies drift, and a stale copy
+// of a disclosure rule is worse than a pointer to a current one.
+test("job-search points at the boundary rather than restating it", () => {
+  const raw = fs.readFileSync(path.join(repoRoot, "skills/job-search/SKILL.md"), "utf8");
+  assert.match(raw, /Outbound-disclosure boundary/, "job-search must reference the boundary");
+  assert.match(raw, /resume-conventions/, "it must point at where the rule lives");
+});

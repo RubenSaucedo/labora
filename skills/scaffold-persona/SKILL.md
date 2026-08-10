@@ -46,3 +46,27 @@ then run a real overnight search against invented titles. Preferences describe
 what the operator wants, so no evidence can supply them and no agent may infer
 them — ask while the operator is present, rather than leaving `job-explorer` to
 discover the gap mid-run.
+
+## Workspace-level agent instructions
+
+The workspace root — the directory holding `personas/`, one level above the
+persona you are scaffolding — needs `AGENTS.md` from `templates/workspace/`. It
+carries the outbound-disclosure boundary: what may never be published from a
+directory full of real career data.
+
+Copy it **only when the workspace root has no `AGENTS.md`**. If one exists it is
+the operator's, and it may carry rules of their own:
+
+```bash
+# from the workspace root
+[ -f AGENTS.md ] || cp "<plugin-root>/templates/workspace/AGENTS.md" AGENTS.md
+```
+
+When it exists, do not edit it. Report that it is present and that the operator
+should merge the disclosure section themselves if it is missing — an agent
+silently rewriting the file that governs agents is the one edit nobody would
+think to audit.
+
+This is a convenience, not the control. The rule itself lives in the
+`resume-conventions` skill, which every resume agent loads, so a workspace that
+predates this file or was created by hand is still covered.
