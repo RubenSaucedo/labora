@@ -6,6 +6,7 @@ import { normalizeIdentity } from "../lib/normalize-identity.js";
 import { personaRootFromProfileFile } from "../lib/storage.js";
 import { ZAccomplishmentBank } from "../schemas/accomplishments.js";
 import { ZClaimLedger } from "../schemas/provenance.js";
+import { ZJobSpec } from "../schemas/job-spec.js";
 import { ZTailoredResume } from "../schemas/tailored-resume.js";
 
 const resumePath = process.argv[2];
@@ -15,8 +16,10 @@ const outputIndex = process.argv.indexOf("--output");
 const outputPath = outputIndex >= 0 ? process.argv[outputIndex + 1] : null;
 const bankIndex = process.argv.indexOf("--accomplishments");
 const explicitBankPath = bankIndex >= 0 ? process.argv[bankIndex + 1] : null;
+const jobSpecIndex = process.argv.indexOf("--job-spec");
+const explicitJobSpecPath = jobSpecIndex >= 0 ? process.argv[jobSpecIndex + 1] : null;
 if (!resumePath || !identityPath || !ledgerPath) {
-  process.stderr.write("Usage: labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>]\n");
+  process.stderr.write("Usage: labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>] [--job-spec <job-spec.json>]\n");
   process.exit(1);
 }
 
@@ -31,11 +34,19 @@ try {
     ? ZAccomplishmentBank.parse(JSON.parse(fs.readFileSync(bankPath, "utf8")))
     : null;
   const ledger = ZClaimLedger.parse(JSON.parse(fs.readFileSync(ledgerPath, "utf8")));
+  // The spec sits beside the resume in the application directory, so the
+  // default path needs no extra flag either. Absent, headline collision and
+  // posting-vocabulary diagnostics stay silent rather than guessing.
+  const jobSpecPath = explicitJobSpecPath || path.join(path.dirname(resumePath), "job-spec.json");
+  const jobSpec = fs.existsSync(jobSpecPath)
+    ? ZJobSpec.parse(JSON.parse(fs.readFileSync(jobSpecPath, "utf8")))
+    : null;
   const result = validateResumeClaims({
     resume,
     identity,
     ledger,
     bank,
+    jobSpec,
     workspaceRoot: process.cwd(),
     personaRoot: personaRootFromProfileFile(identityPath),
   });

@@ -100,8 +100,16 @@ This is a private planning artifact. It is never rendered into the resume.
    Treat it as the system telling you the candidate can prove something you
    overlooked: shortlist the unit that carries it, lead with it, or record
    explicitly why it is not worth the space.
-6. Build a first-page plan: truthful headline, up to three summary themes, lead
-   claim IDs, and supported skill order. Prioritize recent, role-relevant proof.
+6. Build a first-page plan: headline, up to three summary themes, lead claim
+   IDs, and supported skill order. Prioritize recent, role-relevant proof.
+
+   The headline is not one string to be judged "truthful". It is a role
+   (positioning, anchored by the posting and needing no support) plus
+   qualifiers, and every qualifier asserts a capability that must map to
+   verified claims. Prefer the posting's own phrasing where both are true;
+   never propose a qualifier for a requirement `likelyConcerns` records as
+   unresolved. `resume-tailor` composes and maps it; this step decides what it
+   should say.
 7. Set status:
    - `ready`: no pending evidence questions;
    - `needs_evidence`: at least one question remains pending;

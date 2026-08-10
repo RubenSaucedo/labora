@@ -415,3 +415,78 @@ test("evidence outside the approved categories still cannot ground claims", () =
   assert.equal(result.valid, false);
   assert.equal(result.issues.some((issue) => issue.code === "source_not_approved"), true);
 });
+
+// The headline used to be the least-validated field in the artifact: every
+// other assertion was checked for claim support, the headline for a substring.
+// These cover the validator wiring; test/headline.test.js covers the analysis
+// itself and runs without dependencies installed.
+
+test("a headline that drops the target role warns instead of blocking", () => {
+  const input = fixture();
+  input.resume.target_role = "Software Engineer";
+  input.resume.ats_title = "React Engineer";
+  const result = validateResumeClaims(input);
+  const finding = result.issues.find((issue) => issue.code === "ats_title_role_mismatch");
+  assert.equal(finding.severity, "warning", "a contested formatting convention must not block");
+  assert.equal(
+    result.issues.some((issue) => issue.severity === "error" && issue.location === "ats_title"),
+    false
+  );
+});
+
+test("the headline is still blocked from asserting an unsupported skill", () => {
+  const input = fixture();
+  input.resume.target_role = "Engineer";
+  input.resume.ats_title = "Engineer | AWS";
+  const result = validateResumeClaims(input);
+  assert.equal(result.valid, false, "fabricated capability is what error severity is for");
+  assert.equal(result.issues.some((issue) => issue.code === "ats_title_unsupported_skill"), true);
+});
+
+test("an unmapped headline qualifier warns rather than failing to parse", () => {
+  const input = fixture();
+  input.resume.target_role = "Engineer";
+  input.resume.ats_title = "Engineer, React";
+  const result = validateResumeClaims(input);
+  assert.equal(result.valid, true, "a resume tailored before the field existed is stale, not invalid");
+  assert.equal(
+    result.issues.find((issue) => issue.code === "headline_term_unmapped")?.severity,
+    "warning"
+  );
+});
+
+test("mapping a headline qualifier to a verified claim clears the warning", () => {
+  const input = fixture();
+  input.resume.target_role = "Engineer";
+  input.resume.ats_title = "Engineer, React";
+  input.resume.provenance.headline = [{ term: "React", claimIds: ["claim-latency"] }];
+  const result = validateResumeClaims(input);
+  assert.equal(result.valid, true);
+  assert.equal(result.issues.some((issue) => issue.code.startsWith("headline_term_un")), false);
+});
+
+test("no headline finding can ever block a release", () => {
+  const input = fixture();
+  input.resume.target_role = "Engineer";
+  input.resume.ats_title = "Engineer, React, Latency";
+  const result = validateResumeClaims(input);
+  const headlineFindings = result.issues.filter((issue) => issue.code.startsWith("headline_"));
+  assert.ok(headlineFindings.length > 0);
+  assert.equal(headlineFindings.some((issue) => issue.severity === "error"), false);
+});
+
+test("info findings are counted apart from warnings", () => {
+  const input = fixture();
+  input.resume.target_role = "Engineer";
+  input.resume.ats_title = "Engineer, React";
+  const result = validateResumeClaims(input);
+  assert.equal(
+    result.warningCount,
+    result.issues.filter((issue) => issue.severity === "warning").length
+  );
+  assert.equal(
+    result.infoCount,
+    result.issues.filter((issue) => issue.severity === "info").length
+  );
+  assert.equal(result.errorCount + result.warningCount + result.infoCount, result.issues.length);
+});

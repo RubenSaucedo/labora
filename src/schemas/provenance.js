@@ -55,8 +55,22 @@ export const ZSkillProvenance = z.object({
   claimIds: z.array(z.string()).min(1),
 }).strict();
 
+// The headline is an assertion like any other, so it needs the same kind of
+// mapping the summary and every bullet already carry. `term` is a headline
+// segment rather than a word, because "distributed systems" is one assertion
+// and splitting it destroys the thing being grounded.
+//
+// Defaulted to empty rather than required: a resume tailored before this field
+// existed is out of date, not invalid, and the validator reports the absence
+// as a warning instead of refusing to read the file.
+export const ZHeadlineProvenance = z.object({
+  term: z.string().min(1),
+  claimIds: z.array(z.string()).min(1),
+}).strict();
+
 export const ZResumeProvenance = z.object({
   summaryClaimIds: z.array(z.string()).default([]),
   bullets: z.array(ZBulletProvenance).default([]),
   skills: z.array(ZSkillProvenance).default([]),
+  headline: z.array(ZHeadlineProvenance).default([]),
 }).strict();

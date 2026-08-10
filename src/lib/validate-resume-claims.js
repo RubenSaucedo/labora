@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { canonicalSkillsInText } from "./skill-aliases.js";
 import { skillVocabulary } from "./skill-vocabulary.js";
+import { analyzeHeadline } from "./headline.js";
 import { validateObservations } from "./validate-observations.js";
 import { loadManifest, resolveProvenance } from "./evidence-provenance.js";
 
@@ -412,6 +413,10 @@ export function validateResumeClaims({
   identity,
   ledger,
   bank = null,
+  // Optional. Absent, the headline collision and posting-vocabulary checks
+  // stay silent rather than guessing: a resume validated before the job spec
+  // was wired in is out of date, not invalid.
+  jobSpec = null,
   workspaceRoot = process.cwd(),
   personaRoot,
 }) {
@@ -891,8 +896,30 @@ export function validateResumeClaims({
     resume.ats_title,
     `${vocabulary.labels().join(" ")} ${resume.target_role}`
   );
+  // Advisory, not blocking. This rule asserted that the headline must contain
+  // `target_role` — but `target_role` is another free-text resume field that is
+  // never checked against the posting, so the rule compared the resume to
+  // itself and enforced echoing rather than accuracy. It also failed in the
+  // dangerous direction: a substring test passes a headline that *inflates*
+  // seniority ("Senior X" contains "X") while blocking a truthful one that
+  // drops a domain word. At `error` severity it could force the top line of the
+  // document to adopt an employer's narrow reading of a term that claim
+  // validation refuses to assert anywhere in the body — the integrity rules and
+  // this formatting rule pulling opposite ways, with the formatting rule
+  // winning because it was the one that blocked.
+  //
+  // `error` is the budget reserved for fabricated claims, unsupported skills
+  // and altered employment facts. A contested formatting convention does not
+  // get to spend it. Keyword retrieval is measured over the whole document
+  // anyway, which `score-resume-ats.js` already does.
   if (resume.ats_title && !normalize(resume.ats_title).includes(normalize(resume.target_role))) {
-    issues.push(issue("error", "ats_title_role_mismatch", "ATS title must retain the target role.", "ats_title"));
+    issues.push(issue(
+      "warning",
+      "ats_title_role_mismatch",
+      "The headline does not restate the target role. Advisory: ATS keyword search is full-text " +
+      "over the whole document, so this costs no retrieval. Restate it only if it is also true.",
+      "ats_title"
+    ));
   }
   if (unsupportedTitleTerms.length) {
     issues.push(issue(
@@ -902,6 +929,18 @@ export function validateResumeClaims({
       "ats_title"
     ));
   }
+
+  // Headline diagnostics. Advisory by construction: every signal about a
+  // headline is lexical, and lexical coverage may never block a release.
+  // Requirement collisions read the structured job spec and the ledger, never
+  // ATS scoring, whose searchable text includes `ats_title` itself.
+  issues.push(...analyzeHeadline({
+    atsTitle: resume.ats_title,
+    targetRole: resume.target_role,
+    resume,
+    ledger,
+    jobSpec,
+  }));
 
   // Education must match the identity record exactly: a degree is not a
   // per-job selection, and silently dropping one misrepresents the record.
@@ -949,10 +988,16 @@ export function validateResumeClaims({
   }
 
   const errors = issues.filter((item) => item.severity === "error");
+  const warnings = issues.filter((item) => item.severity === "warning");
   return {
     valid: errors.length === 0,
     errorCount: errors.length,
-    warningCount: issues.length - errors.length,
+    // Counted by severity rather than by subtraction. `info` findings say
+    // "here is something you cannot see", not "here is something wrong", and
+    // folding them into the warning count would inflate every run that adds a
+    // neutral observation.
+    warningCount: warnings.length,
+    infoCount: issues.length - errors.length - warnings.length,
     issues,
   };
 }

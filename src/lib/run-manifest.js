@@ -228,10 +228,12 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
     validate_claims: {
       dependencies: [
         path.join(applicationDir, "resume.json"),
+        path.join(applicationDir, "job-spec.json"),
         path.join(generated, "identity.json"),
         path.join(generated, "accomplishments.json"),
         path.join(pluginRoot, "src", "lib", "skill-vocabulary.js"),
         path.join(pluginRoot, "src", "lib", "normalize-identity.js"),
+        path.join(pluginRoot, "src", "lib", "headline.js"),
         path.join(generated, "claims.json"),
         path.join(pluginRoot, "src", "lib", "validate-resume-claims.js"),
         path.join(pluginRoot, "src", "schemas", "provenance.js"),

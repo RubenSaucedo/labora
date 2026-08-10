@@ -255,7 +255,7 @@ request. If it cannot be generalised without losing it, keep it in the workspace
 | Validate application strategy references | `labora validate-application-strategy <strategy.json> <job-spec.json> <claims.json> --accomplishments <accomplishments.json> --output <validations/strategy.json>` |
 | Score lexical and structured requirement coverage | `labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>` |
 | Validate a persona's profile alone (no job, no resume) | `labora validate-profile <persona-name>` |
-| Validate every bullet/skill against claims | `labora validate-claims <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` |
+| Validate every bullet/skill against claims | `labora validate-claims <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` (reads `job-spec.json` beside the resume for headline diagnostics) |
 | Render DOCX with deterministic contact injection | `labora format-docx <resume.json> <out.docx> --style <N> --job <job.md> --contact <contact.md>` |
 | Render text-layer PDF | `labora format-pdf <resume.json> <out.pdf> --style <N> --job <job.md> --contact <contact.md>` |
 | Render visual page previews | `labora render-artifact-preview <out.pdf> <application>/previews` |
