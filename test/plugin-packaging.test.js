@@ -172,19 +172,41 @@ test("no instruction file tells an agent to run a tool by relative path", () => 
   );
 });
 
-// The dispatcher's whole job is to report a broken install. If it imported a
-// dependency it would crash exactly when it is most needed.
+// The dispatcher's whole job is to report a broken install. If it reached a
+// dependency it would crash exactly when it is most needed. It may import
+// labora's own sources, but only ones that are themselves dependency-free all
+// the way down, so the check follows the graph instead of stopping at bin/.
 test("the dispatcher depends on nothing but Node itself", () => {
-  const raw = fs.readFileSync(path.join(repoRoot, "bin", "labora"), "utf8");
-  const external = [...raw.matchAll(/^import\s+.*?from\s+"([^"]+)"/gm)]
-    .map(([, spec]) => spec)
-    .filter((spec) => !spec.startsWith("node:"));
+  const entry = path.join(repoRoot, "bin", "labora");
+  const offenders = [];
+  const seen = new Set();
+  const queue = [entry];
+
+  while (queue.length) {
+    const file = queue.pop();
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const raw = fs.readFileSync(file, "utf8");
+    for (const [, spec] of raw.matchAll(/^\s*import\s+.*?from\s+"([^"]+)"/gm)) {
+      if (spec.startsWith("node:")) continue;
+      if (!spec.startsWith(".")) {
+        offenders.push(`${path.relative(repoRoot, file)} -> ${spec}`);
+        continue;
+      }
+      queue.push(path.resolve(path.dirname(file), spec));
+    }
+  }
+
+  assert.ok(seen.size > 1, "expected the walk to follow the dispatcher's own imports");
   assert.deepEqual(
-    external,
+    offenders,
     [],
-    `bin/labora must run on an install where nothing is installed, but imports ${external.join(", ")}`,
+    `bin/labora must run on an install where nothing is installed, but reaches:\n${offenders.join("\n")}`,
   );
-  assert.ok(raw.startsWith("#!/usr/bin/env node"), "bin/labora needs a shebang to be executable");
+  assert.ok(
+    fs.readFileSync(entry, "utf8").startsWith("#!/usr/bin/env node"),
+    "bin/labora needs a shebang to be executable"
+  );
   // eslint-disable-next-line no-bitwise
   assert.ok(fs.statSync(path.join(repoRoot, "bin", "labora")).mode & 0o111, "bin/labora must be executable");
 });
