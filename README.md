@@ -314,7 +314,7 @@ labora validate-evidence-cleaning <extracted.md> <cleaned.md> --metadata <extrac
 labora validate-application-strategy <strategy.json> <job-spec.json> <claims.json> [--accomplishments <accomplishments.json>]
 labora rank-accomplishments <accomplishments.json> <job-spec.json> [--limit <n>]
 labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>
-labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>]
+labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>] [--job-spec <job-spec.json>]
 labora format-docx <resume.json> <out.docx> --job <job.md> --contact <contact.md>
 labora format-pdf <resume.json> <out.pdf> --job <job.md> --contact <contact.md>
 labora render-artifact-preview <out.pdf> <application-dir>/previews

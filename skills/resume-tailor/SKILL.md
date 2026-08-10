@@ -43,6 +43,63 @@ Load `resume-conventions`.
 - Never create unsupported metrics, technologies, scope, titles, dates, or
   qualifications.
 
+## Compose the headline
+
+`ats_title` is the most-read line in the document and, historically, the least
+guided one in this plugin — the whole instruction was "truthful headline", and
+the whole enforcement was a substring check. Truthful is necessary and nowhere
+near sufficient: a headline can be perfectly truthful and still be generic,
+redundant, or misleading about positioning.
+
+Read the headline as two different kinds of statement:
+
+- **Positioning** — the role. "This is the job I am applying for." It is
+  anchored by the posting and needs no ledger support.
+- **Qualifiers** — every other segment. Each one asserts a capability or a
+  domain, and is an assertion exactly like a bullet.
+
+Map every qualifier in `provenance.headline` as `{term, claimIds}`, using the
+whole segment as the term. "Distributed systems" is one assertion; splitting it
+into two words grounds neither.
+
+Then, per qualifier:
+
+1. **Prefer the posting's own phrasing** when both phrasings are true. The
+   posting is already parsed into `job-spec.json`; check it before debating
+   wording.
+2. **Watch for domain-term collision.** A requisition title often contains a
+   word the employer uses for a *narrow* capability while the same word has a
+   broad generic meaning the evidence genuinely supports — "workflows",
+   "platform", "runtime", "infrastructure". Copying the title silently adopts
+   the narrow reading, and that is precisely the reading hardest to defend in an
+   interview. `headline_requirement_collision` names these; resolve each one
+   rather than shipping past it.
+3. **Never headline what the body cannot carry.** If `gaps_or_risks` records a
+   requirement as uncovered, the headline may not assert it. A document that
+   documents a gap and headlines it is one file arguing with itself.
+4. **Drop low-information terms**: a protocol name (an implementation detail,
+   not an engineering identity), a table-stakes technology the body already
+   carries, and abstract suffixes that add no constraint.
+
+The headline is a promise about what the candidate wants to be interviewed on,
+not a summary of everything the evidence permits. A term the evidence supports
+but the candidate does not identify with belongs in the body, where it is
+*evidence* rather than *identity*. Declining it is a legitimate call — record it
+in `notes_for_human` rather than re-litigating it next run.
+
+**Nothing here blocks.** `headline_term_unmapped`, `headline_term_unattested`
+and `headline_requirement_collision` are warnings, and
+`headline_term_absent_from_posting` is neutral information — a term the posting
+never uses may be exactly the differentiator worth leading with. Lexical signals
+never gate a release.
+
+*Sourcing note:* resume-headline advice online is dominated by vendors selling
+optimization services, publishing no methodology and recycling each other's
+statistics. The widely quoted multipliers for headline placement have no sample,
+controls, or model behind them. The rules above are grounded in this artifact's
+own inputs — the parsed posting and the claim ledger — rather than in that
+literature, and no claim about ATS ranking behaviour is made anywhere.
+
 Tailor through ordering, selection, precise phrasing and emphasis. Use natural,
 direct American English. Avoid buzzwords and generic AI phrasing. Numeric claims
 must appear verbatim in mapped facts.
@@ -96,6 +153,9 @@ coverage by making the resume denser, repetitive, or less natural.
 Targets:
 
 - claim validation: **zero errors**;
+- headline warnings: resolved or explained in `notes_for_human`. They never
+  block, and shipping past one silently is how a headline reaches four
+  revisions with a human doing all the noticing;
 - supported required requirements: explicitly surfaced;
 - `must_have_missing`: honest unsupported requirements, never fabricated away;
 - lexical coverage: diagnostic only, not a release threshold.
