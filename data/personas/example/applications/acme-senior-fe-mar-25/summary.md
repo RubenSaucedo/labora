@@ -5,7 +5,7 @@
 - Lexical coverage: 61%
 - Required requirement coverage: 50%
 - Claim validation: pass
-- Artifact validation: pass (100% field recall)
+- Artifact validation: pass (100% renderer-input field recall)
 - ATS judge: marginal (68)
 - Engineer judge: phone_screen (72)
 - HR judge: review (68)

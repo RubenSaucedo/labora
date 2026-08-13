@@ -15,7 +15,28 @@ const CONTACT_KEYS = {
   linkedin: "linkedin",
   github: "github",
   portfolio: "portfolio",
+  web: "portfolio",
 };
+
+const SINGLE_VALUE_LINK_FIELDS = new Set(["email", "linkedin", "github", "portfolio"]);
+const SUPPORTED_CONTACT_FIELDS =
+  "Name, Phone, Email, Address/Location, LinkedIn, GitHub, Portfolio/Web";
+
+function looksLikeContactDestination(value, targetKey) {
+  if (targetKey === "email") {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+  return /^(?:https?:\/\/|www\.)?[^\s/]+\.[^\s]+$/i.test(value);
+}
+
+function containsMultipleValues(value, targetKey) {
+  if (!SINGLE_VALUE_LINK_FIELDS.has(targetKey)) return false;
+  const candidates = value
+    .split(/\s*;\s*|,\s+/)
+    .map((candidate) => candidate.trim())
+    .filter(Boolean);
+  return candidates.filter((candidate) => looksLikeContactDestination(candidate, targetKey)).length > 1;
+}
 
 export function parseContact(text) {
   const contact = {
@@ -28,12 +49,32 @@ export function parseContact(text) {
     portfolio: "",
   };
 
-  for (const line of String(text || "").split(/\r?\n/)) {
+  const issues = [];
+  for (const [index, line] of String(text || "").split(/\r?\n/).entries()) {
     const match = line.match(/^\s*(?:[-*]\s*)?(?:#{1,6}\s*)?([^:]+):\s*(.+?)\s*$/);
     if (!match) continue;
     const sourceKey = match[1].trim().toLowerCase();
     const targetKey = CONTACT_KEYS[sourceKey];
-    if (targetKey && !contact[targetKey]) contact[targetKey] = match[2].trim();
+    if (!targetKey) {
+      issues.push(
+        `line ${index + 1}: unknown contact field "${match[1].trim()}". ` +
+        `Supported fields: ${SUPPORTED_CONTACT_FIELDS}.`
+      );
+      continue;
+    }
+
+    const value = match[2].trim();
+    if (containsMultipleValues(value, targetKey)) {
+      issues.push(
+        `line ${index + 1}: contact field "${match[1].trim()}" accepts one value, not a list.`
+      );
+      continue;
+    }
+    if (!contact[targetKey]) contact[targetKey] = value;
+  }
+
+  if (issues.length) {
+    throw new Error(`contact.md contains invalid fields:\n- ${issues.join("\n- ")}`);
   }
 
   return contact;

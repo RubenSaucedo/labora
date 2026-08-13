@@ -150,6 +150,7 @@ export function validateRenderedArtifact({ resume, extractedText }) {
   return {
     valid: issues.length === 0,
     fieldRecallPercent: recall,
+    fieldRecallScope: "renderer_input",
     sectionOrderValid,
     missingFields,
     missingSections,

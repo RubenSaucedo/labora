@@ -260,7 +260,7 @@ request. If it cannot be generalised without losing it, keep it in the workspace
 | Render text-layer PDF | `labora format-pdf <resume.json> <out.pdf> --style <N> --job <job.md> --contact <contact.md>` |
 | Render visual page previews | `labora render-artifact-preview <out.pdf> <application>/previews` |
 | Extract selected DOCX/PDF delivery text | `labora artifact-text <file.docx|file.pdf>` |
-| Validate rendered field recall/order/contact | `labora validate-artifact <resume.json> <file.docx> --contact <contact.md> --job <job.md> --output <validations/artifact.json>` |
+| Validate contact source and renderer-input field recall/order | `labora validate-artifact <resume.json> <file.docx> --contact <contact.md> --job <job.md> --output <validations/artifact.json>` |
 | Check content-hash freshness | `labora run-state check <application-dir> --style <N>` |
 | Record a completed stage | `labora run-state record <application-dir> <stage> --style <N> [--model ID]` |
 | Aggregate the final release state | `labora quality-gate <application-dir> --style <N> --artifact <selected.docx|selected.pdf>` |
