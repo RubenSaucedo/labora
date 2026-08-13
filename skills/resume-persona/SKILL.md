@@ -56,11 +56,13 @@ their IDs:
 }
 ```
 
-Every listed claim must exist, be `verified`, and not be `internal_only`. A
-record with no description and no highlights needs no `claimIds` — it renders no
-prose to ground. If a project deserves a description but no claim supports one,
-that is a gap to report and an evidence question for `profile-researcher`, never
-a description to write anyway.
+Every listed claim must exist, be `verified`, and not be `internal_only`. Each
+description and highlight must also be substantively supported by those claims:
+claim IDs are provenance, not permission to add unrelated names, technologies,
+numbers, or assertions. A record with no description and no highlights needs no
+`claimIds` — it renders no prose to ground. If a project deserves a description
+but no claim supports one, that is a gap to report and an evidence question for
+`profile-researcher`, never a description to write anyway.
 
 **Never write a summary, a highlight, or an achievement list into the identity
 record.** Those fields were removed in schema 4.0 on purpose: a pre-written

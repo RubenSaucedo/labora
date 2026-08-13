@@ -207,9 +207,12 @@ so no substring match confirms it. Before 4.0.0 those fields were compared to
 nothing, and because a resume project validates by exact-object match against
 the spine, a description effectively validated against itself and could reach a
 rendered document unsupported. The claims listed must exist, be `verified`, and
-not be `internal_only` — the same three checks a rendered bullet and a
-progression step already clear (`claimProvenanceIssues`). A record with no
-description and no highlights needs no `claimIds`, because it renders no prose.
+not be `internal_only` (`claimProvenanceIssues`). Each prose fragment is then
+checked against the mapped renderable claim facts for unsupported named,
+canonical and numeric content plus substantive token coverage. Claim IDs prove
+where prose came from; they do not make unrelated prose supported. A record
+with no description and no highlights needs no `claimIds`, because it renders
+no prose.
 
 Upgrading to 4.0.0 makes a persona whose projects or awards carry undocumented
 prose fail `validate-profile` with `identity_prose_unmapped`. That failure is the

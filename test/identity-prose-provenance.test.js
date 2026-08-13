@@ -172,21 +172,92 @@ test("prose citing an internal_only claim may not render", () => {
   );
 });
 
-test("a correctly grounded project description passes the gate", () => {
+test("project prose substantively supported by its mapped claim passes the gate", () => {
   const found = codesFor({
     projects: [{
       name: "Labora",
       description: "An evidence-grounded resume assurance system.",
-      highlights: ["Every rendered bullet maps to a verified claim."],
+      highlights: ["Built an evidence-grounded resume system."],
       link: "",
       claimIds: ["claim-labora"],
     }],
   });
-  const proseIssues = found.filter((code) => code === "identity_prose_unmapped"
+  const proseIssues = found.filter((code) => code.startsWith("identity_prose_")
     || code === "unknown_claim"
     || code === "unverified_claim"
     || code === "confidential_claim_rendered");
   assert.deepEqual(proseIssues, []);
+});
+
+test("blanket-mapping a claim does not support unrelated identity prose", () => {
+  const found = codesFor({
+    projects: [{
+      name: "Labora",
+      description: "Every rendered bullet maps to a verified claim.",
+      highlights: [],
+      link: "",
+      claimIds: ["claim-labora"],
+    }],
+  });
+  assert.ok(
+    found.includes("identity_prose_claim_mismatch"),
+    `unrelated prose must not pass by citing any verified claim, got ${found.join(", ")}`,
+  );
+});
+
+test("identity prose cannot introduce unsupported named or numeric content", () => {
+  const found = codesFor({
+    projects: [{
+      name: "Labora",
+      description: "An ATS platform serving 2 million users.",
+      highlights: [],
+      link: "",
+      claimIds: ["claim-labora"],
+    }],
+  });
+  assert.ok(
+    found.includes("identity_prose_unsupported_content"),
+    `unsupported names and numbers must be rejected, got ${found.join(", ")}`,
+  );
+});
+
+test("each project highlight is checked against the mapped claims", () => {
+  const input = fixture({
+    projects: [{
+      name: "Labora",
+      description: "An evidence-grounded resume assurance system.",
+      highlights: [
+        "Built an evidence-grounded resume system.",
+        "Managed enterprise infrastructure worldwide.",
+      ],
+      link: "",
+      claimIds: ["claim-labora"],
+    }],
+  });
+  const issues = validateResumeClaims(input).issues;
+  assert.ok(
+    issues.some((entry) =>
+      entry.code === "identity_prose_claim_mismatch"
+      && entry.location === "identity.projects[0].highlights[1]"
+    ),
+    `the unsupported highlight must be identified precisely, got ${JSON.stringify(issues)}`,
+  );
+});
+
+test("award descriptions are checked against their mapped claims", () => {
+  const found = codesFor({
+    awards: [{
+      title: "Labora",
+      description: "Recognized for managing enterprise infrastructure worldwide.",
+      year: "2026",
+      link: "",
+      claimIds: ["claim-labora"],
+    }],
+  });
+  assert.ok(
+    found.includes("identity_prose_claim_mismatch"),
+    `unsupported award prose must be rejected, got ${found.join(", ")}`,
+  );
 });
 
 // Resume records validate by exact-object match against the identity record.
