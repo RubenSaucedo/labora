@@ -9,6 +9,10 @@ user-invocable: false
 
 Load `resume-conventions`.
 
+When this skill runs inside `resume-writer-expert`, load
+`references/senior-swe-writing.md` before drafting. Its examples teach sentence
+shape only and never ground a fact.
+
 **Inputs:** `profile/generated/identity.json`, `profile/generated/claims.json`,
 `profile/generated/accomplishments.json`,
 `applications/<slug>/{job.md,job-spec.json,application-strategy.json}`.

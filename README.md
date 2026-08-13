@@ -249,7 +249,7 @@ grades what you meant instead of what the page says.
 | Acquire | `profile-researcher` | untrusted web, GitHub, credential issuers | `evidence/` only |
 | Acquire | `scout-discovery`, `scout-fit`, `scout-market`, `scout-growth` | job sources, claims, preferences | discovery run dir |
 | Curate | `profile-builder` | evidence + sources, **no job** | `profile/generated/` (sole owner) |
-| Advocate | `resume-tailor` | claims, bank, job spec — **never raw evidence** | `resume.json` |
+| Advocate | `resume-writer-expert` | claims, bank, job spec — **never raw evidence** | `resume.json` |
 | Adjudicate | `judge-ats`, `judge-engineer`, `judge-hr` | rendered artifact + job only | `judges/*.json` |
 | Conduct | `resume-build`, `job-explorer` | orchestration state | summaries, reconciliation |
 
@@ -259,7 +259,8 @@ grades what you meant instead of what the page says.
 | `resume-build` | Conductor: sequences skills + deterministic tools, launches the tailor and judges, applies the release gate |
 | `profile-builder` | Profile conductor and sole owner of `profile/generated/`; dispatches the researcher |
 | `profile-researcher` | Isolated evidence acquisition — the only agent that touches untrusted pages, and it cannot write claims |
-| `resume-tailor` | Isolated advocate — composes only from verified claims |
+| `resume-writer-expert` | Isolated senior-SWE writing specialist — composes and critiques bullets only from verified claims |
+| `resume-tailor` | Compatibility alias that routes existing integrations to `resume-writer-expert` |
 | `judge-ats` | Isolated ATS-gate judge (fresh context) |
 | `judge-engineer` | Isolated technical hiring-manager judge (fresh context) |
 | `judge-hr` | Isolated recruiter / HR screening judge (fresh context) |
@@ -298,7 +299,7 @@ See `ARCHITECTURE.md` for the discovery layout and consensus rule.
 | `resume-persona` | Build the identity spine, a source-addressed claim ledger, and the accomplishment bank |
 | `resume-job-analysis` | Classify required, preferred and responsibility constraints |
 | `resume-application-strategy` | Build the private positioning brief and targeted evidence questions |
-| `resume-tailor` | Tailor only from verified claims and map provenance |
+| `resume-tailor` | Tailor only from verified claims and map provenance; executed by `resume-writer-expert` |
 | `resume-format` | Inject contact, render DOCX/PDF, validate artifact recall |
 | `judge-ats` | ATS rubric/procedure — executed by the `judge-ats` agent |
 | `judge-engineer` | Engineering-depth rubric — executed by the `judge-engineer` agent |
@@ -373,7 +374,7 @@ setting rather than something a plugin can select — it lives in the CLI's
 { "subagents": { "agents": { "judge-engineer": { "model": "<other-model>" } } } }
 ```
 
-`labora check-judge-models` reports the configured model for `resume-tailor`
+`labora check-judge-models` reports the configured model for `resume-writer-expert`
 and each judge and exits `0` when at least one judge differs, `1` when they all
 share the tailor's model, and `2` when the configuration cannot be read — an
 unanswerable check is never reported as a passing or a failing one. The result

@@ -1,7 +1,7 @@
 ---
 name: prepare-resume
-description: "Analyses one job and produces a truthful tailored resume for it, without running the full release pipeline. Builds job-spec.json, decides application strategy, pauses for unresolved evidence questions, then launches the isolated resume-tailor agent. Stops before rendering and judging."
-tools: [bash, view, glob, grep, edit, create, ask_user]
+description: "Analyses one job and produces a truthful tailored resume for it, without running the full release pipeline. Builds job-spec.json, decides application strategy, pauses for unresolved evidence questions, then launches the isolated resume-writer-expert agent. Stops before rendering and judging."
+tools: [task, bash, view, glob, grep, edit, create, ask_user]
 user-invocable: true
 argument-hint: "<persona> <job-slug>"
 ---
@@ -16,10 +16,10 @@ The tailoring half of the pipeline, for when you do not want a full
 2. Load `resume-application-strategy` and decide the angle.
 3. **Pause** for unresolved evidence questions. An answer is evidence to be
    curated by `/profile`, never a resume line written here.
-4. Launch the **isolated** `resume-tailor` agent:
+4. Launch the **isolated** `resume-writer-expert` agent:
 
 ```text
-task(agent_type: "labora:resume-tailor", prompt: "<persona> <job-slug>")
+task(agent_type: "labora:resume-writer-expert", prompt: "<persona> <job-slug>")
 ```
 
 Do not execute the `resume-tailor` skill in this context. Steps 1–3 read the

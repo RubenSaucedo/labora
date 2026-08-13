@@ -24,7 +24,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const TAILOR_AGENT = "resume-tailor";
+export const TAILOR_AGENT = "resume-writer-expert";
 export const JUDGE_AGENTS = ["judge-ats", "judge-engineer", "judge-hr"];
 
 // COPILOT_HOME relocates the whole config directory; otherwise it is ~/.copilot.

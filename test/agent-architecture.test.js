@@ -56,7 +56,12 @@ test("every agent declares valid frontmatter", () => {
 });
 
 test("the profile side of the pipeline has an owner", () => {
-  for (const required of ["profile-builder", "profile-researcher", "resume-tailor"]) {
+  for (const required of [
+    "profile-builder",
+    "profile-researcher",
+    "resume-writer-expert",
+    "resume-tailor",
+  ]) {
     assert.ok(
       agents.has(required),
       `${required} agent is missing; profile or tailoring work would fall back into the conductor context`,
@@ -96,13 +101,48 @@ test("the researcher can actually retrieve evidence", () => {
 });
 
 test("the advocate is denied raw evidence and the judges", () => {
-  const tailor = agents.get("resume-tailor");
+  const tailor = agents.get("resume-writer-expert");
   assert.match(tailor.prose, /denied raw evidence/i);
   assert.match(tailor.prose, /denied the judges/i);
   assert.ok(
     !tailor.tools.some((t) => BROWSER_TOOL.test(t)),
     "the tailor must not browse; it composes only from verified claims",
   );
+});
+
+test("the legacy tailor routes to the specialist instead of maintaining a second prompt", () => {
+  const alias = agents.get("resume-tailor");
+  assert.ok(alias.tools.includes("task"), "the compatibility alias must be able to launch the writer");
+  assert.match(alias.prose, /launch resume-writer-expert as a separate\s+sub-agent/i);
+  assert.match(
+    alias.prose,
+    /do not inspect\s+files, compose a fallback resume, or imitate/i,
+  );
+});
+
+test("the writer treats examples as form rather than evidence", () => {
+  const writer = agents.get("resume-writer-expert");
+  assert.match(writer.prose, /examples[^.]*teach sentence shape only/i);
+  assert.match(
+    writer.prose,
+    /never a\s+source of technologies, metrics, scope, verbs, or outcomes/i,
+  );
+  assert.match(writer.prose, /first bullet under a role establishes/i);
+  assert.match(writer.prose, /do not automatically choose the bullet with the largest number/i);
+});
+
+test("the senior SWE writing reference is synthetic and rejects folklore as rules", () => {
+  const reference = fs.readFileSync(
+    path.join(repoRoot, "skills/resume-tailor/references/senior-swe-writing.md"),
+    "utf8",
+  );
+  const samples = [...reference.matchAll(/^\*\*[A-Z][1-3] - /gm)];
+
+  assert.equal(samples.length, 24, "the pattern bank must keep 24 labeled synthetic samples");
+  assert.match(reference, /not an\s+evidence source for a persona/i);
+  assert.match(reference, /never copy an example's technology, metric, scope, outcome/i);
+  assert.match(reference, /does\s+not establish a universal six-second scan/i);
+  assert.match(reference, /editorial heuristic, not a\s+pass\/fail threshold/i);
 });
 
 test("the researcher may not write the claim ledger", () => {
@@ -139,7 +179,7 @@ test("judges stay isolated from generator rationale", () => {
 
 test("the conductor delegates rather than absorbing the pipeline", () => {
   const { prose } = agents.get("resume-build");
-  for (const delegated of ["profile-builder", "resume-tailor", "judge-ats"]) {
+  for (const delegated of ["profile-builder", "resume-writer-expert", "judge-ats"]) {
     assert.ok(
       prose.includes(delegated),
       `resume-build must delegate to ${delegated} instead of running it inline`,
