@@ -91,7 +91,8 @@ async function createOcrWorker() {
   } catch (err) {
     throw new Error(
       'This PDF has no text layer, so reading it needs OCR, but tesseract.js is ' +
-      'not installed. Install it with "labora setup", or supply a PDF exported ' +
+      'not installed. Run "labora doctor" to diagnose whether setup is available, ' +
+      'or supply a PDF exported ' +
       `with a text layer. (${err.message})`
     );
   }

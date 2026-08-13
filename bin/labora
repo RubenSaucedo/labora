@@ -8,6 +8,11 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  classifyNpmFailure,
+  sanitizeNpmOutput,
+  sanitizeRegistryUrl,
+} from "../src/lib/dependency-install-diagnostics.js";
 import { requiredDependencies } from "../src/lib/tool-dependencies.js";
 
 // bin/labora -> the plugin root is one level up. Derived from this file's own
@@ -85,13 +90,109 @@ function fail(message) {
   process.exit(1);
 }
 
+function runNpm(args, options = {}) {
+  const bundledNpm = path.join(
+    path.dirname(process.execPath),
+    "node_modules",
+    "npm",
+    "bin",
+    "npm-cli.js",
+  );
+  const command = process.platform === "win32" && fs.existsSync(bundledNpm)
+    ? process.execPath
+    : "npm";
+  const commandArgs = command === process.execPath ? [bundledNpm, ...args] : args;
+  return spawnSync(command, commandArgs, {
+    cwd: pluginRoot,
+    encoding: "utf8",
+    timeout: options.timeout,
+    // Puppeteer's postinstall downloads a ~1.9 GB browser. Setup must not do
+    // that silently; PDF rendering reports its own requirement when used.
+    env: { ...process.env, PUPPETEER_SKIP_DOWNLOAD: "1" },
+  });
+}
+
+function replayNpmOutput(result) {
+  if (result.stdout) process.stdout.write(sanitizeNpmOutput(result.stdout));
+  if (result.stderr) process.stderr.write(sanitizeNpmOutput(result.stderr));
+}
+
+function configuredRegistry() {
+  const result = runNpm(["config", "get", "registry"], { timeout: 5_000 });
+  if (result.error || result.status !== 0) return "";
+  return String(result.stdout || "").trim();
+}
+
+function inspectInstallHealth({ probeRegistry = false } = {}) {
+  const versionResult = runNpm(["--version"], { timeout: 5_000 });
+  if (versionResult.error || versionResult.status !== 0) {
+    return {
+      npmVersion: "",
+      registry: "",
+      registryStatus: "unavailable",
+      diagnostic: classifyNpmFailure({
+        error: versionResult.error,
+        stderr: `${versionResult.stdout || ""}\n${versionResult.stderr || ""}`,
+      }),
+      detail: sanitizeNpmOutput(`${versionResult.stdout || ""}${versionResult.stderr || ""}`),
+    };
+  }
+
+  const rawRegistry = configuredRegistry();
+  const registry = sanitizeRegistryUrl(rawRegistry);
+  if (!rawRegistry) {
+    return {
+      npmVersion: String(versionResult.stdout || "").trim(),
+      registry: "",
+      registryStatus: "unavailable",
+      diagnostic: classifyNpmFailure(),
+      detail: "",
+    };
+  }
+  if (!probeRegistry) {
+    return {
+      npmVersion: String(versionResult.stdout || "").trim(),
+      registry,
+      registryStatus: "configured",
+      diagnostic: null,
+      detail: "",
+    };
+  }
+
+  const probePackage = declaredDependencies()[0];
+  const probeResult = runNpm(["view", probePackage, "version", "--json"], { timeout: 8_000 });
+  if (probeResult.error || probeResult.status !== 0) {
+    const detail = `${probeResult.stdout || ""}${probeResult.stderr || ""}`;
+    return {
+      npmVersion: String(versionResult.stdout || "").trim(),
+      registry,
+      registryStatus: "unavailable",
+      diagnostic: classifyNpmFailure({
+        error: probeResult.error,
+        stderr: detail,
+        registry: rawRegistry,
+      }),
+      detail: sanitizeNpmOutput(detail),
+    };
+  }
+  return {
+    npmVersion: String(versionResult.stdout || "").trim(),
+    registry,
+    registryStatus: "reachable",
+    diagnostic: null,
+    detail: "",
+  };
+}
+
 function reportMissingDependencies(missing, tool) {
   process.stderr.write(
     `labora: ${tool} needs ${missing.length} dependenc${missing.length === 1 ? "y" : "ies"} ` +
     `that ${missing.length === 1 ? "is" : "are"} not installed: ${missing.join(", ")}\n` +
-    `\nA plugin install copies these sources but never runs "npm install", so the\n` +
-    `deterministic tools cannot load. Install them once:\n\n  ${SETUP_COMMAND}\n\n` +
-    `Refusing to run the tool. A gate that cannot execute must not look like one that passed.\n`
+    `\nThis tool cannot run, but Labora remains in degraded advisory mode: agents,\n` +
+    `skills, and dependency-free tools remain available. Diagnose npm and registry health:\n\n` +
+    `  labora doctor\n\n` +
+    `Refusing to run this tool. Do not approximate its deterministic calculation or\n` +
+    `validation in an agent; a gate that cannot execute must not look like one that passed.\n`
   );
   const runnable = dependencyFreeTools();
   if (runnable.length) {
@@ -108,15 +209,20 @@ function runSetup() {
     : ["install", "--omit=dev", "--no-audit", "--no-fund"];
   process.stderr.write(`labora: installing dependencies into ${pluginRoot}\n`);
   process.stderr.write(`labora: npm ${args.join(" ")}\n`);
-  const result = spawnSync("npm", args, {
-    cwd: pluginRoot,
-    stdio: "inherit",
-    // Puppeteer's postinstall downloads a ~1.9 GB browser. Setup must not do
-    // that silently; PDF rendering reports its own requirement when used.
-    env: { ...process.env, PUPPETEER_SKIP_DOWNLOAD: "1" },
-  });
-  if (result.error) fail(`could not run npm: ${result.error.message}`);
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  const result = runNpm(args);
+  replayNpmOutput(result);
+  if (result.error || result.status !== 0) {
+    const diagnostic = classifyNpmFailure({
+      error: result.error,
+      stderr: `${result.stdout || ""}\n${result.stderr || ""}`,
+      registry: result.error?.code === "ENOENT" ? "" : configuredRegistry(),
+    });
+    process.stderr.write(`labora: ${diagnostic.summary}\nlabora: ${diagnostic.route}\n`);
+    process.stderr.write(
+      "labora: agents, skills, and dependency-free tools remain available in degraded advisory mode.\n",
+    );
+    process.exit(result.status ?? 1);
+  }
 
   const stillMissing = missingDependencies();
   if (stillMissing.length) fail(`setup finished but these are still missing: ${stillMissing.join(", ")}`);
@@ -139,18 +245,48 @@ function runDoctor() {
   const tools = availableTools();
   const stale = unsupportedNode();
   const chrome = chromeStatus();
+  const installHealth = inspectInstallHealth({ probeRegistry: true });
   const lines = [
     `plugin root   ${pluginRoot}`,
     `working dir   ${process.cwd()}`,
     `node          ${process.version}${stale ? "  UNSUPPORTED, needs >=20.16 or >=22.3" : ""}`,
+    `npm           ${installHealth.npmVersion || "unavailable"}`,
+    `registry      ${installHealth.registry || "unavailable"} (${installHealth.registryStatus})`,
     `tools         ${tools.length} available${missing.length ? `, ${dependencyFreeTools().length} runnable without dependencies` : ""}`,
     `dependencies  ${missing.length === 0 ? "ready" : `MISSING: ${missing.join(", ")}`}`,
     `pdf renderer  ${chrome ? chrome : "no Chrome found — DOCX still works, PDF will not"}`,
+    `mode          ${missing.length === 0
+      ? "full deterministic capabilities installed"
+      : "degraded advisory -- agents, skills, and dependency-free tools available"}`,
   ];
   process.stdout.write(lines.join("\n") + "\n");
   if (missing.length) {
-    process.stdout.write(`\nRun "${SETUP_COMMAND}" to install the missing dependencies.\n`);
+    process.stdout.write(
+      "\nDependency-backed tools cannot run and must not be approximated by an agent.\n",
+    );
+    if (installHealth.diagnostic) {
+      process.stdout.write(
+        `${installHealth.diagnostic.summary}\n${installHealth.diagnostic.route}\n`,
+      );
+      if (installHealth.diagnostic.kind === "unknown" && installHealth.detail.trim()) {
+        process.stdout.write(`npm output:\n${installHealth.detail.trim()}\n`);
+      }
+    } else {
+      process.stdout.write(
+        `npm and the configured registry are ready. Run "${SETUP_COMMAND}" to install ` +
+        "the missing deterministic capabilities.\n",
+      );
+    }
     process.exit(1);
+  }
+  if (installHealth.diagnostic) {
+    process.stdout.write(
+      "\nInstalled capabilities remain usable, but setup and updates are unavailable.\n" +
+      `${installHealth.diagnostic.summary}\n${installHealth.diagnostic.route}\n`,
+    );
+    if (installHealth.diagnostic.kind === "unknown" && installHealth.detail.trim()) {
+      process.stdout.write(`npm output:\n${installHealth.detail.trim()}\n`);
+    }
   }
   if (stale) process.exit(1);
 }
@@ -177,11 +313,13 @@ function announce() {
       ``,
       `WARNING: ${missing.length} dependencies are not installed (${missing.join(", ")}),`,
       `so ${availableTools().length - runnable.length} of ${availableTools().length} deterministic tools will refuse to run.`,
-      `Every stage that renders, validates or judges is among them, so no such`,
-      `stage can be validated until the operator runs:`,
-      `  ${binPath} setup`,
-      `Do not run that yourself and do not work around the tools by`,
-      `reimplementing their checks - report the gap and stop.`,
+      `Labora is in degraded advisory mode: agents and skills remain available.`,
+      `Continue safe work that does not require a refused tool. Stop only the stage`,
+      `whose deterministic calculation or validation is unavailable, and never`,
+      `reimplement that gate in an agent.`,
+      `Diagnose npm and registry health with:`,
+      `  ${binPath} doctor`,
+      `If doctor reports npm and the registry ready, it will direct the operator to setup.`,
       ``,
       `These ${runnable.length} tools need no dependency and DO run now:`,
       `  ${runnable.join(", ")}`

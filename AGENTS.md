@@ -60,9 +60,14 @@ Core rules:
   `node src/tools/<tool>.js`. A plugin install lands at an unpredictable path
   and is run from the persona workspace, so a relative path resolves to
   nothing. The `sessionStart` hook prints the absolute `bin/labora` to use.
-- If `labora setup` has not been run, the tools cannot load. That is a gap to
-  report, never a reason to approximate a check by hand: a gate that cannot
-  execute must not be mistaken for one that passed.
+- If `labora setup` cannot run, agents, skills and dependency-free tools remain
+  available in degraded advisory mode. Stop only a stage whose required tool
+  refuses because its dependency is unavailable. Never approximate that
+  calculation or validation by hand: a gate that cannot execute must not be
+  mistaken for one that passed, and `send_ready` remains unavailable when a
+  required gate cannot run. Use `labora doctor` to distinguish missing npm,
+  registry authentication or policy, network/TLS failure, and a healthy
+  registry that is ready for setup.
 - The plugin's own files and the user's workspace are two different roots.
   Resolve labora's sources, skills and agent prompts against `pluginRoot` from
   `src/lib/paths.js`; resolve personas, evidence and applications against the

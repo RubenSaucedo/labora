@@ -89,7 +89,7 @@ test("a PDF without a text layer names the missing package instead of crashing",
     /tesseract\.js is\s*\n?\s*'?\s*\+?\s*'?not installed|not installed/.test(src),
     "the failure has to say which package is missing and how to install it",
   );
-  assert.ok(/labora setup/.test(src), "and point at the command that fixes it");
+  assert.ok(/labora doctor/.test(src), "and diagnose whether setup is available");
 });
 
 // pdf-parse needs a modern Node and fails deep inside itself on an old one.
@@ -124,4 +124,3 @@ test("the run-time cache is ignored, not the symptom", () => {
     "ignoring the file here hid the bug instead of fixing where it was written",
   );
 });
-
