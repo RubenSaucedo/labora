@@ -409,7 +409,7 @@ resume-evidence
   -> resume-persona (identity + claims)
   -> resume-job-analysis
   -> resume-application-strategy
-  -> resume-tailor
+  -> resume-writer-expert (executes resume-tailor)
   -> validate-claims
   -> resume-format
   -> validate-artifact

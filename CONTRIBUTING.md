@@ -62,7 +62,7 @@ Concretely:
 - Only acquisition agents (`profile-researcher`, the scouts, `job-explorer`)
   may hold browser tools. Untrusted job pages must never share a context with
   claim-write access.
-- `resume-tailor` is denied raw evidence, so it cannot derive new facts.
+- `resume-writer-expert` is denied raw evidence, so it cannot derive new facts.
 - `profile-builder` runs with no job in context, so it cannot tilt facts toward
   one opening, and may not read `search-preferences.json`.
 - The judges see only the rendered artifact and the job — never the tailoring

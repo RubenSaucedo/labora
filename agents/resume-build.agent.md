@@ -38,7 +38,7 @@ must be rebuilt from the earliest stale dependency.
 4. `resume-application-strategy`. Pause when it has pending evidence questions;
    a chat answer is not verified until the grounding corpus and claims are
    rebuilt.
-5. Launch **`resume-tailor`** as a **separate sub-agent**, not as a skill loaded
+5. Launch **`resume-writer-expert`** as a **separate sub-agent**, not as a skill loaded
    into this context. This conductor has already read evidence and strategy; an
    advocate sharing that context can compose from raw source documents rather
    than from verified claims, which is the fabrication path the ledger exists to

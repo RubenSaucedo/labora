@@ -230,3 +230,26 @@ test("no stage writes to a human-authored profile source", () => {
     }
   }
 });
+
+test("tailoring freshness includes the specialist prompt and writing reference", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "resume-writer-state-"));
+  const persona = path.join(root, "data", "personas", "example");
+  const app = path.join(persona, "applications", "job");
+  const definitions = stageDefinitions({
+    personaRoot: persona,
+    applicationDir: app,
+    style: 1,
+  });
+  const dependencies = definitions.tailor.dependencies.map((dependency) =>
+    dependency.split(path.sep).join("/")
+  );
+
+  assert.ok(
+    dependencies.some((dependency) => dependency.endsWith("/agents/resume-writer-expert.agent.md"))
+  );
+  assert.ok(
+    dependencies.some((dependency) =>
+      dependency.endsWith("/skills/resume-tailor/references/senior-swe-writing.md")
+    )
+  );
+});
