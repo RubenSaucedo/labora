@@ -40,10 +40,10 @@ agents register:
 Direct repo installs (`/plugin install RubenSaucedo/labora`) still work, but the
 CLI now warns that only `plugin@marketplace` installs will be supported.
 
-**2. Install its dependencies.** The deterministic tools are Node scripts with
+**2. Enable full deterministic assurance.** The deterministic tools are Node scripts with
 real runtime dependencies (`zod`, `docx`, `mammoth`, `pdf-parse`,
-`puppeteer-core`). A plugin installer git-clones the repo but never runs
-`npm install`, so without this step every tool fails to load:
+`puppeteer-core`). A plugin installer copies the repo but never runs
+`npm install`, so install them once:
 
 ```bash
 labora setup
@@ -51,7 +51,11 @@ labora setup
 
 `labora` is the dispatcher at `<plugin>/bin/labora`; the session-start hook
 prints its absolute path. `labora doctor` reports install health, including
-whether a Chrome was found for PDF rendering. Labora does not download a
+whether npm can reach its configured registry and whether Chrome was found for
+PDF rendering. Without npm, agents, skills and dependency-free tools remain
+available in degraded advisory mode. A dependency-backed tool refuses only its
+own stage, and Labora never approximates that calculation or validation.
+Labora does not download a
 browser — set `LABORA_CHROME` if yours is somewhere unusual. OCR for scanned
 PDFs is optional; install it with `npm install tesseract.js` inside the plugin.
 
@@ -467,14 +471,19 @@ Run `labora doctor` first. It reports every failure below in one pass:
 plugin root   /path/to/labora
 working dir   /path/to/your-workspace
 node          v22.19.0
+npm           10.9.3
+registry      https://registry.npmjs.org/ (reachable)
 tools         29 available
 dependencies  ready
 pdf renderer  /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+mode          full deterministic capabilities installed
 ```
 
 | Symptom | Cause | Remedy |
 |---|---|---|
-| Every tool refuses to run, naming missing packages | A plugin installer git-clones the repo but never runs `npm install` | `labora setup` |
+| A dependency-backed tool refuses to run | Its required packages are not installed | Run `labora doctor`; use `labora setup` only when npm and the registry are ready |
+| `npm` reports unavailable | The Node installation does not include npm or npm is not on `PATH` | Repair the Node/npm installation; agents, skills and dependency-free tools still work |
+| `registry` reports authentication, access, network or TLS failure | npm cannot reach its configured registry | Follow the environment's approved registry/auth/network process; Labora never switches registries or writes credentials |
 | `dependencies` reports missing after `setup` | Node is older than the supported range | Node `>=20.16 <21` or `>=22.3` — see below |
 | `pdf renderer` reports none found | Labora never downloads a browser | Install Chrome, or set `LABORA_CHROME` to its binary |
 | A scanned PDF yields no text | OCR is an optional dependency | `npm install tesseract.js` inside the plugin directory |
