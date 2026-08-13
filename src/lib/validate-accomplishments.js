@@ -1,8 +1,4 @@
-const RESTRICTION_RANK = {
-  public: 0,
-  internal_generalizable: 1,
-  internal_only: 2,
-};
+import { RESTRICTION_RANK, renderAuthorization } from "./disclosure.js";
 
 function issue(severity, code, message, location = "") {
   return { severity, code, message, location };
@@ -65,7 +61,17 @@ export function validateAccomplishments({ bank, ledger, identity }) {
           location
         ));
       }
-      mostRestrictive = Math.max(mostRestrictive, RESTRICTION_RANK[claim.disclosure ?? "public"] ?? 0);
+      const authorization = renderAuthorization(claim);
+      if (authorization === "withheld_unclassified") {
+        issues.push(issue(
+          "warning",
+          "unit_claim_disclosure_unclassified",
+          `Unit "${unit.id}" references claim "${claimId}" with no disclosure classification.`,
+          location
+        ));
+        continue;
+      }
+      mostRestrictive = Math.max(mostRestrictive, RESTRICTION_RANK[claim.disclosure] ?? 0);
     }
 
     if ((RESTRICTION_RANK[unit.disclosure] ?? 0) < mostRestrictive) {

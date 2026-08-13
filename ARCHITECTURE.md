@@ -149,8 +149,9 @@ Re-running the snapshot changes the file's hash and every block's line numbers,
 which strands every repository claim. `anchor-repo-claims.js` rebuilds them
 deterministically: repository facts are mechanical derivations of a
 tool-generated file, so they belong in code rather than in a model's judgement.
-It preserves each claim's `disclosure` and reports claims whose repository has
-left the snapshot instead of silently dropping them. Run it after every
+It preserves each claim's explicit `disclosure` value when one exists, omits
+the key when no prior value exists, and reports claims whose repository has left
+the snapshot instead of silently dropping them. Run it after every
 snapshot:
 
 ```
@@ -170,9 +171,10 @@ reach a rendered document:
 
 | `disclosure` | Rendering behaviour |
 | --- | --- |
-| `public` (default) | `fact` renders as-is. |
+| `public` | `fact` renders as-is. |
 | `internal_generalizable` | Requires `externalFact`; the generalized wording is what bullets, skills and summaries validate against. `externalFact` may drop detail but may not introduce a number absent from `fact`, and every named or canonical term it uses must be supported by `fact` plus `externalSources`. |
 | `internal_only` | May inform strategy and ranking, but grounding any rendered content in it raises `confidential_claim_rendered`. |
+| _absent (unclassified)_ | May inform strategy and ranking, but grounding rendered bullet/skill/summary/headline/identity prose raises `claim_disclosure_unclassified`. |
 
 This keeps confidentiality-safe phrasing validatable: without it, the only wording
 that passes grounding is the wording that leaks the internal codename.
@@ -189,7 +191,9 @@ external labels collapse into a count because "Promoted 2021 → Promoted 2024"
 states the same verified facts in a form nobody scans for. It is gated exactly
 like a bullet: the step must exist in the identity spine, carry verified
 disclosable claims, and supply an `externalLabel` when the internal token is not
-meaningful outside the company. An `internal_only` step never renders.
+meaningful outside the company. An `internal_only` step never renders; a step
+with no disclosure and an `internal_generalizable` step with no external label
+are withheld from rendering and surfaced by validation.
 
 A step is located in the spine by `label`, but `label` is not necessarily what
 prints — `formatProgression` substitutes `externalLabel` whenever one is set, and
@@ -207,7 +211,8 @@ so no substring match confirms it. Before 4.0.0 those fields were compared to
 nothing, and because a resume project validates by exact-object match against
 the spine, a description effectively validated against itself and could reach a
 rendered document unsupported. The claims listed must exist, be `verified`, and
-not be `internal_only` (`claimProvenanceIssues`). Each prose fragment is then
+carry explicit disclosure that is not `internal_only`
+(`claimProvenanceIssues`). Each prose fragment is then
 checked against the mapped renderable claim facts for unsupported named,
 canonical and numeric content plus substantive token coverage. Claim IDs prove
 where prose came from; they do not make unrelated prose supported. A record

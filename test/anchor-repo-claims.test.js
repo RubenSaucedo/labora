@@ -111,6 +111,36 @@ test("re-anchoring rewrites hash and lines while preserving non-repository claim
   assert.notEqual(devtool.sources[0].fileHash, "deadbeef");
   assert.match(devtool.sources[0].path, /repositories\.md$/);
   assert.equal(devtool.disclosure, "internal_generalizable", "disclosure must be preserved");
+
+  const platform = ledger.claims.find((c) => c.id === "claim-repo-platform-v0");
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(platform, "disclosure"),
+    false,
+    "newly anchored claims must not invent a disclosure decision",
+  );
+});
+
+test("re-anchoring is idempotent for explicit disclosure values", () => {
+  const { repoRoot, personaRoot } = personaFixture(SNAPSHOT, [
+    {
+      id: "claim-repo-devtool",
+      type: "project",
+      fact: "stale",
+      sources: [{ path: "stale.md", fileHash: "deadbeef", lineStart: 1, lineEnd: 2 }],
+      disclosure: "internal_generalizable",
+    },
+  ]);
+
+  anchorRepoClaims({ personaRoot, repoRoot });
+  anchorRepoClaims({ personaRoot, repoRoot });
+
+  const ledger = JSON.parse(
+    fs.readFileSync(path.join(personaRoot, "profile", "generated", "claims.json"), "utf8"),
+  );
+  const devtool = ledger.claims.find((c) => c.id === "claim-repo-devtool");
+  const platform = ledger.claims.find((c) => c.id === "claim-repo-platform-v0");
+  assert.equal(devtool.disclosure, "internal_generalizable");
+  assert.equal(Object.prototype.hasOwnProperty.call(platform, "disclosure"), false);
 });
 
 test("re-anchoring reports claims whose repository left the snapshot", () => {

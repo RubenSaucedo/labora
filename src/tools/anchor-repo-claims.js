@@ -127,7 +127,9 @@ export function anchorRepoClaims({ personaRoot, workspaceRoot = process.cwd() })
         },
       ],
       status: "verified",
-      disclosure: prior?.disclosure ?? "public",
+      ...(Object.prototype.hasOwnProperty.call(prior || {}, "disclosure")
+        ? { disclosure: prior.disclosure }
+        : {}),
       externalFact: prior?.externalFact ?? "",
       externalSources: prior?.externalSources ?? [],
     };

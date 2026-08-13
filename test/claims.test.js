@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { validateResumeClaims } from "../src/lib/validate-resume-claims.js";
+import { validateApplicationStrategy } from "../src/lib/application-strategy.js";
+import { ZClaimLedger } from "../src/schemas/provenance.js";
 
 function fixture() {
   const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "resume-claim-fixture-"));
@@ -35,6 +37,7 @@ function fixture() {
       id: "claim-latency",
       fact: "Used React to reduce latency by 40%.",
       status: "verified",
+      disclosure: "public",
       sources: [{
         path: "profile/career.md",
         fileHash,
@@ -252,6 +255,15 @@ test("internal_only claims may never ground rendered content", () => {
   assert.equal(result.issues.some((issue) => issue.code === "confidential_claim_rendered"), true);
 });
 
+test("an unclassified claim may not ground rendered resume content", () => {
+  const input = fixture();
+  delete input.ledger.claims[0].disclosure;
+  const result = validateResumeClaims(input);
+  assert.equal(result.valid, false);
+  assert.equal(result.issues.some((issue) => issue.code === "claim_disclosure_unclassified"), true);
+  assert.equal(result.issues.some((issue) => issue.code === "confidential_claim_rendered"), false);
+});
+
 test("internal_generalizable claims require an externalFact", () => {
   const input = fixture();
   input.ledger.claims[0].disclosure = "internal_generalizable";
@@ -268,6 +280,86 @@ test("externalFact cannot smuggle numbers or technologies past the internal fact
   const result = validateResumeClaims(input);
   assert.equal(result.valid, false);
   assert.equal(result.issues.some((issue) => issue.code === "external_fact_ungrounded"), true);
+});
+
+test("claim parse preserves disclosure-key presence without disclosure backfill", () => {
+  const source = {
+    path: "profile/background.md",
+    fileHash: "6cabd91d13b54c7e1b9edc224595e9917615739fef409c406e1a0e6d24983756",
+    lineStart: 1,
+    lineEnd: 2,
+    page: null,
+    extraction: "markdown",
+    confidence: 1,
+  };
+  const raw = {
+    schemaVersion: "1.0",
+    persona: "example",
+    claims: [
+      {
+        id: "claim-unclassified",
+        type: "achievement",
+        fact: "Built React dashboards.",
+        period: "",
+        status: "verified",
+        sources: [source],
+      },
+      {
+        id: "claim-classified",
+        type: "achievement",
+        fact: "Built TypeScript services.",
+        period: "",
+        status: "verified",
+        disclosure: "public",
+        sources: [source],
+      },
+    ],
+  };
+
+  const parsed = ZClaimLedger.parse(raw);
+  for (const [index, claim] of parsed.claims.entries()) {
+    const original = raw.claims[index];
+    assert.equal(("disclosure" in claim), ("disclosure" in original));
+    assert.equal(claim.id, original.id);
+    assert.equal(claim.fact, original.fact);
+    assert.deepEqual(claim.sources, original.sources);
+    assert.deepEqual(
+      claim.sources.map((entry) => entry.fileHash),
+      original.sources.map((entry) => entry.fileHash),
+    );
+  }
+
+  const backfilled = parsed.claims.filter((claim, index) =>
+    !("disclosure" in raw.claims[index]) && ("disclosure" in claim)
+  );
+  assert.deepEqual(backfilled, []);
+});
+
+test("application strategy output is unchanged by claim disclosure presence", () => {
+  const strategy = {
+    status: "ready",
+    topSignals: [{ requirementIds: ["req-001"], claimIds: ["claim-1"] }],
+    likelyConcerns: [],
+    evidenceRequests: [],
+    firstPagePlan: { leadClaimIds: ["claim-1"] },
+  };
+  const jobSpec = {
+    requirements: [{ id: "req-001", severity: "core", text: "React experience" }],
+  };
+  const claim = { id: "claim-1", status: "verified", fact: "Built React applications." };
+
+  const withDisclosure = validateApplicationStrategy({
+    strategy,
+    jobSpec,
+    claimLedger: { claims: [{ ...claim, disclosure: "public" }] },
+  });
+  const withoutDisclosure = validateApplicationStrategy({
+    strategy,
+    jobSpec,
+    claimLedger: { claims: [claim] },
+  });
+
+  assert.deepEqual(withoutDisclosure, withDisclosure);
 });
 
 // --- profile split: contact.md must never ground claims -------------------
@@ -334,6 +426,7 @@ function certFixture() {
     id: "claim-cert-skillup",
     fact: "MICROSOFT SKILLUP AI. Microsoft | Issued March 2024.",
     status: "verified",
+    disclosure: "public",
     sources: [{
       path: "profile/background.md",
       fileHash: crypto.createHash("sha256").update(fs.readFileSync(background)).digest("hex"),

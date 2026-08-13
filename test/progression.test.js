@@ -33,6 +33,17 @@ test("internal_only progression is withheld entirely", () => {
   assert.equal(formatProgression([{ label: "L63", date: "2026", disclosure: "internal_only" }]), "");
 });
 
+test("progression with no disclosure is withheld", () => {
+  assert.equal(formatProgression([{ label: "L63", date: "2026" }]), "");
+});
+
+test("internal_generalizable progression without an external label is withheld", () => {
+  assert.equal(
+    formatProgression([{ label: "L63", externalLabel: "", date: "2026", disclosure: "internal_generalizable" }]),
+    "",
+  );
+});
+
 test("progression tolerates absent input", () => {
   assert.equal(formatProgression(undefined), "");
   assert.equal(formatProgression([]), "");
@@ -113,6 +124,20 @@ test("an internal ladder token without an external label is rejected", () => {
   assert.ok(
     found.includes("progression_label_not_generalized"),
     `expected rejection, got ${found.join(", ")}`,
+  );
+});
+
+test("an unclassified progression step is withheld with a warning", () => {
+  const found = codes([
+    { label: "L62", externalLabel: "Promoted", date: "2024", claimIds: ["claim-l62"] },
+  ]);
+  assert.ok(
+    found.includes("progression_disclosure_unclassified"),
+    `expected warning, got ${found.join(", ")}`,
+  );
+  assert.ok(
+    !found.includes("progression_not_in_identity"),
+    `withheld unclassified steps should not be evaluated as rendered promotions, got ${found.join(", ")}`,
   );
 });
 

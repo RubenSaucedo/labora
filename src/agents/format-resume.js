@@ -1,5 +1,6 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
 import fs from "fs/promises";
+import { renderAuthorization } from "../lib/disclosure.js";
 
 /**
  * Resume Formatter (JSON -> DOCX)
@@ -95,17 +96,27 @@ function safeJoin(parts, sep = " | ") {
 
 // A long tenure at one employer reads as stagnation unless the promotions inside
 // it are visible. Internal ladder tokens ("L62") mean nothing to an outside
-// reader and may be confidential, so a step renders its `externalLabel` when one
-// is set and is withheld entirely when marked `internal_only`.
+// reader and may be confidential, so rendering is allowlisted: public steps
+// render directly, generalizable steps render only through `externalLabel`, and
+// unclassified/internal-only steps are withheld.
 export function formatProgression(progression) {
   if (!Array.isArray(progression)) return "";
   const steps = progression
-    .filter((step) => step && step.disclosure !== "internal_only")
-    .map((step) => ({
-      label: (isNonEmptyString(step.externalLabel) ? step.externalLabel : step.label || "").trim(),
-      date: isNonEmptyString(step.date) ? step.date.trim() : "",
-    }))
-    .filter((step) => isNonEmptyString(step.label));
+    .map((step) => {
+      if (!step) return null;
+      const authorization = renderAuthorization(step);
+      if (authorization === "withheld_confidential" || authorization === "withheld_unclassified") {
+        return null;
+      }
+      if (authorization === "requires_generalization" && !isNonEmptyString(step.externalLabel)) {
+        return null;
+      }
+      return {
+        label: (isNonEmptyString(step.externalLabel) ? step.externalLabel : step.label || "").trim(),
+        date: isNonEmptyString(step.date) ? step.date.trim() : "",
+      };
+    })
+    .filter((step) => step && isNonEmptyString(step.label));
   if (steps.length === 0) return "";
 
   // Two promotions generalized to the same external label would otherwise read
