@@ -404,6 +404,32 @@ function claimProvenanceIssues(claimIds, claimById, location) {
   return found;
 }
 
+function identityProseContentIssues(text, mappedClaims, location) {
+  const supportedText = mappedClaims.map(renderableFact).join(" ");
+  const unsupportedContent = [
+    ...unsupportedCanonicalTerms(text, supportedText),
+    ...unsupportedNamedTerms(text, supportedText),
+    ...unsupportedNumericTokens(text, supportedText),
+  ];
+  if (unsupportedContent.length) {
+    return [issue(
+      "error",
+      "identity_prose_unsupported_content",
+      `Mapped claims do not support: ${[...new Set(unsupportedContent)].join(", ")}.`,
+      location
+    )];
+  }
+  if (textSupportRatio(text, supportedText) < 0.3) {
+    return [issue(
+      "error",
+      "identity_prose_claim_mismatch",
+      "The identity prose is not substantively supported by its mapped claim text.",
+      location
+    )];
+  }
+  return [];
+}
+
 function sha256(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
@@ -611,7 +637,23 @@ export function validateResumeClaims({
         ));
         continue;
       }
-      issues.push(...claimProvenanceIssues(claimIds, claimById, location));
+      const provenanceIssues = claimProvenanceIssues(claimIds, claimById, location);
+      issues.push(...provenanceIssues);
+      if (provenanceIssues.length) continue;
+
+      const mappedClaims = claimIds.map((claimId) => claimById.get(claimId));
+      for (const proseField of proseFields) {
+        const value = record[proseField];
+        const fragments = Array.isArray(value) ? value : [value];
+        for (const [fragmentIndex, fragment] of fragments.entries()) {
+          const text = String(fragment || "").trim();
+          if (!text) continue;
+          const fragmentLocation = Array.isArray(value)
+            ? `${location}.${proseField}[${fragmentIndex}]`
+            : `${location}.${proseField}`;
+          issues.push(...identityProseContentIssues(text, mappedClaims, fragmentLocation));
+        }
+      }
     }
   }
 
