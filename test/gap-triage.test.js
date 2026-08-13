@@ -278,8 +278,60 @@ test("incidental adjacency alone does not escalate to a human", () => {
   assert.notEqual(result.routes[0].kind, "ask_scoped_question");
 });
 
+test("one rare ordinary word stays incidental in a large ledger", () => {
+  const claims = Array.from({ length: 188 }, (_, index) => ({
+    id: `c-${index + 1}`,
+    fact: `Delivered ordinary project work item ${index}.`,
+    status: "verified",
+  }));
+  claims[0].fact = "Helped hold a recurring planning meeting.";
+  claims[1].fact = "Coordinated routine security onboarding.";
+  const found = findAdjacentClaims(
+    { claims },
+    { text: "Must hold an active US Top Secret security clearance" }
+  );
+  const hold = found.find((claim) => claim.sharedTerms.includes("hold"));
+  const security = found.find((claim) => claim.sharedTerms.includes("security"));
+  assert.equal(hold?.basis, "incidental");
+  assert.deepEqual(hold?.distinctiveTerms, []);
+  assert.equal(security?.basis, "incidental");
+  assert.deepEqual(security?.distinctiveTerms, []);
+});
+
+test("one recognized skill remains substantive in a large ledger", () => {
+  const claims = Array.from({ length: 188 }, (_, index) => ({
+    id: `c-${index + 1}`,
+    fact: `Delivered ordinary project work item ${index}.`,
+    status: "verified",
+  }));
+  claims[0].fact = "Maintained Kubernetes tooling for an internal service.";
+  const found = findAdjacentClaims(
+    { claims },
+    { text: "Experience operating Kubernetes in production" }
+  );
+  const kubernetes = found.find((claim) => claim.sharedTerms.includes("kubernetes"));
+  assert.equal(kubernetes?.basis, "named_skill");
+});
+
+test("multiple reinforcing clearance terms remain substantive", () => {
+  const result = triageRequirement(
+    { text: "Must hold an active US Top Secret security clearance" },
+    {
+      personaRoot: persona({}),
+      ledger: asLedger([
+        "Worked under an active Top Secret security clearance.",
+        ...NOISE_CORPUS,
+      ]),
+      identity: {},
+    }
+  );
+  assert.equal(result.status, GAP_STATUS.ADJACENT);
+  assert.equal(result.escalateToHuman, true);
+  assert.equal(result.routes[0].kind, "ask_scoped_question");
+});
+
 // The counterpart: a genuinely specific shared term must still reach a human.
-test("a distinctive shared term still produces a scoped question", () => {
+test("reinforcing distinctive terms still produce a scoped question", () => {
   const result = triageRequirement(
     { text: "Experience with durable execution guarantees" },
     {
