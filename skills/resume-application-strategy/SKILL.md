@@ -48,7 +48,7 @@ This is a private planning artifact. It is never rendered into the resume.
    | `unmined` | The corpus already answers it in the candidate's own voice; no claim was derived | Re-run `profile-builder`. **Do not ask the operator.** |
    | `mention_only` | The corpus discusses it, but no sentence says *the candidate* did it | Ask one scoped question quoting the passage |
    | `collectible` | Obtainable from something the candidate already owns and can reach | Take the named route — usually minutes |
-   | `adjacent` | Related verified work exists without establishing it | Ask one scoped question naming the adjacent claims |
+   | `adjacent` | Verified work overlaps the requirement without establishing it | Ask one scoped question only when the overlap is substantive; otherwise re-read the corpus without interrupting the operator |
    | `real_gap` | Nothing in the corpus, nothing reachable, nothing adjacent | State it as an absence, never a disqualification |
 
    `unmined` is a statement about labora's bookkeeping. `real_gap` is a
@@ -69,12 +69,16 @@ This is a private planning artifact. It is never rendered into the resume.
    collection also validates: an observation run once contradicted a claim
    already marked verified, and skipping it lets that reach a rendered resume.
 
-5. For `adjacent`, ask **one scoped question that names the verified work**, so
-   the candidate confirms a specific boundary instead of self-assessing.
-   Someone who shipped agent workflows and reviewed a colleague's evaluation
-   harness in detail does not "lack evals" — and also cannot claim to have built
-   one. Both are true at once, so the honest move is a question, never a verdict
-   in either direction.
+5. For substantive `adjacent` work, ask **one scoped question that names the
+   verified work**, so the candidate confirms a specific boundary instead of
+   self-assessing. A recognized skill or multiple reinforcing shared terms,
+   including at least one term that distinguishes this claim, can justify that
+   question; one rare ordinary word cannot. Incidental overlap remains
+   `adjacent`, preserving the generous direction of failure, but routes to
+   corpus review instead of interrupting the operator. Someone who shipped
+   agent workflows and reviewed a colleague's evaluation harness in detail does
+   not "lack evals" — and also cannot claim to have built one. Both are true at
+   once, so the honest move is a question, never a verdict in either direction.
 
 6. A conversational answer is a lead, not verified evidence. To use it, the
    operator must add a durable source to `profile/background.md`, `profile/career.md`

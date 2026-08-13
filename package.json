@@ -1,6 +1,6 @@
 {
   "name": "labora",
-  "version": "4.19.2",
+  "version": "4.19.3",
   "description": "Copilot plugin for evidence-grounded, job-tailored resumes with deterministic requirement, provenance, artifact, and release gates.",
   "type": "module",
   "scripts": {

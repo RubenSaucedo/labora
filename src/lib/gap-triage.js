@@ -323,10 +323,10 @@ function weightOf(term, { total, docFrequency }) {
   return Math.log((total + 1) / (df + 1)) + 1;
 }
 
-// A term is distinctive when it points at particular work rather than at the
-// general shape of software jobs. Two ways to qualify, both closed: the skills
-// lexicon recognises it, or it is rare enough in this persona's own claims to
-// single a few of them out.
+// A connection is distinctive when it points at particular work rather than at
+// the general shape of software jobs. A named skill qualifies by itself. Other
+// connections need multiple shared terms and at least one term rare enough in
+// this persona's claims to distinguish the record.
 //
 // The second threshold is much tighter than UNINFORMATIVE_SHARE because it
 // answers a different question. That one asks "is this word worthless?"; this
@@ -335,18 +335,22 @@ function weightOf(term, { total, docFrequency }) {
 // discarded, nowhere near specific enough to justify telling someone their
 // payroll work is related to an evals requirement.
 const DISTINCTIVE_SHARE = 0.02;
+const MIN_SUBSTANTIVE_SHARED_TERMS = 2;
 
 function distinctiveTerms(terms, weights, requirementSkills) {
   // Expressed as an absolute count rather than a ratio so it still means
-  // something in a small corpus. At 188 claims this admits terms appearing in
-  // at most 3; at 2 claims it admits terms appearing in one, which is the right
-  // answer there -- a word in both claims of a two-claim ledger distinguishes
-  // nothing, however specific the word is.
+  // something in a small corpus. Rarity identifies a candidate term; a
+  // non-skill candidate still needs another shared term before it can justify
+  // interrupting a human.
   const ceiling = Math.max(1, Math.floor(DISTINCTIVE_SHARE * weights.total));
-  return terms.filter(({ term }) =>
+  const candidates = terms.filter(({ term }) =>
     requirementSkills.has(term) ||
     (weights.docFrequency.get(term) || 0) <= ceiling
   );
+  if (candidates.some(({ term }) => requirementSkills.has(term))) return candidates;
+  return candidates.length > 0 && terms.length >= MIN_SUBSTANTIVE_SHARED_TERMS
+    ? candidates
+    : [];
 }
 
 /**
