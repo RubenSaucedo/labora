@@ -27,9 +27,9 @@ Node tools own:
 - job requirement extraction;
 - lexical and structured requirement scoring;
 - claim provenance validation;
-- contact injection;
+- contact source validation and injection;
 - DOCX/PDF rendering;
-- rendered field recall and section order;
+- renderer-input field recall and section order;
 - content-hash freshness;
 - final release-state aggregation.
 
@@ -570,7 +570,7 @@ Synthetic fixtures test:
 - numeric facts introduced during evidence cleaning;
 - duplicate claim reuse;
 - hidden metadata contamination;
-- JSON-to-DOCX field recall;
+- validated contact-source injection and JSON-to-DOCX field recall;
 - Unicode/contact/section preservation;
 - content-hash invalidation;
 - cross-parser recall divergence;

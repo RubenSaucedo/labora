@@ -59,7 +59,8 @@ test("injects contact and preserves fields through DOCX round trip", async () =>
 - Name: Jane Example
 - Phone: +1 555-123-4567
 - Email: jane@example.com
-- Address: Seattle, WA`);
+- Address: Seattle, WA
+- Web: https://jane.example.test`);
   const resume = injectContact(tailoredResume(), contact);
   const formatter = agent2ResumeToFormatterJson(resume);
   const buffer = await formatResumeToDocxBuffer({ resumeJson: formatter, style: 1 });
@@ -69,9 +70,18 @@ test("injects contact and preserves fields through DOCX round trip", async () =>
   assert.equal(validation.valid, true);
   assert.match(text, /Jane Example/);
   assert.match(text, /Seattle, WA/);
+  assert.match(text, /https:\/\/jane\.example\.test/);
   assert.match(text, /https:\/\/example.com\/project/);
   assert.match(text, /Cloud Certificate, Example, 2025/);
   assert.doesNotMatch(text, /secret-keyword/);
+  assert.equal(validation.fieldRecallScope, "renderer_input");
+
+  const withoutPortfolio = validateRenderedArtifact({
+    resume: formatter,
+    extractedText: text.replace("https://jane.example.test", ""),
+  });
+  assert.equal(withoutPortfolio.valid, false);
+  assert.equal(withoutPortfolio.missingFields.includes("header.portfolio"), true);
 });
 
 test("fails when a rendered project, skill, or certification is missing", () => {

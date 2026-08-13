@@ -1,6 +1,6 @@
 ---
 name: resume-format
-description: "Deterministically injects private contact data, renders ATS-safe DOCX and optional PDF, and verifies field recall and section order. Never rewrites resume content."
+description: "Deterministically validates and injects private contact data, renders ATS-safe DOCX and optional PDF, and verifies renderer-input field recall and section order. Never rewrites resume content."
 tools: [bash, view, glob, grep]
 user-invocable: true
 argument-hint: "<persona> <job-slug> [--style N]"
@@ -42,11 +42,15 @@ Then run `validate-artifact` against the **selected delivery artifact** with bot
 `--contact <contact.md>` and `--job <job.md>`, and save
 `validations/artifact.json`. It must report:
 
-- 100% required field recall;
+- 100% renderer-input field recall (`fieldRecallScope: renderer_input`), meaning
+  every non-empty field passed to the formatter was recovered from the artifact;
 - contact name/email/phone present;
 - valid section order;
 - no lost experience bullets.
 - the selected artifact hash and, for PDF, page count.
+
+Contact source validation runs before rendering. Unknown keys and multiple
+destinations in one link field are errors rather than silently omitted data.
 
 Record `format` and `validate_artifact` with `run-state`. If validation fails,
 fix the formatter or source mapping; never hide the failure in a judge.

@@ -1,6 +1,7 @@
 {
   "valid": true,
   "fieldRecallPercent": 100,
+  "fieldRecallScope": "renderer_input",
   "sectionOrderValid": true,
   "missingFields": [],
   "missingSections": [],
