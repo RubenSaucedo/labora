@@ -54,6 +54,7 @@ function claimsFixture() {
       id: "claim-latency",
       fact: "Used React to reduce latency by 40%.",
       status: "verified",
+      disclosure: "public",
       sources: [{ path: "profile/career.md", fileHash, lineStart: 1, lineEnd: 2 }],
     }],
   };

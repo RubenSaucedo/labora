@@ -4,6 +4,7 @@ import path from "node:path";
 import { canonicalSkillsInText } from "./skill-aliases.js";
 import { skillVocabulary } from "./skill-vocabulary.js";
 import { analyzeHeadline } from "./headline.js";
+import { renderAuthorization } from "./disclosure.js";
 import { validateObservations } from "./validate-observations.js";
 import { loadManifest, resolveProvenance } from "./evidence-provenance.js";
 
@@ -120,6 +121,26 @@ function excerptSupports(text, excerpt) {
 // replaces the internal fact so confidentiality-safe phrasing is what gets validated.
 function renderableFact(claim) {
   return claim.externalFact ? claim.externalFact : claim.fact;
+}
+
+function claimDisclosureIssue({ claimId, authorization, location, subject = "Claim" }) {
+  if (authorization === "withheld_unclassified") {
+    return issue(
+      "error",
+      "claim_disclosure_unclassified",
+      `${subject} "${claimId}" has no disclosure classification and may not ground rendered resume content.`,
+      location
+    );
+  }
+  if (authorization === "withheld_confidential") {
+    return issue(
+      "error",
+      "confidential_claim_rendered",
+      `${subject} "${claimId}" is internal_only and may not ground rendered resume content.`,
+      location
+    );
+  }
+  return null;
 }
 
 function normalizedObject(value) {
@@ -392,13 +413,13 @@ function claimProvenanceIssues(claimIds, claimById, location) {
     if (claim.status !== "verified") {
       found.push(issue("error", "unverified_claim", `Claim "${claimId}" is ${claim.status}.`, location));
     }
-    if (claim.disclosure === "internal_only") {
-      found.push(issue(
-        "error",
-        "confidential_claim_rendered",
-        `Claim "${claimId}" is internal_only and may not ground rendered resume content.`,
-        location
-      ));
+    const disclosureIssue = claimDisclosureIssue({
+      claimId,
+      authorization: renderAuthorization(claim),
+      location,
+    });
+    if (disclosureIssue) {
+      found.push(disclosureIssue);
     }
   }
   return found;
@@ -695,8 +716,29 @@ export function validateResumeClaims({
     // claims, and never leak an internal ladder token.
     for (const [stepIndex, step] of (entry.progression || []).entries()) {
       const stepLocation = `${location}.progression[${stepIndex}]`;
-      const rendered = step.disclosure !== "internal_only";
-      if (!rendered) continue;
+      const authorization = renderAuthorization(step);
+      if (authorization === "withheld_confidential") continue;
+      if (authorization === "withheld_unclassified") {
+        issues.push(issue(
+          "warning",
+          "progression_disclosure_unclassified",
+          `Progression step "${step.label}" has no disclosure classification and is withheld from rendering.`,
+          stepLocation
+        ));
+        continue;
+      }
+      if (
+        authorization === "requires_generalization" &&
+        !String(step.externalLabel || "").trim()
+      ) {
+        issues.push(issue(
+          "error",
+          "progression_label_not_generalized",
+          `Progression step "${step.label}" is internal_generalizable and requires an externalLabel to render.`,
+          stepLocation
+        ));
+        continue;
+      }
 
       const coreStep = (coreEntry?.progression || []).find(
         (candidate) => normalize(candidate.label) === normalize(step.label)
@@ -738,16 +780,6 @@ export function validateResumeClaims({
         }
       }
 
-      // An internal ladder token is meaningless outside the company and may be
-      // confidential, so a generalizable step must carry an external label.
-      if (step.disclosure === "internal_generalizable" && !String(step.externalLabel || "").trim()) {
-        issues.push(issue(
-          "error",
-          "progression_label_not_generalized",
-          `Progression step "${step.label}" is internal_generalizable and requires an externalLabel to render.`,
-          stepLocation
-        ));
-      }
     }
 
     for (const [bulletIndex, bullet] of (entry.bullets || []).entries()) {
@@ -769,13 +801,13 @@ export function validateResumeClaims({
         if (claim.status !== "verified") {
           issues.push(issue("error", "unverified_claim", `Claim "${claimId}" is ${claim.status}.`, bulletLocation));
         }
-        if (claim.disclosure === "internal_only") {
-          issues.push(issue(
-            "error",
-            "confidential_claim_rendered",
-            `Claim "${claimId}" is internal_only and may not ground rendered resume content.`,
-            bulletLocation
-          ));
+        const disclosureIssue = claimDisclosureIssue({
+          claimId,
+          authorization: renderAuthorization(claim),
+          location: bulletLocation,
+        });
+        if (disclosureIssue) {
+          issues.push(disclosureIssue);
         }
         mappedClaims.push(claim);
       }
@@ -862,13 +894,15 @@ export function validateResumeClaims({
         issues.push(issue("error", "unknown_claim", `Claim "${claimId}" does not exist.`, `skill:${skill}`));
       } else if (claim.status !== "verified") {
         issues.push(issue("error", "unverified_claim", `Claim "${claimId}" is ${claim.status}.`, `skill:${skill}`));
-      } else if (claim.disclosure === "internal_only") {
-        issues.push(issue(
-          "error",
-          "confidential_claim_rendered",
-          `Claim "${claimId}" is internal_only and may not ground rendered resume content.`,
-          `skill:${skill}`
-        ));
+      } else {
+        const disclosureIssue = claimDisclosureIssue({
+          claimId,
+          authorization: renderAuthorization(claim),
+          location: `skill:${skill}`,
+        });
+        if (disclosureIssue) {
+          issues.push(disclosureIssue);
+        }
       }
     }
     const skillEvidence = mapping.claimIds
@@ -897,13 +931,16 @@ export function validateResumeClaims({
       issues.push(issue("error", "unknown_claim", `Summary claim "${claimId}" does not exist.`, "summary"));
     } else if (claim.status !== "verified") {
       issues.push(issue("error", "unverified_claim", `Summary claim "${claimId}" is ${claim.status}.`, "summary"));
-    } else if (claim.disclosure === "internal_only") {
-      issues.push(issue(
-        "error",
-        "confidential_claim_rendered",
-        `Summary claim "${claimId}" is internal_only and may not ground rendered resume content.`,
-        "summary"
-      ));
+    } else {
+      const disclosureIssue = claimDisclosureIssue({
+        claimId,
+        authorization: renderAuthorization(claim),
+        location: "summary",
+        subject: "Summary claim",
+      });
+      if (disclosureIssue) {
+        issues.push(disclosureIssue);
+      }
     }
   }
 
@@ -970,6 +1007,22 @@ export function validateResumeClaims({
       `ATS title contains unsupported skills: ${unsupportedTitleTerms.join(", ")}.`,
       "ats_title"
     ));
+  }
+
+  for (const mapping of resume.provenance?.headline || []) {
+    for (const claimId of mapping.claimIds || []) {
+      const claim = claimById.get(claimId);
+      if (!claim || claim.status !== "verified") continue;
+      const disclosureIssue = claimDisclosureIssue({
+        claimId,
+        authorization: renderAuthorization(claim),
+        location: "ats_title",
+        subject: "Headline claim",
+      });
+      if (disclosureIssue) {
+        issues.push(disclosureIssue);
+      }
+    }
   }
 
   // Headline diagnostics. Advisory by construction: every signal about a

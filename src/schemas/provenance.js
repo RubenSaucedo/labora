@@ -32,7 +32,7 @@ export const ZClaim = z.object({
   // `externalSources`. `internal_only` claims may inform strategy but never render.
   disclosure: z
     .enum(["public", "internal_generalizable", "internal_only"])
-    .default("public"),
+    .optional(),
   externalFact: z.string().default(""),
   externalSources: z.array(ZSourceReference).default([]),
 }).strict();

@@ -24,6 +24,7 @@
 // Imports Node builtins and dependency-free labora sources only, so headline
 // analysis runs on a machine where nothing is installed.
 import { canonicalSkillsInText } from "./skill-aliases.js";
+import { renderAuthorization } from "./disclosure.js";
 
 const SEPARATOR = /\s*(?:[,|/·•]|—|–|(?:\s-\s))\s*/;
 
@@ -76,8 +77,13 @@ export function classifySegments(atsTitle, { targetRole = "", jobTitle = "" } = 
   return { positioning, qualifiers };
 }
 
-const claimIsUsable = (claim) =>
-  Boolean(claim) && claim.status === "verified" && claim.disclosure !== "internal_only";
+const claimIsUsable = (claim) => {
+  if (!claim || claim.status !== "verified") return false;
+  const authorization = renderAuthorization(claim);
+  if (authorization === "authorized") return true;
+  if (authorization === "requires_generalization") return Boolean(claim.externalFact);
+  return false;
+};
 
 const renderableFact = (claim) => (claim?.externalFact ? claim.externalFact : claim?.fact || "");
 

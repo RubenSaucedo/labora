@@ -145,7 +145,7 @@ test("ledger support clears the collision", () => {
     targetRole: "Software Engineer",
     resume: { provenance: { headline: [{ term: "Workflows", claimIds: ["c1"] }] } },
     ledger: {
-      claims: [{ id: "c1", fact: "Built durable execution workflows.", status: "verified" }],
+      claims: [{ id: "c1", fact: "Built durable execution workflows.", status: "verified", disclosure: "public" }],
     },
     jobSpec: workflowsSpec,
   });
@@ -177,7 +177,7 @@ test("a term the posting never uses is neutral information, not a defect", () =>
     atsTitle: "Engineer, Observability",
     targetRole: "Engineer",
     resume: { provenance: { headline: [{ term: "Observability", claimIds: ["c1"] }] } },
-    ledger: { claims: [{ id: "c1", fact: "Owned observability.", status: "verified" }] },
+    ledger: { claims: [{ id: "c1", fact: "Owned observability.", status: "verified", disclosure: "public" }] },
     jobSpec: { title: "Engineer", requirements: [{ id: "r1", severity: "core", text: "Write Go" }] },
   });
   const finding = findings.find((item) => item.code === "headline_term_absent_from_posting");
@@ -211,10 +211,15 @@ test("nothing this module emits can ever block a release", () => {
   assert.ok(everything.every((item) => item.severity !== "error"));
 });
 
-test("run-state goes stale when the headline logic or the job spec changes", () => {
+test("run-state goes stale when disclosure or headline policy changes", () => {
   const source = fs.readFileSync(path.join(pluginRoot, "src", "lib", "run-manifest.js"), "utf8");
-  const stage = source.slice(source.indexOf("validate_claims: {"));
-  const block = stage.slice(0, stage.indexOf("outputs:"));
-  assert.match(block, /headline\.js/, "changed headline logic must invalidate the stage");
-  assert.match(block, /job-spec\.json/, "a re-analysed posting must invalidate the stage");
+  const claimsStage = source.slice(source.indexOf("validate_claims: {"));
+  const claimsBlock = claimsStage.slice(0, claimsStage.indexOf("outputs:"));
+  assert.match(claimsBlock, /headline\.js/, "changed headline logic must invalidate the stage");
+  assert.match(claimsBlock, /job-spec\.json/, "a re-analysed posting must invalidate the stage");
+  assert.match(claimsBlock, /disclosure\.js/, "disclosure policy must invalidate claim validation freshness");
+
+  const formatStage = source.slice(source.indexOf("format: {"));
+  const formatBlock = formatStage.slice(0, formatStage.indexOf("outputs:"));
+  assert.match(formatBlock, /disclosure\.js/, "disclosure policy must invalidate format freshness");
 });

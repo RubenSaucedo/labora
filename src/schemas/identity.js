@@ -24,7 +24,7 @@ export const ZProgressionStep = z.object({
   // the company. Mirrors the claim `fact` / `externalFact` split.
   externalLabel: z.string().default(""),
   date: z.string().default(""),
-  disclosure: z.enum(["public", "internal_generalizable", "internal_only"]).default("public"),
+  disclosure: z.enum(["public", "internal_generalizable", "internal_only"]).optional(),
   claimIds: z.array(z.string()).default([]),
 }).strict();
 

@@ -105,6 +105,17 @@ test("a unit cannot be less confidential than the claims it is built from", () =
   assert.ok(codes(result).includes("unit_disclosure_too_permissive"));
 });
 
+test("an unclassified claim in a unit is surfaced as a warning", () => {
+  const { bank, identity } = fixture([baseUnit({ disclosure: "public" })]);
+  const ledger = read("example", "claims.json");
+  const target = ledger.claims.find((claim) => claim.id === "claim-acme-migration");
+  delete target.disclosure;
+
+  const result = validateAccomplishments({ bank, ledger, identity });
+  assert.equal(result.valid, true);
+  assert.ok(codes(result).includes("unit_claim_disclosure_unclassified"));
+});
+
 test("a unit cannot reference an experience missing from the identity record", () => {
   const result = validateAccomplishments(
     fixture([baseUnit({ experienceId: "nowhere-2099" })])

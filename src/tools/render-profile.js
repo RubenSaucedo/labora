@@ -20,11 +20,15 @@ function shortSource(source) {
   return `${name}${lines}`;
 }
 
+function disclosureLabel(disclosure) {
+  return disclosure || "**unclassified**";
+}
+
 function renderClaim(claim) {
   const source = claim.sources[0];
   const where = source ? ` \`${shortSource(source)}\`` : " _(no source)_";
   const flag = claim.status === "verified" ? "" : ` **[${claim.status}]**`;
-  return `  - \`${claim.id}\`${flag} — ${claim.fact}${where}`;
+  return `  - \`${claim.id}\`${flag} · disclosure: ${disclosureLabel(claim.disclosure)} — ${claim.fact}${where}`;
 }
 
 function renderUnit(unit, claimsById) {
@@ -208,7 +212,7 @@ export function renderProfile(personaName, generatedDir, personaRoot = null) {
     for (const step of role.progression || []) {
       out.push(
         `- ${step.date}: **${step.label}** → renders externally as "${step.externalLabel}" ` +
-          `(${step.disclosure})`,
+          `(${disclosureLabel(step.disclosure)})`,
       );
     }
     if (role.progression?.length) out.push("");

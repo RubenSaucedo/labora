@@ -36,6 +36,21 @@ test("every claim in the ledger appears somewhere in the review", () => {
   assert.deepEqual(missing.map((c) => c.id), [], "claims missing from the review surface");
 });
 
+test("the review prints each claim disclosure and marks unclassified explicitly", () => {
+  const generated = fs.mkdtempSync(path.join(os.tmpdir(), "render-disclosure-"));
+  for (const file of ["identity.json", "claims.json", "accomplishments.json"]) {
+    fs.copyFileSync(path.join(exampleGenerated, file), path.join(generated, file));
+  }
+  const ledger = JSON.parse(fs.readFileSync(path.join(generated, "claims.json"), "utf8"));
+  delete ledger.claims[0].disclosure;
+  fs.writeFileSync(path.join(generated, "claims.json"), JSON.stringify(ledger));
+
+  const markdown = renderProfile("example", generated);
+  assert.match(markdown, /disclosure: public/);
+  assert.match(markdown, /disclosure: \*\*unclassified\*\*/);
+  assert.doesNotMatch(markdown, /\(undefined\)|disclosure:\s*undefined/);
+});
+
 test("groups claims by what kind of source backs them", () => {
   const markdown = renderExample();
   assert.match(markdown, /What backs each claim\?/);
