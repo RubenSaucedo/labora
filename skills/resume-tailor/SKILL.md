@@ -25,12 +25,15 @@ shape only and never ground a fact.
 - Contact stays blank.
 - Preserve stable experience IDs and exact company/role/period values.
 - Copy `progression` verbatim from the identity record for every experience that
-  has it. A multi-year tenure without its promotions reads as stagnation, and
-  promotions are among the strongest signals a resume carries. Never invent,
-  re-date, or re-label a step: an internal ladder token renders through its
-  `externalLabel`, and an `internal_only` step does not render at all. `label`,
-  `externalLabel` and `date` are each checked against the identity record, so
-  rewriting the label that actually prints is rejected rather than rendered.
+  has it. Verified progression can be useful context, but no hiring effect is
+  assumed and low-information nodes are withheld. Never invent, re-date, or
+  re-label a step: an internal ladder token renders through its
+  `externalLabel`, and an `internal_only` step does not render at all. Copy
+  `externalLabelKind` unchanged when present: absent uses conservative lexical
+  filtering, while `scope_change` is an explicit profile-level decision that a
+  verified career jump should remain visible. `label`, `externalLabel`,
+  `externalLabelKind` and `date` are each checked against the identity record,
+  so tailoring cannot promote or suppress a step by rewriting its semantics.
 - Every bullet maps to one or more verified claim IDs.
 - Every displayed skill maps to verified claim IDs and exists in the identity record.
 - Education matches the identity record exactly.

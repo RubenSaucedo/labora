@@ -261,3 +261,24 @@ test("tailoring freshness includes the specialist prompt and writing reference",
     )
   );
 });
+
+test("progression policy participates in every stage that consumes rendered progression", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "progression-state-"));
+  const persona = path.join(root, "data", "personas", "example");
+  const app = path.join(persona, "applications", "job");
+  const definitions = stageDefinitions({
+    personaRoot: persona,
+    applicationDir: app,
+    style: 1,
+  });
+
+  for (const stage of ["format", "validate_claims", "validate_artifact"]) {
+    const dependencies = definitions[stage].dependencies.map((dependency) =>
+      dependency.split(path.sep).join("/")
+    );
+    assert.ok(
+      dependencies.some((dependency) => dependency.endsWith("/src/lib/progression.js")),
+      `${stage} must go stale when progression policy changes`
+    );
+  }
+});

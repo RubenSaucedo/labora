@@ -15,14 +15,23 @@ export const ZBlankContact = ZContact.refine(
   "Persisted resume contact fields must remain blank; inject contact only during rendering."
 );
 
-// A promotion or scope change inside one employer. Kept structured so a long
-// tenure does not read as stagnation, and so an internal ladder token can be
-// withheld from rendering without dropping the progression itself.
+// A verified promotion or scope change inside one employer. Kept structured so
+// presentation policy and disclosure can change without dropping the fact or
+// its provenance from the identity spine.
 export const ZProgressionStep = z.object({
   label: z.string().min(1),
   // Rendered instead of `label` when the internal token means nothing outside
   // the company. Mirrors the claim `fact` / `externalFact` split.
   externalLabel: z.string().default(""),
+  // Optional presentation semantics. Absent uses conservative lexical
+  // filtering. `scope_change` explicitly preserves a verified career jump when
+  // no externally meaningful title is available.
+  externalLabelKind: z.enum([
+    "real_title",
+    "scope_change",
+    "generic",
+    "none",
+  ]).optional(),
   date: z.string().default(""),
   disclosure: z.enum(["public", "internal_generalizable", "internal_only"]).optional(),
   claimIds: z.array(z.string()).default([]),

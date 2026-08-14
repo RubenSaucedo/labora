@@ -29,10 +29,16 @@ locations, education, projects, certifications and awards.
 - Assign stable kebab-case experience IDs such as
   `microsoft-principal-engineer-2022`; preserve them across rebuilds.
 - Use only verified facts. Ambiguous OCR (`[sic?]`) is not usable.
-- Record promotions and scope changes in `experience[].progression[]` so a long
-  tenure does not read as stagnation. Each step is claim-backed. When the
-  internal ladder token means nothing outside the company, put it in `label` and
-  give a renderable `externalLabel`.
+- Record verified promotions and scope changes in `experience[].progression[]`.
+  Each step is claim-backed. When the internal ladder token means nothing
+  outside the company, put it in `label` and give an externally safe
+  `externalLabel`.
+- Leave `externalLabelKind` absent by default. The formatter conservatively
+  suppresses known generic placeholders and labels that duplicate the current
+  role. Set it to `scope_change` only when evidence establishes a meaningful
+  career jump that deserves visibility but no externally meaningful title is
+  available. Use `generic` or `none` to explicitly suppress unusual wording;
+  never classify a routine event as a jump to make the resume sound stronger.
 - Any record carrying composed prose must name the claims that prose was written
   from, in `claimIds`. This applies to `projects[].description`,
   `projects[].highlights[]` and `awards_or_contributions[].description`.

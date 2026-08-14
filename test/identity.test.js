@@ -126,7 +126,7 @@ test("shipped identity records are 4.0 and carry no pre-baked resume", () => {
   }
 });
 
-test("progression is retained so a long tenure does not read as stagnation", (t) => {
+test("verified progression remains in the identity spine", (t) => {
   if (!hasPersona("ruben")) return t.skip("ruben is private data and is not present");
   const identity = read("ruben", "identity.json");
   const microsoft = identity.experience.find((entry) => entry.id === "microsoft-software-engineer-2020");

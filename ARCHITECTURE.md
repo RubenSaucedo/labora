@@ -185,10 +185,14 @@ The identity spine (schema 4.0): contact placeholders, employers, roles,
 periods, claim-backed `experience[].progression[]`, education, projects,
 certifications and awards. Nothing in it is tailored.
 
-`progression[]` renders beneath its experience entry as a growth line — two
-promotions at a single employer print as "Promoted twice (2021, 2024)". Repeated
-external labels collapse into a count because "Promoted 2021 → Promoted 2024"
-states the same verified facts in a form nobody scans for. It is gated exactly
+`progression[]` may render beneath its experience entry when at least two
+externally legible events remain. By default the formatter suppresses known
+generic placeholders, labels duplicating the experience heading, and
+low-information lines. A profile may explicitly classify verified career jumps
+as `externalLabelKind: "scope_change"` when no meaningful external title is
+available; repeated jumps then collapse to "Promoted twice (2021, 2024)".
+This is a product presentation policy, not a claim that promotion lines improve
+hiring outcomes. Progression is gated exactly
 like a bullet: the step must exist in the identity spine, carry verified
 disclosable claims, and supply an `externalLabel` when the internal token is not
 meaningful outside the company. An `internal_only` step never renders; a step
@@ -196,11 +200,12 @@ with no disclosure and an `internal_generalizable` step with no external label
 are withheld from rendering and surfaced by validation.
 
 A step is located in the spine by `label`, but `label` is not necessarily what
-prints — `formatProgression` substitutes `externalLabel` whenever one is set, and
-prints `date` beside it. So `externalLabel` and `date` are each required to match
-the identity record (`progression_identity_changed`). Checking `label` alone left
-the rendered title and year free to claim anything while the step still resolved
-to a real, claim-backed promotion.
+prints — `formatProgression` substitutes `externalLabel` whenever one is set,
+applies optional `externalLabelKind`, and prints `date` beside it. So
+`externalLabel`, `externalLabelKind`, and `date` are each required to match the
+identity record (`progression_identity_changed`). Checking `label` alone would
+leave rendered wording, visibility semantics, and year free to drift while the
+step still resolved to a real, claim-backed promotion.
 
 Composed prose in the spine carries explicit provenance in `claimIds`:
 `projects[].description`, `projects[].highlights[]` and

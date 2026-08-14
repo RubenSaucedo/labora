@@ -9,10 +9,30 @@ import { validateResumeClaims } from "../src/lib/validate-resume-claims.js";
 
 const PERSONA_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "progression-persona-"));
 
-test("promotions inside one tenure render as a growth signal", () => {
+test("generic promotion placeholders are suppressed by default", () => {
   const line = formatProgression([
     { label: "Level 60", externalLabel: "Promoted", date: "2021", disclosure: "internal_generalizable" },
     { label: "L62", externalLabel: "Promoted", date: "2024", disclosure: "internal_generalizable" },
+  ]);
+  assert.equal(line, "");
+});
+
+test("verified career jumps can explicitly preserve a promotion signal", () => {
+  const line = formatProgression([
+    {
+      label: "Level 60",
+      externalLabel: "Promoted",
+      externalLabelKind: "scope_change",
+      date: "2021",
+      disclosure: "internal_generalizable",
+    },
+    {
+      label: "L62",
+      externalLabel: "Promoted",
+      externalLabelKind: "scope_change",
+      date: "2024",
+      disclosure: "internal_generalizable",
+    },
   ]);
   assert.equal(line, "Promoted twice (2021, 2024)");
   assert.ok(!line.includes("L62"), "internal ladder token must never render");
@@ -25,7 +45,29 @@ test("distinct titles render as a progression chain", () => {
       { label: "Engineer", date: "2020", disclosure: "public" },
       { label: "Senior Engineer", date: "2023", disclosure: "public" },
     ]),
-    "Engineer 2020 \u2192 Senior Engineer 2023",
+    "Engineer, 2020 | Senior Engineer, 2023",
+  );
+});
+
+test("generic and heading-duplicate nodes leave no progression line", () => {
+  assert.equal(
+    formatProgression([
+      { label: "Internal A", externalLabel: "Promoted", date: "2020", disclosure: "internal_generalizable" },
+      { label: "Internal B", externalLabel: "Senior Engineer", date: "2022", disclosure: "internal_generalizable" },
+      { label: "Internal C", externalLabel: "Promoted", date: "2023", disclosure: "internal_generalizable" },
+    ], "Senior Engineer"),
+    "",
+  );
+});
+
+test("real historical titles render while the current heading duplicate is removed", () => {
+  assert.equal(
+    formatProgression([
+      { label: "Engineer", date: "2020", disclosure: "public" },
+      { label: "Senior Engineer", date: "2022", disclosure: "public" },
+      { label: "Lead Engineer", date: "2024", disclosure: "public" },
+    ], "Lead Engineer"),
+    "Engineer, 2020 | Senior Engineer, 2022",
   );
 });
 
@@ -145,8 +187,9 @@ test("a correctly grounded promotion passes the gate", () => {
   const found = codes([
     { label: "L62", externalLabel: "Promoted", date: "2024", disclosure: "internal_generalizable", claimIds: ["claim-l62"] },
   ]);
-  const progressionIssues = found.filter((c) => c.startsWith("progression") || c === "unmapped_progression");
-  assert.deepEqual(progressionIssues, []);
+  assert.ok(found.includes("progression_generic_placeholder"));
+  assert.ok(found.includes("progression_low_information"));
+  assert.ok(!found.includes("unmapped_progression"));
 });
 
 // A step is matched to the identity record by `label`, but `formatProgression`
@@ -171,4 +214,44 @@ test("a promotion whose date was rewritten is rejected", () => {
     found.includes("progression_identity_changed"),
     `an invented promotion date must be rejected, got ${found.join(", ")}`,
   );
+});
+
+test("a promotion whose optional render semantics were rewritten is rejected", () => {
+  const input = gateFixture([{
+    label: "L62",
+    externalLabel: "Promoted",
+    externalLabelKind: "scope_change",
+    date: "2024",
+    disclosure: "internal_generalizable",
+    claimIds: ["claim-l62"],
+  }]);
+  const result = validateResumeClaims(input);
+  assert.ok(
+    result.issues.some((entry) => entry.code === "progression_identity_changed"),
+    `render semantics must match the identity record, got ${JSON.stringify(result.issues)}`,
+  );
+});
+
+test("legibility findings stay warnings rather than progression errors", () => {
+  const result = validateResumeClaims(gateFixture([
+    { label: "L62", externalLabel: "Promoted", date: "2024", disclosure: "internal_generalizable", claimIds: ["claim-l62"] },
+  ]));
+  const findings = result.issues.filter((entry) => entry.code.startsWith("progression_"));
+  assert.ok(findings.some((entry) => entry.code === "progression_generic_placeholder"));
+  assert.ok(findings.some((entry) => entry.code === "progression_low_information"));
+  assert.ok(findings.every((entry) => entry.severity === "warning"));
+});
+
+test("a progression node duplicating the role heading produces a warning", () => {
+  const input = gateFixture([{
+    label: "L62",
+    externalLabel: "SOFTWARE ENGINEER 2",
+    date: "2024",
+    disclosure: "internal_generalizable",
+    claimIds: ["claim-l62"],
+  }]);
+  input.identity.experience[0].progression = structuredClone(input.resume.experience[0].progression);
+  const result = validateResumeClaims(input);
+  const finding = result.issues.find((entry) => entry.code === "progression_duplicates_heading");
+  assert.equal(finding?.severity, "warning");
 });
