@@ -7,6 +7,7 @@ import { analyzeHeadline } from "./headline.js";
 import { renderAuthorization } from "./disclosure.js";
 import { validateObservations } from "./validate-observations.js";
 import { loadManifest, resolveProvenance } from "./evidence-provenance.js";
+import { analyzeProgression } from "./progression.js";
 
 const SUPPORT_STOPWORDS = new Set([
   "a", "an", "and", "at", "by", "for", "from", "in", "into", "of", "on",
@@ -942,11 +943,11 @@ export function validateResumeClaims({
 
       // The step is matched to the identity record by `label`, but `label` is
       // not what prints: `formatProgression` renders `externalLabel` in its
-      // place whenever one is set, alongside `date`. Checking only `label`
-      // leaves the rendered title and year free to say anything while the step
-      // still resolves to a real, claim-backed promotion. Both must match the
-      // identity record for the same reason company, role and period do.
-      for (const field of ["externalLabel", "date"]) {
+      // place whenever one is set, applies `externalLabelKind`, and includes
+      // `date`. Checking only `label` leaves wording, visibility semantics, and
+      // year free to drift while the step still resolves to a real,
+      // claim-backed promotion.
+      for (const field of ["externalLabel", "externalLabelKind", "date"]) {
         if (normalize(step[field] || "") !== normalize(coreStep[field] || "")) {
           issues.push(issue(
             "error",
@@ -957,6 +958,35 @@ export function validateResumeClaims({
         }
       }
 
+    }
+
+    const progressionAnalysis = analyzeProgression(entry.progression, entry.role);
+    for (const finding of progressionAnalysis.findings) {
+      const findingLocation = finding.stepIndex == null
+        ? `${location}.progression`
+        : `${location}.progression[${finding.stepIndex}]`;
+      if (finding.code === "progression_generic_placeholder") {
+        issues.push(issue(
+          "warning",
+          finding.code,
+          `Generic progression label "${finding.label}" is suppressed. If verified career jumps are important, classify the step as "scope_change"; otherwise leave it suppressed.`,
+          findingLocation
+        ));
+      } else if (finding.code === "progression_duplicates_heading") {
+        issues.push(issue(
+          "warning",
+          finding.code,
+          `Progression label "${finding.label}" duplicates the experience heading and is suppressed. Use a distinct verified title or scope-change label if one exists.`,
+          findingLocation
+        ));
+      } else if (finding.code === "progression_low_information") {
+        issues.push(issue(
+          "warning",
+          finding.code,
+          "Fewer than two information-bearing progression events remain, so the line is omitted. Add verified external wording only when it changes what a reader can understand.",
+          findingLocation
+        ));
+      }
     }
 
     for (const [bulletIndex, bullet] of (entry.bullets || []).entries()) {

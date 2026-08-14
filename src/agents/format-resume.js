@@ -1,6 +1,6 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
 import fs from "fs/promises";
-import { renderAuthorization } from "../lib/disclosure.js";
+import { analyzeProgression } from "../lib/progression.js";
 
 /**
  * Resume Formatter (JSON -> DOCX)
@@ -94,45 +94,11 @@ function safeJoin(parts, sep = " | ") {
   return parts.filter(isNonEmptyString).join(sep);
 }
 
-// A long tenure at one employer reads as stagnation unless the promotions inside
-// it are visible. Internal ladder tokens ("L62") mean nothing to an outside
-// reader and may be confidential, so rendering is allowlisted: public steps
-// render directly, generalizable steps render only through `externalLabel`, and
-// unclassified/internal-only steps are withheld.
-export function formatProgression(progression) {
-  if (!Array.isArray(progression)) return "";
-  const steps = progression
-    .map((step) => {
-      if (!step) return null;
-      const authorization = renderAuthorization(step);
-      if (authorization === "withheld_confidential" || authorization === "withheld_unclassified") {
-        return null;
-      }
-      if (authorization === "requires_generalization" && !isNonEmptyString(step.externalLabel)) {
-        return null;
-      }
-      return {
-        label: (isNonEmptyString(step.externalLabel) ? step.externalLabel : step.label || "").trim(),
-        date: isNonEmptyString(step.date) ? step.date.trim() : "",
-      };
-    })
-    .filter((step) => step && isNonEmptyString(step.label));
-  if (steps.length === 0) return "";
-
-  // Two promotions generalized to the same external label would otherwise read
-  // "Promoted 2021 -> Promoted 2024". Collapsing repeats states the same
-  // verified facts in the form a reader actually scans for: how many, and when.
-  const labels = new Set(steps.map((step) => step.label));
-  const dates = steps.map((step) => step.date).filter(isNonEmptyString);
-  if (labels.length !== 0 && labels.size === 1 && steps.length > 1 && dates.length === steps.length) {
-    const [label] = [...labels];
-    const times = steps.length === 2 ? "twice" : `${steps.length} times`;
-    return `${label} ${times} (${dates.join(", ")})`;
-  }
-
-  return steps
-    .map((step) => (step.date ? `${step.label} ${step.date}` : step.label))
-    .join(" \u2192 ");
+// Progression is useful only when its external wording tells a reader what
+// changed. Shared analysis applies disclosure, conservative lexical filtering,
+// heading de-duplication, and the optional verified scope-change override.
+export function formatProgression(progression, role = "") {
+  return analyzeProgression(progression, role).line;
 }
 
 /**
@@ -363,7 +329,7 @@ ul { padding-left: 20px; }
       const titleLine = isNonEmptyString(role) && isNonEmptyString(company) ? `${role} at ${company}` : safeJoin([role, company], " at ");
       const subLine = loc ? `${titleLine} | ${dates} | ${loc}` : (dates ? `${titleLine} | ${dates}` : titleLine);
       if (isNonEmptyString(subLine)) parts.push(`<p class="sub">${escapeHtml(subLine)}</p>`);
-      const progressionLine = formatProgression(exp?.progression);
+      const progressionLine = formatProgression(exp?.progression, role);
       if (progressionLine) parts.push(`<p><em>${escapeHtml(progressionLine)}</em></p>`);
       const highlights = Array.isArray(exp?.highlights) ? exp.highlights : [];
       if (highlights.length) {
@@ -502,7 +468,7 @@ export function resumeJsonToMarkdown(resumeJson) {
         exp?.location
       ], " | ");
       if (isNonEmptyString(details)) lines.push(`*${markdownText(details)}*`);
-      const progressionLine = formatProgression(exp?.progression);
+      const progressionLine = formatProgression(exp?.progression, role);
       if (progressionLine) lines.push(`*${markdownText(progressionLine)}*`);
       const highlights = Array.isArray(exp?.highlights) ? exp.highlights : [];
       for (const highlight of highlights) {
@@ -637,7 +603,7 @@ export async function formatResumeToDocxBuffer({
         : safeJoin([role, company], " at ");
       const subLine = loc ? `${titleLine} | ${dates} | ${loc}` : (dates ? `${titleLine} | ${dates}` : titleLine);
       if (isNonEmptyString(subLine)) docChildren.push(buildSubheading(style, subLine));
-      const progressionLine = formatProgression(exp?.progression);
+      const progressionLine = formatProgression(exp?.progression, role);
       if (progressionLine) docChildren.push(buildBodyLine(style, progressionLine));
       const highlights = Array.isArray(exp?.highlights) ? exp.highlights : [];
       for (const h of highlights) {

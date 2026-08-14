@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   agent2ResumeToFormatterJson,
   formatResumeToDocxBuffer,
+  resumeJsonToHtml,
   resumeJsonToMarkdown,
 } from "../src/agents/format-resume.js";
 import { parseContact, injectContact } from "../src/lib/profile-contact.js";
@@ -169,4 +170,47 @@ test("requires every duplicate rendered field occurrence", () => {
   });
   assert.equal(result.valid, false);
   assert.equal(result.missingFields.some((field) => field.includes("highlights[1]")), true);
+});
+
+test("all formatter surfaces suppress generic progression unless career jumps are explicit", async () => {
+  const resume = tailoredResume();
+  resume.experience[0].role = "Senior Engineer";
+  resume.experience[0].progression = [
+    {
+      label: "Internal A",
+      externalLabel: "Promoted",
+      date: "2020",
+      disclosure: "internal_generalizable",
+    },
+    {
+      label: "Internal B",
+      externalLabel: "Senior Engineer",
+      date: "2022",
+      disclosure: "internal_generalizable",
+    },
+    {
+      label: "Internal C",
+      externalLabel: "Promoted",
+      date: "2023",
+      disclosure: "internal_generalizable",
+    },
+  ];
+  const formatter = agent2ResumeToFormatterJson(injectContact(resume, {
+    name: "Jane Example",
+    email: "jane@example.com",
+    phone: "+1 555-123-4567",
+  }));
+  const markdown = resumeJsonToMarkdown(formatter);
+  const html = resumeJsonToHtml(formatter);
+  const docx = await formatResumeToDocxBuffer({ resumeJson: formatter, style: 1 });
+  const docxText = await extractTextFromDocx({ buffer: docx });
+
+  for (const rendered of [markdown, html, docxText]) {
+    assert.doesNotMatch(rendered, /Promoted 2020/);
+    assert.doesNotMatch(rendered, /Senior Engineer, 2022/);
+  }
+
+  formatter.experience[0].progression[0].externalLabelKind = "scope_change";
+  formatter.experience[0].progression[2].externalLabelKind = "scope_change";
+  assert.match(resumeJsonToMarkdown(formatter), /Promoted twice \(2020, 2023\)/);
 });
