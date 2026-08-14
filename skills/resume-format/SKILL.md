@@ -1,6 +1,6 @@
 ---
 name: resume-format
-description: "Deterministically validates and injects private contact data, renders ATS-safe DOCX and optional PDF, and verifies renderer-input field recall and section order. Never rewrites resume content."
+description: "Deterministically validates and injects private contact data, renders ATS-safe DOCX, an editable Markdown review companion, and optional PDF, then verifies delivery-artifact field recall and section order. Never rewrites resume content."
 tools: [bash, view, glob, grep]
 user-invocable: true
 argument-hint: "<persona> <job-slug> [--style N]"
@@ -9,6 +9,22 @@ argument-hint: "<persona> <job-slug> [--style N]"
 # resume-format
 
 Load `resume-conventions`. Formatting never edits content.
+
+Render the Markdown review companion:
+
+```bash
+labora format-markdown \
+  <application>/resume.json \
+  <application>/final-resume-style-<N>.md \
+  --job <application>/job.md \
+  --contact <persona>/profile/contact.md
+```
+
+The Markdown file is a review surface, not a delivery artifact or grounding
+source. A human may edit it to propose wording, but the edit makes the format
+stage stale. Reconcile supported changes into `resume.json`, rerun claim
+validation, and regenerate every artifact. Judges and the release gate continue
+to accept only DOCX/PDF.
 
 Render DOCX:
 

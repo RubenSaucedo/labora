@@ -140,9 +140,11 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
   const judges = path.join(applicationDir, "judges");
   const validations = path.join(applicationDir, "validations");
   const docx = path.join(applicationDir, `final-resume-style-${style}.docx`);
+  const markdown = path.join(applicationDir, `final-resume-style-${style}.md`);
   const pdf = path.join(applicationDir, `final-resume-style-${style}.pdf`);
   const previews = path.join(applicationDir, "previews");
-  const renderedArtifacts = [docx, ...(fs.existsSync(pdf) ? [pdf] : [])];
+  const deliveryArtifacts = [docx, ...(fs.existsSync(pdf) ? [pdf] : [])];
+  const renderedArtifacts = [...deliveryArtifacts, markdown];
 
   return {
     persona: {
@@ -227,6 +229,7 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
         path.join(pluginRoot, "src", "agents", "format-resume.js"),
         path.join(pluginRoot, "src", "lib", "disclosure.js"),
         path.join(pluginRoot, "src", "tools", "format-docx.js"),
+        path.join(pluginRoot, "src", "tools", "format-markdown.js"),
         path.join(pluginRoot, "src", "tools", "format-pdf.js"),
         path.join(pluginRoot, "src", "tools", "render-artifact-preview.js"),
         path.join(pluginRoot, "src", "lib", "profile-contact.js"),
@@ -254,7 +257,7 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
       dependencies: [
         path.join(applicationDir, "resume.json"),
         path.join(profile, "contact.md"),
-        ...renderedArtifacts,
+        ...deliveryArtifacts,
         path.join(pluginRoot, "src", "lib", "validate-artifact.js"),
         path.join(pluginRoot, "src", "tools", "validate-artifact.js"),
         path.join(pluginRoot, "src", "agents", "format-resume.js"),
@@ -264,7 +267,7 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
     },
     judge_ats: {
       dependencies: [
-        ...renderedArtifacts,
+        ...deliveryArtifacts,
         path.join(applicationDir, "job.md"),
         path.join(applicationDir, "ats-results.json"),
         path.join(pluginRoot, "skills", "resume-conventions", "SKILL.md"),
@@ -280,7 +283,7 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
     },
     judge_engineer: {
       dependencies: [
-        ...renderedArtifacts,
+        ...deliveryArtifacts,
         path.join(applicationDir, "job.md"),
         path.join(pluginRoot, "skills", "resume-conventions", "SKILL.md"),
         path.join(pluginRoot, "agents", "judge-engineer.agent.md"),
@@ -295,7 +298,7 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
     },
     judge_hr: {
       dependencies: [
-        ...renderedArtifacts,
+        ...deliveryArtifacts,
         path.join(applicationDir, "job.md"),
         path.join(pluginRoot, "skills", "resume-conventions", "SKILL.md"),
         path.join(pluginRoot, "agents", "judge-hr.agent.md"),

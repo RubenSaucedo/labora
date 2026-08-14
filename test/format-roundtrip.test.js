@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   agent2ResumeToFormatterJson,
   formatResumeToDocxBuffer,
+  resumeJsonToMarkdown,
 } from "../src/agents/format-resume.js";
 import { parseContact, injectContact } from "../src/lib/profile-contact.js";
 import { validateRenderedArtifact } from "../src/lib/validate-artifact.js";
@@ -82,6 +83,48 @@ test("injects contact and preserves fields through DOCX round trip", async () =>
   });
   assert.equal(withoutPortfolio.valid, false);
   assert.equal(withoutPortfolio.missingFields.includes("header.portfolio"), true);
+});
+
+test("renders a deterministic Markdown review companion without internal metadata", () => {
+  const contact = parseContact(`## Engineer data
+- Name: Jane Example
+- Phone: +1 555-123-4567
+- Email: jane@example.com
+- Address: Seattle, WA
+- Web: https://jane.example.test`);
+  const formatter = agent2ResumeToFormatterJson(injectContact(tailoredResume(), contact));
+  const first = resumeJsonToMarkdown(formatter);
+  const second = resumeJsonToMarkdown(formatter);
+  const validation = validateRenderedArtifact({ resume: formatter, extractedText: first });
+
+  assert.equal(first, second);
+  assert.equal(validation.valid, true);
+  assert.equal(validation.fieldRecallPercent, 100);
+  assert.match(first, /^<!-- Labora review companion\./);
+  assert.match(first, /# Jane Example/);
+  assert.match(first, /https:\/\/jane\.example\.test/);
+  assert.match(first, /- Built a reliable React application/);
+  assert.doesNotMatch(first, /secret-keyword/);
+  assert.doesNotMatch(first, /keywords_mapped/);
+});
+
+test("escapes active Markdown and HTML from dynamic resume text", () => {
+  const resume = tailoredResume();
+  resume.summary = "Built [systems](https://example.invalid) and <img src=x> safely.";
+  resume.experience[0].bullets = ["![remote](https://example.invalid/pixel)"];
+  const formatter = agent2ResumeToFormatterJson(injectContact(resume, {
+    name: "Jane Example",
+    email: "jane@example.com",
+    phone: "+1 555-123-4567",
+  }));
+  const markdown = resumeJsonToMarkdown(formatter);
+  const validation = validateRenderedArtifact({ resume: formatter, extractedText: markdown });
+
+  assert.equal(validation.valid, true);
+  assert.doesNotMatch(markdown, /!\[remote\]/);
+  assert.doesNotMatch(markdown, /(^|[^\\])<img/);
+  assert.match(markdown, /!\\\[remote\\\]/);
+  assert.match(markdown, /\\<img src=x\\>/);
 });
 
 test("fails when a rendered project, skill, or certification is missing", () => {

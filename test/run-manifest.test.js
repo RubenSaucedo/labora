@@ -148,6 +148,7 @@ test("propagates artifact staleness into judges and the quality gate", () => {
     [path.join(app, "resume.json")]: "{}",
     [path.join(app, "ats-results.json")]: "{}",
     [path.join(app, "final-resume-style-1.docx")]: "docx-v1",
+    [path.join(app, "final-resume-style-1.md")]: "markdown-v1",
     [path.join(app, "final-resume-style-1.pdf")]: "pdf-v1",
     [path.join(app, "validations", "claims.json")]: "{}",
     [path.join(app, "validations", "strategy.json")]: "{}",
@@ -165,8 +166,15 @@ test("propagates artifact staleness into judges and the quality gate", () => {
     recordStage({ applicationDir: app, stage, style: 1 });
   }
 
+  fs.writeFileSync(path.join(app, "final-resume-style-1.md"), "manual edit");
+  let status = stageStatus({ applicationDir: app, style: 1 });
+  assert.equal(status.stages.format.fresh, false);
+  assert.equal(status.stages.validate_artifact.fresh, false);
+  assert.equal(status.stages.quality_gate.fresh, false);
+
+  fs.writeFileSync(path.join(app, "final-resume-style-1.md"), "markdown-v1");
   fs.unlinkSync(path.join(app, "final-resume-style-1.pdf"));
-  const status = stageStatus({ applicationDir: app, style: 1 });
+  status = stageStatus({ applicationDir: app, style: 1 });
   assert.equal(status.stages.format.fresh, false);
   assert.equal(status.stages.judge_ats.fresh, false);
   assert.equal(status.stages.quality_gate.fresh, false);

@@ -34,6 +34,7 @@ function buildApp() {
     [path.join(app, "resume.json")]: "{}",
     [path.join(app, "ats-results.json")]: "{}",
     [path.join(app, "final-resume-style-1.docx")]: "docx-v1",
+    [path.join(app, "final-resume-style-1.md")]: "markdown-v1",
     [path.join(app, "final-resume-style-1.pdf")]: "pdf-v1",
     [path.join(app, "validations", "claims.json")]: "{}",
     [path.join(app, "validations", "strategy.json")]: "{}",
