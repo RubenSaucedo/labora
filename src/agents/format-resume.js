@@ -94,6 +94,11 @@ function safeJoin(parts, sep = " | ") {
   return parts.filter(isNonEmptyString).join(sep);
 }
 
+function experienceCompanyLine(exp, dateSeparator = " – ") {
+  const dates = safeJoin([exp?.startDate, exp?.endDate], dateSeparator);
+  return safeJoin([exp?.company, dates, exp?.location], " | ");
+}
+
 // Progression is useful only when its external wording tells a reader what
 // changed. Shared analysis applies disclosure, conservative lexical filtering,
 // heading de-duplication, and the optional verified scope-change override.
@@ -126,8 +131,8 @@ export function formatProgression(progression, role = "") {
  *    company: string,
  *    role: string,
  *    location?: string,
- *    startDate?: string,
- *    endDate?: string,
+ *    startDate?: string, // employer-tenure start or complete period
+ *    endDate?: string,   // employer-tenure end
  *    highlights?: string[]
  *  }>,
  *  projects?: Array<{
@@ -169,6 +174,13 @@ function buildSubheading(style, text) {
 function buildBodyLine(style, text) {
   return new Paragraph({
     children: [run(style, { text, size: style.sizeBody })],
+    spacing: { before: 0, after: style.spacingAfterBody }
+  });
+}
+
+function buildRoleLine(style, text) {
+  return new Paragraph({
+    children: [run(style, { text, bold: true, size: style.sizeBody })],
     spacing: { before: 0, after: style.spacingAfterBody }
   });
 }
@@ -322,13 +334,10 @@ ul { padding-left: 20px; }
   if (Array.isArray(experience) && experience.length) {
     parts.push(`<p class="section">Experience</p>`);
     for (const exp of experience) {
-      const company = exp?.company ?? "";
       const role = exp?.role ?? "";
-      const dates = safeJoin([exp?.startDate, exp?.endDate], " – ");
-      const loc = exp?.location ?? "";
-      const titleLine = isNonEmptyString(role) && isNonEmptyString(company) ? `${role} at ${company}` : safeJoin([role, company], " at ");
-      const subLine = loc ? `${titleLine} | ${dates} | ${loc}` : (dates ? `${titleLine} | ${dates}` : titleLine);
-      if (isNonEmptyString(subLine)) parts.push(`<p class="sub">${escapeHtml(subLine)}</p>`);
+      const companyLine = experienceCompanyLine(exp);
+      if (isNonEmptyString(companyLine)) parts.push(`<p class="sub">${escapeHtml(companyLine)}</p>`);
+      if (isNonEmptyString(role)) parts.push(`<p><strong>${escapeHtml(role.trim())}</strong></p>`);
       const progressionLine = formatProgression(exp?.progression, role);
       if (progressionLine) parts.push(`<p><em>${escapeHtml(progressionLine)}</em></p>`);
       const highlights = Array.isArray(exp?.highlights) ? exp.highlights : [];
@@ -457,17 +466,10 @@ export function resumeJsonToMarkdown(resumeJson) {
   if (Array.isArray(experience) && experience.length) {
     section("Experience");
     for (const exp of experience) {
-      const company = exp?.company ?? "";
       const role = exp?.role ?? "";
-      const titleLine = isNonEmptyString(role) && isNonEmptyString(company)
-        ? `${role} at ${company}`
-        : safeJoin([role, company], " at ");
-      if (isNonEmptyString(titleLine)) lines.push(`### ${markdownText(titleLine)}`);
-      const details = safeJoin([
-        safeJoin([exp?.startDate, exp?.endDate], " - "),
-        exp?.location
-      ], " | ");
-      if (isNonEmptyString(details)) lines.push(`*${markdownText(details)}*`);
+      const companyLine = experienceCompanyLine(exp, " - ");
+      if (isNonEmptyString(companyLine)) lines.push(`### ${markdownText(companyLine)}`);
+      if (isNonEmptyString(role)) lines.push(`**${markdownText(role.trim())}**`);
       const progressionLine = formatProgression(exp?.progression, role);
       if (progressionLine) lines.push(`*${markdownText(progressionLine)}*`);
       const highlights = Array.isArray(exp?.highlights) ? exp.highlights : [];
@@ -590,19 +592,14 @@ export async function formatResumeToDocxBuffer({
     docChildren.push(buildBodyLine(style, summary.trim()));
   }
 
-  // ---- Experience (Role at Company + dates) ----
+  // ---- Experience (employer tenure, then undated current role) ----
   if (Array.isArray(experience) && experience.length) {
     docChildren.push(buildHeading(style, "Experience"));
     for (const exp of experience) {
-      const company = exp?.company ?? "";
       const role = exp?.role ?? "";
-      const dates = safeJoin([exp?.startDate, exp?.endDate], " – ");
-      const loc = exp?.location ?? "";
-      const titleLine = isNonEmptyString(role) && isNonEmptyString(company)
-        ? `${role} at ${company}`
-        : safeJoin([role, company], " at ");
-      const subLine = loc ? `${titleLine} | ${dates} | ${loc}` : (dates ? `${titleLine} | ${dates}` : titleLine);
-      if (isNonEmptyString(subLine)) docChildren.push(buildSubheading(style, subLine));
+      const companyLine = experienceCompanyLine(exp);
+      if (isNonEmptyString(companyLine)) docChildren.push(buildSubheading(style, companyLine));
+      if (isNonEmptyString(role)) docChildren.push(buildRoleLine(style, role.trim()));
       const progressionLine = formatProgression(exp?.progression, role);
       if (progressionLine) docChildren.push(buildBodyLine(style, progressionLine));
       const highlights = Array.isArray(exp?.highlights) ? exp.highlights : [];
