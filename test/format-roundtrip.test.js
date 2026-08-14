@@ -172,6 +172,34 @@ test("requires every duplicate rendered field occurrence", () => {
   assert.equal(result.missingFields.some((field) => field.includes("highlights[1]")), true);
 });
 
+test("renders employer tenure separately from the undated current role", async () => {
+  const resume = tailoredResume();
+  resume.experience[0] = {
+    ...resume.experience[0],
+    company: "Example Company",
+    role: "Engineer II",
+    period: "2019-Present",
+  };
+  const formatter = agent2ResumeToFormatterJson(injectContact(resume, {
+    name: "Jane Example",
+    email: "jane@example.com",
+    phone: "+1 555-123-4567",
+  }));
+  const markdown = resumeJsonToMarkdown(formatter);
+  const html = resumeJsonToHtml(formatter);
+  const docx = await formatResumeToDocxBuffer({ resumeJson: formatter, style: 1 });
+  const docxText = await extractTextFromDocx({ buffer: docx });
+
+  assert.match(markdown, /### Example Company \| 2019-Present\n\*\*Engineer II\*\*/);
+  assert.match(html, /<p class="sub">Example Company \| 2019-Present<\/p><p><strong>Engineer II<\/strong><\/p>/);
+  assert.match(docxText, /Example Company \| 2019-Present\s+Engineer II/);
+
+  for (const rendered of [markdown, html, docxText]) {
+    assert.doesNotMatch(rendered, /Engineer II at Example Company/);
+    assert.doesNotMatch(rendered, /Engineer II \| 2019-Present/);
+  }
+});
+
 test("all formatter surfaces suppress generic progression unless career jumps are explicit", async () => {
   const resume = tailoredResume();
   resume.experience[0].role = "Senior Engineer";

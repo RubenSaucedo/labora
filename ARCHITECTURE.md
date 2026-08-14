@@ -182,8 +182,11 @@ that passes grounding is the wording that leaks the internal codename.
 ### `profile/generated/identity.json`
 
 The identity spine (schema 4.0): contact placeholders, employers, roles,
-periods, claim-backed `experience[].progression[]`, education, projects,
-certifications and awards. Nothing in it is tailored.
+employer-tenure periods, claim-backed `experience[].progression[]`, education,
+projects, certifications and awards. Nothing in it is tailored. Formatters
+render the employer and its tenure together, followed by the current role
+without a date; they never borrow the employer start date as the role start
+date. Verified progression dates remain a separate signal.
 
 `progression[]` may render beneath its experience entry when at least two
 externally legible events remain. By default the formatter suppresses known
