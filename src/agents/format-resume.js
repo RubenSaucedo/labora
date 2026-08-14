@@ -432,6 +432,147 @@ ul { padding-left: 20px; }
   return parts.join("");
 }
 
+/**
+ * Build a readable Markdown review companion from the same formatter JSON used
+ * for DOCX and PDF. This is not a delivery artifact or a source of claims.
+ */
+export function resumeJsonToMarkdown(resumeJson) {
+  if (!resumeJson || typeof resumeJson !== "object") return "";
+
+  const markdownText = (value) => String(value ?? "")
+    .replace(/([\\`*_[\]<>&])/g, "\\$1")
+    .replace(/^(\s*)([#>+-]|\d+\.)\s/gm, "$1\\$2 ");
+  const {
+    header = {},
+    summary,
+    skills,
+    experience = [],
+    projects = [],
+    education = [],
+    certifications = [],
+    awards_or_contributions = []
+  } = resumeJson;
+
+  const lines = [
+    "<!-- Labora review companion. Manual edits are not claim-validated; " +
+      "reconcile them into resume.json before regenerating delivery artifacts. -->",
+  ];
+  const blank = () => {
+    if (lines.at(-1) !== "") lines.push("");
+  };
+  const section = (name) => {
+    blank();
+    lines.push(`## ${name}`, "");
+  };
+
+  if (isNonEmptyString(header.name)) lines.push(`# ${markdownText(header.name.trim())}`);
+  if (isNonEmptyString(header.title)) {
+    blank();
+    lines.push(`*${markdownText(header.title.trim())}*`);
+  }
+  const contactParts = [
+    header.location,
+    header.email,
+    header.phone,
+    header.linkedin,
+    header.github,
+    header.portfolio
+  ].filter(isNonEmptyString);
+  if (contactParts.length) {
+    blank();
+    lines.push(contactParts.map(markdownText).join(" | "));
+  }
+
+  if (isNonEmptyString(summary)) {
+    section("Summary");
+    lines.push(markdownText(summary.trim()));
+  }
+
+  if (Array.isArray(experience) && experience.length) {
+    section("Experience");
+    for (const exp of experience) {
+      const company = exp?.company ?? "";
+      const role = exp?.role ?? "";
+      const titleLine = isNonEmptyString(role) && isNonEmptyString(company)
+        ? `${role} at ${company}`
+        : safeJoin([role, company], " at ");
+      if (isNonEmptyString(titleLine)) lines.push(`### ${markdownText(titleLine)}`);
+      const details = safeJoin([
+        safeJoin([exp?.startDate, exp?.endDate], " - "),
+        exp?.location
+      ], " | ");
+      if (isNonEmptyString(details)) lines.push(`*${markdownText(details)}*`);
+      const progressionLine = formatProgression(exp?.progression);
+      if (progressionLine) lines.push(`*${markdownText(progressionLine)}*`);
+      const highlights = Array.isArray(exp?.highlights) ? exp.highlights : [];
+      for (const highlight of highlights) {
+        if (isNonEmptyString(highlight)) lines.push(`- ${markdownText(highlight.trim())}`);
+      }
+      blank();
+    }
+  }
+
+  const skillLines = formatSkillsForDisplay(skills);
+  if (skillLines.length) {
+    section("Skills");
+    lines.push(...skillLines.map(markdownText));
+  }
+
+  if (Array.isArray(education) && education.length) {
+    section("Education");
+    for (const entry of education) {
+      const heading = safeJoin([entry?.school, safeJoin([entry?.degree, entry?.field], ", ")], " | ");
+      if (isNonEmptyString(heading)) lines.push(`### ${markdownText(heading)}`);
+      const details = safeJoin([
+        safeJoin([entry?.startDate, entry?.endDate], " - "),
+        entry?.location
+      ], " | ");
+      if (isNonEmptyString(details)) lines.push(markdownText(details));
+      blank();
+    }
+  }
+
+  if (Array.isArray(projects) && projects.length) {
+    section("Projects");
+    for (const project of projects) {
+      const heading = safeJoin([
+        isNonEmptyString(project?.name) ? project.name.trim() : "Project",
+        project?.link
+      ], " | ");
+      lines.push(`### ${markdownText(heading)}`);
+      if (isNonEmptyString(project?.description)) lines.push(markdownText(project.description.trim()));
+      const highlights = Array.isArray(project?.highlights) ? project.highlights : [];
+      for (const highlight of highlights) {
+        if (isNonEmptyString(highlight)) lines.push(`- ${markdownText(highlight.trim())}`);
+      }
+      blank();
+    }
+  }
+
+  if (Array.isArray(certifications) && certifications.length) {
+    section("Certifications");
+    for (const certification of certifications) {
+      if (isNonEmptyString(certification)) lines.push(`- ${markdownText(certification.trim())}`);
+    }
+  }
+
+  if (Array.isArray(awards_or_contributions) && awards_or_contributions.length) {
+    section("Awards & Contributions");
+    for (const award of awards_or_contributions) {
+      const title = (award && typeof award === "object" ? award.title : String(award)) ?? "";
+      if (!isNonEmptyString(title)) continue;
+      const description = (award && typeof award === "object" ? award.description : "") ?? "";
+      const year = (award && typeof award === "object" ? award.year : "") ?? "";
+      const link = (award && typeof award === "object" ? award.link : "") ?? "";
+      lines.push(`- ${markdownText(
+        [title, description, year, link].filter(isNonEmptyString).join(" - ")
+      )}`);
+    }
+  }
+
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
 export async function formatResumeToDocxBuffer({
   resumeJson,
   outputPath,

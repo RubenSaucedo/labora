@@ -28,7 +28,7 @@ Node tools own:
 - lexical and structured requirement scoring;
 - claim provenance validation;
 - contact source validation and injection;
-- DOCX/PDF rendering;
+- Markdown review-companion and DOCX/PDF rendering;
 - renderer-input field recall and section order;
 - content-hash freshness;
 - final release-state aggregation.
@@ -383,6 +383,14 @@ answer is not evidence; new facts must enter the grounded corpus and claim ledge
 
 Public resume content plus private non-rendered provenance. Every bullet and
 displayed skill maps to verified claims. Contact fields remain empty.
+
+### `applications/<slug>/final-resume-style-<N>.md`
+
+A deterministic, editable review companion rendered from the same contact-
+injected formatter projection as DOCX/PDF. It is tracked as a format output, so
+manual edits make the stage stale. The file is never a claim source, judge input,
+or selected delivery artifact; supported edits must be reconciled into
+`resume.json`, claim-validated, and regenerated.
 
 ### `validations/*.json`
 

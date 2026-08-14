@@ -21,7 +21,7 @@ tools:
 
 ```text
 evidence -> identity + claims -> job specification -> application strategy -> tailored resume
-         -> claim validation -> DOCX/PDF -> artifact validation
+         -> claim validation -> Markdown review + DOCX/PDF -> artifact validation
          -> ATS / engineer / HR judges -> release gate
 ```
 
@@ -137,6 +137,7 @@ plugin without carrying anyone's history.
     ├── application-strategy.json
     ├── resume.json
     ├── ats-results.json
+    ├── final-resume-style-<N>.md
     ├── final-resume-style-<N>.docx
     ├── final-resume-style-<N>.pdf
     ├── validations/{strategy,claims,artifact}.json
@@ -300,7 +301,7 @@ See `ARCHITECTURE.md` for the discovery layout and consensus rule.
 | `resume-job-analysis` | Classify required, preferred and responsibility constraints |
 | `resume-application-strategy` | Build the private positioning brief and targeted evidence questions |
 | `resume-tailor` | Tailor only from verified claims and map provenance; executed by `resume-writer-expert` |
-| `resume-format` | Inject contact, render DOCX/PDF, validate artifact recall |
+| `resume-format` | Inject contact, render Markdown review + DOCX/PDF, validate delivery-artifact recall |
 | `judge-ats` | ATS rubric/procedure — executed by the `judge-ats` agent |
 | `judge-engineer` | Engineering-depth rubric — executed by the `judge-engineer` agent |
 | `judge-hr` | Recruiter-screen rubric — executed by the `judge-hr` agent |
@@ -320,6 +321,7 @@ labora validate-application-strategy <strategy.json> <job-spec.json> <claims.jso
 labora rank-accomplishments <accomplishments.json> <job-spec.json> [--limit <n>]
 labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>
 labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>] [--job-spec <job-spec.json>]
+labora format-markdown <resume.json> <out.md> --job <job.md> --contact <contact.md>
 labora format-docx <resume.json> <out.docx> --job <job.md> --contact <contact.md>
 labora format-pdf <resume.json> <out.pdf> --job <job.md> --contact <contact.md>
 labora render-artifact-preview <out.pdf> <application-dir>/previews
@@ -334,6 +336,12 @@ labora application-outcome <application-dir> show|record <event>
 labora career-issue draft <persona> --kind <polish|legibility|gap|growth> --repo <owner/repo> --title <text> --problem <text> --route <text> --done-when <text>
 labora career-issue check <persona> <body-file>
 ```
+
+`format-markdown` creates an editable review companion from the same formatter
+projection as DOCX/PDF. Manual edits are feedback only: they make the format
+stage stale and must be reconciled into `resume.json` and claim-validated before
+delivery artifacts are regenerated. Markdown is never accepted as the selected
+artifact by judges or the release gate.
 
 `coverage_percent` is lexical coverage only.
 Requirements carry both employer priority and release severity. Missing
