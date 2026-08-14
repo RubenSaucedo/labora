@@ -1,9 +1,38 @@
 import { z } from "zod";
 
 const ZSeverity = z.enum(["hard_eligibility", "core", "preferred", "soft_signal"]);
+const ZContributionLevel = z.enum([
+  "sole_owner",
+  "tech_lead",
+  "major_contributor",
+  "contributor",
+  "reviewer",
+]);
+
+const ZSummaryPlan = z.object({
+  identity: z.object({
+    engineerType: z.string().min(1),
+    anchor: z.string().min(1),
+    scope: z.string().min(1),
+    claimIds: z.array(z.string().min(1)).min(1),
+    unitIds: z.array(z.string().min(1)).default([]),
+  }).strict(),
+  recentProof: z.object({
+    accomplishment: z.string().min(1),
+    contributionLevel: ZContributionLevel,
+    concreteContext: z.string().min(1),
+    claimIds: z.array(z.string().min(1)).min(1),
+    primaryUnitId: z.string().min(1),
+  }).strict(),
+  differentiator: z.object({
+    focus: z.string().min(1),
+    claimIds: z.array(z.string().min(1)).min(1),
+    unitIds: z.array(z.string().min(1)).min(1),
+  }).strict().nullable().default(null),
+}).strict();
 
 export const ZApplicationStrategy = z.object({
-  schemaVersion: z.literal("1.0"),
+  schemaVersion: z.literal("2.0"),
   status: z.enum(["ready", "needs_evidence", "blocked"]),
   targetRole: z.string().min(1),
   company: z.string().default(""),
@@ -23,7 +52,7 @@ export const ZApplicationStrategy = z.object({
   }).strict()).default([]),
   firstPagePlan: z.object({
     headline: z.string().min(1),
-    summaryFocus: z.array(z.string().min(1)).min(1).max(3),
+    summaryPlan: ZSummaryPlan,
     leadClaimIds: z.array(z.string()).min(1),
     skillsOrder: z.array(z.string()).default([]),
   }).strict(),

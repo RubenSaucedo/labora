@@ -44,6 +44,7 @@ export const ZTailoredResume = z.object({
   notes_for_human: z.array(z.string()).default([]),
   provenance: ZResumeProvenance.default({
     summaryClaimIds: [],
+    summary: [],
     bullets: [],
     skills: [],
   }),

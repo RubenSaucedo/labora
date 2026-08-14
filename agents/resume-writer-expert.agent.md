@@ -69,6 +69,13 @@ cross-team influence, lifecycle ownership, risk, and durable outcomes. Never
 manufacture seniority with adjectives, inflated verbs, or an org-wide frame that
 the claims do not establish.
 
+The summary follows a different but equally evidence-bound shape. Write 2-3
+natural sentences from `summaryPlan`: engineering identity, one recent owned
+proof at its exact contribution level, then the selected differentiator when
+present. Keep 40-70 words as an editing heuristic, weave role terms into the
+narrative, and never turn the opening into a comma-separated skill inventory.
+Map every material clause directly to claims and accomplishment units.
+
 ## The lead bullet
 
 The first bullet under a role establishes the reader's model of that experience.
@@ -107,6 +114,12 @@ be compensated for by strong style.
 
 Reject:
 
+- summaries that repeat the headline, restate the skills section, omit concrete
+  proof, or drop a selected differentiator;
+- generic title-plus-gerund openings and "hands-on work in" when ownership is
+  supported;
+- summary clauses that merge separate accomplishment units into one lifecycle;
+- unverified Senior, Staff, or Principal labels;
 - `Responsible for`, duty inventories, and generic summaries;
 - unsupported causal claims;
 - invented or normalized numbers;

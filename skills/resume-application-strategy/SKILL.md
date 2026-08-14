@@ -104,8 +104,23 @@ This is a private planning artifact. It is never rendered into the resume.
    Treat it as the system telling you the candidate can prove something you
    overlooked: shortlist the unit that carries it, lead with it, or record
    explicitly why it is not worth the space.
-6. Build a first-page plan: headline, up to three summary themes, lead claim
-   IDs, and supported skill order. Prioritize recent, role-relevant proof.
+6. Build a first-page plan: headline, a narrative `summaryPlan`, lead claim IDs,
+   and supported skill order. Prioritize recent, role-relevant proof.
+
+   `summaryPlan` is not a topic bundle. It selects the evidence and sentence
+   order before the writer drafts:
+
+   - `identity`: what kind of engineer this is, a supported tenure or
+     recognizable-employer anchor, and the core stack plus end-to-end scope.
+     Record the supporting `claimIds` and `unitIds`.
+   - `recentProof`: one recent, role-relevant accomplishment. Record the exact
+     `contributionLevel`, one concrete system/lifecycle/consequence,
+     supporting `claimIds`, and exactly one `primaryUnitId`. Every selected
+     claim must belong to that unit; a separate delivery milestone cannot be
+     borrowed to make the accomplishment look end-to-end.
+   - `differentiator`: optionally select one memorable public artifact, project,
+     or unusual capability with its `claimIds` and `unitIds`. Select none rather
+     than filling the slot with a generic skill.
 
    The headline is not one string to be judged "truthful". It is a role
    (positioning, anchored by the posting and needing no support) plus

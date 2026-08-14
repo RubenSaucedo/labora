@@ -47,6 +47,38 @@ shape only and never ground a fact.
 - Never create unsupported metrics, technologies, scope, titles, dates, or
   qualifications.
 
+## Compose the summary
+
+Write from `firstPagePlan.summaryPlan`, not from a list of themes. The summary
+is 2-3 natural sentences in this order:
+
+1. **Identity** — what kind of engineer this is, the supported tenure or
+   recognizable-employer anchor, and the core stack/end-to-end scope.
+2. **Recent proof** — the selected `primaryUnitId`, using the exact supported
+   contribution level and one concrete system, lifecycle boundary, or
+   consequence.
+3. **Differentiator** — only when the plan selected one; name the memorable
+   artifact, project, or unusual capability.
+
+Treat 40-70 words as an editorial heuristic, never a hard gate. Weave target
+keywords into the narrative; do not append a skills list. Do not repeat the
+headline, open with a generic title plus gerund ("Software engineer
+building..."), or use "hands-on work in" when the selected unit supports an
+ownership verb. Never join unrelated accomplishment units into one lifecycle.
+Do not assert Senior, Staff, or Principal unless that level appears in a
+verified title.
+
+Record `provenance.summary` sentence by sentence. Each entry carries the exact
+rendered sentence and exhaustive clauses in order; each clause maps directly to
+its `claimIds` and `unitIds`. Clause text must cover the whole sentence so no
+material phrase inherits global provenance. `summaryClaimIds` is legacy-only
+and must remain empty for new resumes.
+
+Before accepting the summary, review internal jargon, leadership/ownership
+verbs, launch or completion terms, plural artifacts, ongoing-maintenance
+claims, and durable-runtime language. If the mapped claim does not directly
+support the wording, change the wording rather than widening provenance.
+
 ## Compose the headline
 
 `ats_title` is the most-read line in the document and, historically, the least
@@ -147,7 +179,8 @@ coverage by making the resume denser, repetitive, or less natural.
 
 1. Ensure `resume-job-analysis` has produced `job-spec.json` and that
    `application-strategy.json` carries a validated `unitShortlist`.
-2. Draft `resume.json` from the shortlisted units, with complete provenance.
+2. Draft `resume.json` from the shortlisted units and `summaryPlan`, with
+   complete clause-level summary provenance.
 3. Run `score-ats` with `--job-spec <application>/job-spec.json`.
 4. Run `validate-claims` and save `validations/claims.json`.
 5. Revise at most twice, but only by surfacing already verified claims.

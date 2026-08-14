@@ -135,6 +135,86 @@ export function validateApplicationStrategy({ strategy, jobSpec, claimLedger, ba
 
   const shortlist = strategy?.unitShortlist || [];
   const units = new Map((bank?.units || []).map((unit) => [unit.id, unit]));
+  const summaryPlan = strategy?.firstPagePlan?.summaryPlan;
+
+  function checkUnit(id, location) {
+    const unit = units.get(id);
+    if (!unit) {
+      issues.push({
+        code: "unknown_summary_unit",
+        location,
+        message: bank
+          ? `Unknown accomplishment unit "${id}".`
+          : `Cannot verify accomplishment unit "${id}" without an accomplishment bank.`,
+      });
+    }
+    return unit;
+  }
+
+  function checkSummaryClaims(claimIds, location) {
+    for (const claimId of claimIds || []) checkClaim(claimId, location);
+  }
+
+  function checkPlanUnitClaims(unitIds, claimIds, location) {
+    for (const unitId of unitIds || []) {
+      const unit = checkUnit(unitId, location);
+      if (!unit) continue;
+      if (!(claimIds || []).some((claimId) => unit.claimIds.includes(claimId))) {
+        issues.push({
+          code: "summary_unit_claim_mismatch",
+          location,
+          message: `Summary plan unit "${unitId}" does not contain any of the mapped claims.`,
+        });
+      }
+    }
+  }
+
+  if (summaryPlan) {
+    checkSummaryClaims(
+      summaryPlan.identity?.claimIds,
+      "firstPagePlan.summaryPlan.identity.claimIds"
+    );
+    checkPlanUnitClaims(
+      summaryPlan.identity?.unitIds,
+      summaryPlan.identity?.claimIds,
+      "firstPagePlan.summaryPlan.identity"
+    );
+
+    const recentLocation = "firstPagePlan.summaryPlan.recentProof";
+    checkSummaryClaims(summaryPlan.recentProof?.claimIds, `${recentLocation}.claimIds`);
+    const recentUnit = checkUnit(summaryPlan.recentProof?.primaryUnitId, `${recentLocation}.primaryUnitId`);
+    if (recentUnit) {
+      const claimsOutsideUnit = (summaryPlan.recentProof?.claimIds || [])
+        .filter((claimId) => !recentUnit.claimIds.includes(claimId));
+      if (claimsOutsideUnit.length) {
+        issues.push({
+          code: "summary_recent_proof_crosses_units",
+          location: recentLocation,
+          message: `Recent proof claims must all belong to primary unit "${recentUnit.id}"; outside claims: ${claimsOutsideUnit.join(", ")}.`,
+        });
+      }
+      if (summaryPlan.recentProof?.contributionLevel !== recentUnit.contribution) {
+        issues.push({
+          code: "summary_contribution_mismatch",
+          location: `${recentLocation}.contributionLevel`,
+          message: `Recent proof contribution must match unit "${recentUnit.id}" contribution "${recentUnit.contribution}".`,
+        });
+      }
+    }
+
+    if (summaryPlan.differentiator) {
+      checkSummaryClaims(
+        summaryPlan.differentiator.claimIds,
+        "firstPagePlan.summaryPlan.differentiator.claimIds"
+      );
+      checkPlanUnitClaims(
+        summaryPlan.differentiator.unitIds,
+        summaryPlan.differentiator.claimIds,
+        "firstPagePlan.summaryPlan.differentiator"
+      );
+    }
+  }
+
   if (shortlist.length) {
     const seenRanks = new Set();
     const seenUnits = new Set();

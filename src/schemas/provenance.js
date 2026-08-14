@@ -68,8 +68,23 @@ export const ZHeadlineProvenance = z.object({
   claimIds: z.array(z.string()).min(1),
 }).strict();
 
+export const ZSummaryClauseProvenance = z.object({
+  text: z.string().min(1),
+  claimIds: z.array(z.string().min(1)).min(1),
+  unitIds: z.array(z.string().min(1)).default([]),
+}).strict();
+
+export const ZSummarySentenceProvenance = z.object({
+  sentenceIndex: z.number().int().nonnegative(),
+  text: z.string().min(1),
+  clauses: z.array(ZSummaryClauseProvenance).min(1),
+}).strict();
+
 export const ZResumeProvenance = z.object({
+  // Retained only so older artifacts remain readable. New summaries are
+  // validated exclusively through sentence and clause mappings below.
   summaryClaimIds: z.array(z.string()).default([]),
+  summary: z.array(ZSummarySentenceProvenance).default([]),
   bullets: z.array(ZBulletProvenance).default([]),
   skills: z.array(ZSkillProvenance).default([]),
   headline: z.array(ZHeadlineProvenance).default([]),
