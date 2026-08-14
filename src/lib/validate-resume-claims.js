@@ -451,6 +451,182 @@ function identityProseContentIssues(text, mappedClaims, location) {
   return [];
 }
 
+function splitSummarySentences(text) {
+  const value = String(text || "").trim();
+  if (!value) return [];
+  if (typeof Intl?.Segmenter === "function") {
+    return [...new Intl.Segmenter("en", { granularity: "sentence" }).segment(value)]
+      .map((entry) => entry.segment.trim())
+      .filter(Boolean);
+  }
+  return value.match(/[^.!?]+(?:[.!?]+|$)/g)?.map((entry) => entry.trim()).filter(Boolean) || [];
+}
+
+function normalizeSummaryFragment(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9+#.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function summaryWordCount(value) {
+  return String(value || "").trim().split(/\s+/).filter(Boolean).length;
+}
+
+const SUMMARY_ACTION_VERBS =
+  /\b(?:owned|led|built|implemented|designed|created|shipped|launched|delivered|developed|established|introduced|migrated|reduced|improved|automated|reviewed|advised|co-designed|helped define)\b/i;
+const SUMMARY_MAINTENANCE_TERMS =
+  /\b(?:maintains?|maintained|operates?|operated|sustains?|sustained|ongoing maintenance|continues? to|oversees?|keeps? running|provides? ongoing support)\b/i;
+const SUMMARY_DURABLE_RUNTIME_TERMS =
+  /\b(?:durable execution|durable runtime|persistent runtime|long-running runtime|production runtime|runtime durability)\b/i;
+const SUMMARY_LIFECYCLE_MERGE =
+  /\b(?:end-to-end|full lifecycle|from .{1,60} (?:through|to) .{1,60}|design (?:through|to) (?:launch|delivery|deployment|operation)|through (?:launch|delivery|deployment|operation))\b/i;
+
+function summaryClauseContentIssues(text, mappedClaims, location) {
+  const supportedText = mappedClaims.map(renderableFact).join(" ");
+  const unsupportedContent = [
+    ...unsupportedCanonicalTerms(text, supportedText),
+    ...unsupportedNamedTerms(text, supportedText),
+    ...unsupportedNumericTokens(text, supportedText),
+  ];
+  const found = [];
+  if (unsupportedContent.length || textSupportRatio(text, supportedText) < 0.3) {
+    found.push(issue(
+      "error",
+      "summary_claim_mismatch",
+      "The summary clause contains content not directly supported by its mapped claims.",
+      location
+    ));
+  }
+
+  const guardedLanguage = [
+    ["summary_unsupported_leadership", /\bowned\b/i, /\bowned\b/i, "ownership verb"],
+    ["summary_unsupported_leadership", /\bled\b/i, /\b(?:led|lead)\b/i, "leadership verb"],
+    ["summary_unsupported_leadership", /\bdrove\b/i, /\b(?:drove|driven)\b/i, "leadership verb"],
+    ["summary_unsupported_leadership", /\bdirected\b/i, /\bdirected\b/i, "leadership verb"],
+    ["summary_unsupported_leadership", /\bspearheaded\b/i, /\bspearheaded\b/i, "leadership verb"],
+    ["summary_unsupported_leadership", /\barchitected\b/i, /\barchitected\b/i, "architecture-ownership verb"],
+    ["summary_unsupported_leadership", /\bestablished\b/i, /\bestablished\b/i, "leadership verb"],
+    ["summary_unsupported_completion", /\blaunch(?:ed|ing)?\b/i, /\blaunch(?:ed|ing)?\b/i, "launch term"],
+    ["summary_unsupported_completion", /\b(?:rollout|rolled out)\b/i, /\b(?:rollout|rolled out)\b/i, "rollout term"],
+    ["summary_unsupported_completion", /\bshipped\b/i, /\bshipped\b/i, "shipping term"],
+    ["summary_unsupported_completion", /\bdelivered\b/i, /\bdelivered\b/i, "delivery-completion term"],
+    ["summary_unsupported_completion", /\breleased\b/i, /\breleased\b/i, "release-completion term"],
+    ["summary_unsupported_completion", /\bdeployed\b/i, /\bdeployed\b/i, "deployment-completion term"],
+    ["summary_unsupported_completion", /\bcompleted\b/i, /\bcompleted\b/i, "completion term"],
+    ["summary_unsupported_maintenance", SUMMARY_MAINTENANCE_TERMS, SUMMARY_MAINTENANCE_TERMS, "ongoing-maintenance claim"],
+    ["summary_unsupported_durable_runtime", SUMMARY_DURABLE_RUNTIME_TERMS, SUMMARY_DURABLE_RUNTIME_TERMS, "durable-runtime claim"],
+  ];
+  for (const [code, candidatePattern, evidencePattern, label] of guardedLanguage) {
+    candidatePattern.lastIndex = 0;
+    const present = candidatePattern.test(text);
+    evidencePattern.lastIndex = 0;
+    const supported = evidencePattern.test(supportedText);
+    if (present && !supported) {
+      found.push(issue(
+        "error",
+        code,
+        `The summary uses a ${label} that its mapped claims do not support.`,
+        location
+      ));
+    }
+  }
+
+  const pluralArtifacts = [
+    "agents",
+    "artifacts",
+    "capabilities",
+    "platforms",
+    "products",
+    "services",
+    "systems",
+    "tools",
+    "workflows",
+  ];
+  const normalizedEvidence = normalize(supportedText);
+  for (const artifact of pluralArtifacts) {
+    if (
+      new RegExp(`\\b${artifact}\\b`, "i").test(text) &&
+      !new RegExp(`\\b${artifact}\\b`, "i").test(normalizedEvidence)
+    ) {
+      found.push(issue(
+        "error",
+        "summary_unsupported_plural_artifact",
+        `The plural artifact "${artifact}" is not supported by the mapped claims.`,
+        location
+      ));
+    }
+  }
+
+  const generalizedClaims = mappedClaims.filter(
+    (claim) => claim.disclosure === "internal_generalizable"
+  );
+  const jargon = namedTerms(text).filter((term) =>
+    canonicalSkillsInText(term).length === 0 &&
+    generalizedClaims.some((claim) => normalize(renderableFact(claim)).includes(normalize(term)))
+  );
+  if (jargon.length) {
+    found.push(issue(
+      "warning",
+      "summary_internal_jargon",
+      `Review internal jargon in the summary: ${[...new Set(jargon)].join(", ")}.`,
+      location
+    ));
+  }
+  return found;
+}
+
+function summaryPlanCoverageIssues({ plan, sentenceMappings }) {
+  if (!plan) return [];
+  const found = [];
+
+  const idsFor = (mapping, field) =>
+    new Set((mapping?.clauses || []).flatMap((clause) => clause[field] || []));
+  const check = ({ sentenceIndex, claimIds, unitIds, code, label }) => {
+    const mapping = sentenceMappings[sentenceIndex];
+    const sentenceClaims = idsFor(mapping, "claimIds");
+    const sentenceUnits = idsFor(mapping, "unitIds");
+    const missingClaims = (claimIds || []).filter((id) => !sentenceClaims.has(id));
+    const missingUnits = (unitIds || []).filter((id) => !sentenceUnits.has(id));
+    if (missingClaims.length || missingUnits.length) {
+      found.push(issue(
+        "error",
+        code,
+        `${label} sentence is missing planned provenance${
+          missingClaims.length ? ` claims: ${missingClaims.join(", ")}` : ""
+        }${missingUnits.length ? ` units: ${missingUnits.join(", ")}` : ""}.`,
+        `summary.sentences[${sentenceIndex}]`
+      ));
+    }
+  };
+
+  check({
+    sentenceIndex: 0,
+    claimIds: plan.identity?.claimIds,
+    unitIds: plan.identity?.unitIds,
+    code: "summary_identity_plan_mismatch",
+    label: "Identity",
+  });
+  check({
+    sentenceIndex: 1,
+    claimIds: plan.recentProof?.claimIds,
+    unitIds: [plan.recentProof?.primaryUnitId].filter(Boolean),
+    code: "summary_recent_proof_plan_mismatch",
+    label: "Recent proof",
+  });
+  if (plan.differentiator) {
+    check({
+      sentenceIndex: 2,
+      claimIds: plan.differentiator.claimIds,
+      unitIds: plan.differentiator.unitIds,
+      code: "summary_differentiator_plan_mismatch",
+      label: "Differentiator",
+    });
+  }
+  return found;
+}
+
 function sha256(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
@@ -464,6 +640,7 @@ export function validateResumeClaims({
   // stay silent rather than guessing: a resume validated before the job spec
   // was wired in is out of date, not invalid.
   jobSpec = null,
+  applicationStrategy = null,
   workspaceRoot = process.cwd(),
   personaRoot,
 }) {
@@ -925,49 +1102,269 @@ export function validateResumeClaims({
     }
   }
 
-  for (const claimId of resume.provenance?.summaryClaimIds || []) {
-    const claim = claimById.get(claimId);
-    if (!claim) {
-      issues.push(issue("error", "unknown_claim", `Summary claim "${claimId}" does not exist.`, "summary"));
-    } else if (claim.status !== "verified") {
-      issues.push(issue("error", "unverified_claim", `Summary claim "${claimId}" is ${claim.status}.`, "summary"));
-    } else {
-      const disclosureIssue = claimDisclosureIssue({
-        claimId,
-        authorization: renderAuthorization(claim),
-        location: "summary",
-        subject: "Summary claim",
-      });
-      if (disclosureIssue) {
-        issues.push(disclosureIssue);
-      }
-    }
-  }
-
   if (resume.summary) {
-    const summaryClaims = (resume.provenance?.summaryClaimIds || [])
-      .map((claimId) => claimById.get(claimId))
-      .filter(Boolean);
-    const summaryEvidence = summaryClaims.map(renderableFact).join(" ");
-    if (!summaryClaims.length) {
-      issues.push(issue("error", "unmapped_summary", "The summary requires verified claim provenance.", "summary"));
-    } else {
-      const unsupportedTerms = unsupportedCanonicalTerms(resume.summary, summaryEvidence);
-      const unsupportedNames = unsupportedNamedTerms(resume.summary, summaryEvidence);
-      const unsupportedNumbers = unsupportedNumericTokens(resume.summary, summaryEvidence);
+    const sentences = splitSummarySentences(resume.summary);
+    const rawMappings = resume.provenance?.summary || [];
+    const mappingByIndex = new Map();
+    for (const mapping of rawMappings) {
+      if (mappingByIndex.has(mapping.sentenceIndex)) {
+        issues.push(issue(
+          "error",
+          "duplicate_summary_sentence_mapping",
+          `Summary sentence ${mapping.sentenceIndex} has more than one provenance mapping.`,
+          `summary.sentences[${mapping.sentenceIndex}]`
+        ));
+      }
+      mappingByIndex.set(mapping.sentenceIndex, mapping);
+    }
+    if (sentences.length < 2 || sentences.length > 3) {
+      issues.push(issue(
+        "error",
+        "summary_sentence_count",
+        "The summary must contain 2-3 natural sentences.",
+        "summary"
+      ));
+    }
+    const wordCount = summaryWordCount(resume.summary);
+    if (wordCount < 40 || wordCount > 70) {
+      issues.push(issue(
+        "warning",
+        "summary_length_heuristic",
+        `The summary is ${wordCount} words; 40-70 words is an editorial heuristic, not a release gate.`,
+        "summary"
+      ));
+    }
+    if (!/\b(?:engineer|engineering|developer|architect)\b/i.test(sentences[0] || "")) {
+      issues.push(issue(
+        "error",
+        "summary_identity_missing",
+        "The opening sentence must establish an engineering identity.",
+        "summary.sentences[0]"
+      ));
+    }
+    if (
+      /^(?:(?:senior|staff|principal)\s+)?(?:(?:software|frontend|front-end|backend|back-end|full-stack|full stack|platform|data|machine learning|infrastructure|site reliability)\s+)?(?:engineer|developer|architect)\s+(?:building|developing|creating|designing|delivering|working|leading)\b/i
+        .test(sentences[0] || "")
+    ) {
+      issues.push(issue(
+        "error",
+        "summary_generic_gerund_opener",
+        "Do not open with a generic title plus gerund.",
+        "summary.sentences[0]"
+      ));
+    }
+
+    const normalizedSummary = normalizeSummaryFragment(resume.summary);
+    const normalizedHeadline = normalizeSummaryFragment(resume.ats_title);
+    const normalizedTargetRole = normalizeSummaryFragment(resume.target_role);
+    if (
+      (normalizedHeadline && normalizedSummary.startsWith(normalizedHeadline)) ||
+      (normalizedTargetRole && normalizedSummary.startsWith(normalizedTargetRole))
+    ) {
+      issues.push(issue(
+        "error",
+        "summary_repeats_headline",
+        "The summary must not repeat the headline or target role verbatim.",
+        "summary.sentences[0]"
+      ));
+    }
+
+    const verifiedTitles = [
+      ...(identity.experience || []).map((entry) => entry.role),
+      ...(identity.other_experience_compacted || []).map((entry) => entry.role),
+      ...(identity.experience || []).flatMap((entry) =>
+        (entry.progression || []).flatMap((step) => [step.label, step.externalLabel])
+      ),
+    ].filter(Boolean).join(" ");
+    for (const level of ["Senior", "Staff", "Principal"]) {
       if (
-        unsupportedTerms.length ||
-        unsupportedNames.length ||
-        unsupportedNumbers.length ||
-        textSupportRatio(resume.summary, summaryEvidence) < 0.3
+        new RegExp(`\\b${level}\\b`, "i").test(resume.summary) &&
+        !new RegExp(`\\b${level}\\b`, "i").test(verifiedTitles)
       ) {
         issues.push(issue(
           "error",
-          "summary_claim_mismatch",
-          "The summary contains content not supported by its mapped claims.",
+          "summary_unverified_seniority",
+          `${level} may appear in the summary only when it appears in a verified title.`,
           "summary"
         ));
       }
+    }
+
+    const displayedSkills = [...(resume.skills_primary || []), ...(resume.skills_secondary || [])];
+    const openingSkillMentions = displayedSkills.filter((skill) =>
+      normalizeSummaryFragment(sentences[0]).includes(normalizeSummaryFragment(skill))
+    );
+    if (
+      openingSkillMentions.length >= 3 &&
+      ((sentences[0].match(/,/g) || []).length >= 2 ||
+        /\b(?:skills|expertise|proficient|experience in|hands-on work in)\b/i.test(sentences[0]))
+    ) {
+      issues.push(issue(
+        "error",
+        "summary_restates_skills",
+        "The summary opening restates the skills section instead of using stack terms inside an identity narrative.",
+        "summary.sentences[0]"
+      ));
+    }
+    if (sentences.some((sentence) =>
+      (sentence.match(/,/g) || []).length >= 3 &&
+      !SUMMARY_ACTION_VERBS.test(sentence)
+    )) {
+      issues.push(issue(
+        "error",
+        "summary_capability_inventory",
+        "The summary contains a comma-linked capability inventory.",
+        "summary"
+      ));
+    }
+
+    if (rawMappings.length !== sentences.length) {
+      issues.push(issue(
+        "error",
+        "unmapped_summary",
+        "Every summary sentence requires clause-level provenance.",
+        "summary"
+      ));
+    }
+    for (const [sentenceIndex, sentence] of sentences.entries()) {
+      const mapping = mappingByIndex.get(sentenceIndex);
+      const sentenceLocation = `summary.sentences[${sentenceIndex}]`;
+      if (!mapping) continue;
+      if (normalizeSummaryFragment(mapping.text) !== normalizeSummaryFragment(sentence)) {
+        issues.push(issue(
+          "error",
+          "summary_sentence_text_mismatch",
+          "Summary provenance sentence text must match the rendered sentence.",
+          sentenceLocation
+        ));
+      }
+
+      const mappedClauseText = (mapping.clauses || [])
+        .map((clause) => normalizeSummaryFragment(clause.text))
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (mappedClauseText !== normalizeSummaryFragment(sentence)) {
+        issues.push(issue(
+          "error",
+          "summary_clause_coverage",
+          "Summary clauses must cover the full sentence in order so no material phrase is left globally mapped.",
+          sentenceLocation
+        ));
+      }
+
+      for (const [clauseIndex, clause] of (mapping.clauses || []).entries()) {
+        const clauseLocation = `${sentenceLocation}.clauses[${clauseIndex}]`;
+        const provenanceIssues = claimProvenanceIssues(clause.claimIds, claimById, clauseLocation);
+        issues.push(...provenanceIssues);
+        const mappedClaims = clause.claimIds
+          .map((claimId) => claimById.get(claimId))
+          .filter(Boolean);
+        if (!provenanceIssues.length) {
+          issues.push(...summaryClauseContentIssues(clause.text, mappedClaims, clauseLocation));
+        }
+
+        for (const claimId of clause.claimIds) {
+          const carryingUnits = (bank?.units || [])
+            .filter((unit) => unit.claimIds.includes(claimId))
+            .map((unit) => unit.id);
+          if (
+            carryingUnits.length &&
+            !carryingUnits.some((unitId) => (clause.unitIds || []).includes(unitId))
+          ) {
+            issues.push(issue(
+              "error",
+              "summary_claim_unit_unmapped",
+              `Summary claim "${claimId}" belongs to an accomplishment unit, but the clause maps none of its carrying units: ${carryingUnits.join(", ")}.`,
+              clauseLocation
+            ));
+          }
+        }
+        for (const unitId of clause.unitIds || []) {
+          const unit = (bank?.units || []).find((entry) => entry.id === unitId);
+          if (!unit) {
+            issues.push(issue(
+              "error",
+              "unknown_summary_unit",
+              `Summary clause references unknown accomplishment unit "${unitId}".`,
+              clauseLocation
+            ));
+            continue;
+          }
+          if (!clause.claimIds.some((claimId) => unit.claimIds.includes(claimId))) {
+            issues.push(issue(
+              "error",
+              "summary_unit_claim_mismatch",
+              `Summary unit "${unitId}" contains none of the clause's mapped claims.`,
+              clauseLocation
+            ));
+          }
+        }
+        if ((clause.unitIds || []).length > 1 && SUMMARY_LIFECYCLE_MERGE.test(clause.text)) {
+          issues.push(issue(
+            "error",
+            "summary_unit_lifecycle_merge",
+            "A summary clause may not merge separate accomplishment units into one lifecycle.",
+            clauseLocation
+          ));
+        }
+      }
+    }
+
+    for (const index of mappingByIndex.keys()) {
+      if (index >= sentences.length) {
+        issues.push(issue(
+          "error",
+          "summary_sentence_index_out_of_range",
+          `Summary provenance references sentence ${index}, but the summary has ${sentences.length} sentences.`,
+          `summary.sentences[${index}]`
+        ));
+      }
+    }
+
+    const summaryPlan = applicationStrategy?.firstPagePlan?.summaryPlan || null;
+    issues.push(...summaryPlanCoverageIssues({
+      plan: summaryPlan,
+      sentenceMappings: sentences.map((_, index) => mappingByIndex.get(index)),
+    }));
+    if (summaryPlan) {
+      const expectedSentenceCount = summaryPlan.differentiator ? 3 : 2;
+      if (sentences.length !== expectedSentenceCount) {
+        issues.push(issue(
+          "error",
+          "summary_plan_sentence_count",
+          `The selected summary plan requires exactly ${expectedSentenceCount} sentences.`,
+          "summary"
+        ));
+      }
+    }
+
+    const recentMapping = mappingByIndex.get(1);
+    const recentText = recentMapping?.text || sentences[1] || "";
+    const recentUnitId = summaryPlan?.recentProof?.primaryUnitId;
+    const recentHasUnit = recentUnitId
+      ? (recentMapping?.clauses || []).some((clause) => clause.unitIds.includes(recentUnitId))
+      : (recentMapping?.clauses || []).some((clause) => clause.unitIds.length > 0);
+    if (!recentHasUnit || !SUMMARY_ACTION_VERBS.test(recentText)) {
+      issues.push(issue(
+        "error",
+        "summary_concrete_proof_missing",
+        "The second sentence must present one concrete accomplishment with calibrated contribution language.",
+        "summary.sentences[1]"
+      ));
+    }
+
+    const recentUnit = (bank?.units || []).find((unit) => unit.id === recentUnitId);
+    if (
+      /\bhands-on work in\b/i.test(resume.summary) &&
+      ["sole_owner", "tech_lead"].includes(recentUnit?.contribution)
+    ) {
+      issues.push(issue(
+        "error",
+        "summary_weak_ownership_phrase",
+        'Do not use "hands-on work in" when the selected unit supports ownership language.',
+        "summary"
+      ));
     }
   }
 

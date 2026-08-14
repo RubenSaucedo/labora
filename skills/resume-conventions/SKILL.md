@@ -256,7 +256,7 @@ request. If it cannot be generalised without losing it, keep it in the workspace
 | Validate application strategy references | `labora validate-application-strategy <strategy.json> <job-spec.json> <claims.json> --accomplishments <accomplishments.json> --output <validations/strategy.json>` |
 | Score lexical and structured requirement coverage | `labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>` |
 | Validate a persona's profile alone (no job, no resume) | `labora validate-profile <persona-name>` |
-| Validate every bullet/skill against claims | `labora validate-claims <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` (reads `job-spec.json` beside the resume for headline diagnostics) |
+| Validate every summary clause, bullet and skill against claims | `labora validate-claims <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` (reads `job-spec.json` and `application-strategy.json` beside the resume) |
 | Render editable Markdown review companion | `labora format-markdown <resume.json> <out.md> --job <job.md> --contact <contact.md>` |
 | Render DOCX with deterministic contact injection | `labora format-docx <resume.json> <out.docx> --style <N> --job <job.md> --contact <contact.md>` |
 | Render text-layer PDF | `labora format-pdf <resume.json> <out.pdf> --style <N> --job <job.md> --contact <contact.md>` |
@@ -297,8 +297,10 @@ guesses, and only for requirements that were actually checked.
   skill list.
 - `provenance.js` — verified claim ledger and tailored provenance mappings.
 - `job-spec.js` — required/preferred/responsibility constraints with source lines.
-- `application-strategy.js` — claim-grounded positioning and evidence requests.
-- `tailored-resume.js` — final content plus non-rendered provenance.
+- `application-strategy.js` — schema 2.0 claim-grounded positioning, narrative
+  summary plan and evidence requests.
+- `tailored-resume.js` — final content plus non-rendered sentence/clause
+  provenance for the summary and claim mappings for every other composed field.
 - `judge-output.js` — ATS, engineer, and HR judge contracts.
 - `release-output.js` — `send_ready | human_review | blocked`.
 - `application-outcome.js` — objective operator-confirmed funnel events.

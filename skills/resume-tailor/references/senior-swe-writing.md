@@ -48,6 +48,40 @@ Do not force a metric, technology, or business result into every bullet. A
 well-grounded architectural decision can be stronger than a weakly attributed
 percentage.
 
+## The summary is a narrative, not an inventory
+
+Use three moves in order:
+
+1. **Identity:** the engineer's supported professional shape, tenure or
+   recognizable-employer anchor, and core stack/end-to-end scope.
+2. **Recent proof:** one owned, role-relevant accomplishment with the exact
+   contribution level and a concrete system, lifecycle boundary, or
+   consequence.
+3. **Differentiator:** one memorable artifact, public project, or unusual
+   capability when the strategy selected it.
+
+Two sentences are enough when there is no differentiator. Three are enough when
+there is. Approximately 40-70 words is a useful editing range, not a validation
+threshold.
+
+Reject:
+
+- "Software engineer building..." and similar generic title-plus-gerund
+  openings;
+- a comma-linked list of technologies or capability nouns;
+- a sentence that simply duplicates the skills section;
+- a summary that repeats the headline before saying anything new;
+- "hands-on work in" when the evidence supports `owned`, `led`, `built`, or
+  another precise contribution verb;
+- lifecycle language assembled from separate accomplishment units;
+- Senior, Staff, or Principal when no verified title carries that level.
+
+Keywords belong inside the identity and proof, where they explain a system or
+scope. They do not belong in an appended list. Treat internal jargon,
+leadership verbs, launch-completion language, plural artifacts,
+ongoing-maintenance claims, and durable-runtime language as factual assertions
+that need direct clause-level support.
+
 ## What makes senior work legible
 
 Seniority is not a verb list. It is the supported shape of the work:

@@ -376,13 +376,17 @@ trusted. Classification can be wrong; it cannot delete a requirement.
 ### `applications/<slug>/application-strategy.json`
 
 Private positioning brief with the three strongest claim-backed hiring signals,
-likely objections, first-page proof hierarchy, and evidence questions. A chat
-answer is not evidence; new facts must enter the grounded corpus and claim ledger.
+likely objections, first-page proof hierarchy, and evidence questions. Its
+`summaryPlan` selects an identity, one primary recent accomplishment unit, and
+an optional differentiator before prose is drafted. A chat answer is not
+evidence; new facts must enter the grounded corpus and claim ledger.
 
 ### `applications/<slug>/resume.json`
 
 Public resume content plus private non-rendered provenance. Every bullet and
-displayed skill maps to verified claims. Contact fields remain empty.
+displayed skill maps to verified claims. Summary provenance is sentence- and
+clause-level, with direct claim and accomplishment-unit mappings for every
+material phrase. Contact fields remain empty.
 
 ### `applications/<slug>/final-resume-style-<N>.md`
 

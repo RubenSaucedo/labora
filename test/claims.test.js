@@ -170,7 +170,16 @@ test("rejects an unknown technology substituted into a bullet", () => {
 test("rejects unsupported summary and invented structured sections", () => {
   const input = fixture();
   input.resume.summary = "AWS architect who increased revenue by 900%.";
-  input.resume.provenance.summaryClaimIds = ["claim-latency"];
+  input.resume.provenance.summaryClaimIds = [];
+  input.resume.provenance.summary = [{
+    sentenceIndex: 0,
+    text: input.resume.summary,
+    clauses: [{
+      text: input.resume.summary,
+      claimIds: ["claim-latency"],
+      unitIds: ["unit-example"],
+    }],
+  }];
   input.resume.target_role = "Engineer";
   input.resume.ats_title = "Engineer | AWS";
   input.resume.education = [{

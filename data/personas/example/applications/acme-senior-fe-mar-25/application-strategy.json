@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "2.0",
   "status": "ready",
   "targetRole": "Senior Frontend Engineer",
   "company": "Acme Corp",
@@ -53,11 +53,38 @@
   ],
   "firstPagePlan": {
     "headline": "Senior Frontend Engineer | React and TypeScript",
-    "summaryFocus": [
-      "Seven years of frontend experience",
-      "React and TypeScript modernization",
-      "Performance impact and mentoring"
-    ],
+    "summaryPlan": {
+      "identity": {
+        "engineerType": "Frontend engineer",
+        "anchor": "7 years of verified frontend experience",
+        "scope": "Performant web applications with React and TypeScript",
+        "claimIds": [
+          "claim-summary-7-years",
+          "claim-acme-migration"
+        ],
+        "unitIds": [
+          "unit-acme-react-migration"
+        ]
+      },
+      "recentProof": {
+        "accomplishment": "Legacy dashboard migration",
+        "contributionLevel": "tech_lead",
+        "concreteContext": "React and TypeScript migration that reduced page load times by 60%",
+        "claimIds": [
+          "claim-acme-migration"
+        ],
+        "primaryUnitId": "unit-acme-react-migration"
+      },
+      "differentiator": {
+        "focus": "Reusable component library adopted across four products",
+        "claimIds": [
+          "claim-startup-components"
+        ],
+        "unitIds": [
+          "unit-startup-spa"
+        ]
+      }
+    },
     "leadClaimIds": [
       "claim-acme-migration",
       "claim-acme-analytics",

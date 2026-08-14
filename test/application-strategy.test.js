@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { validateApplicationStrategy } from "../src/lib/application-strategy.js";
+import { ZApplicationStrategy } from "../src/schemas/application-strategy.js";
 
 function fixture() {
   return {
@@ -160,6 +162,39 @@ function withShortlist(entries, units) {
   return input;
 }
 
+function withSummaryPlan() {
+  const input = withShortlist([{
+    unitId: "unit-react",
+    rank: 1,
+    matchedRequirementIds: ["req-001"],
+    rationale: "Direct React ownership.",
+  }], {
+    units: [{
+      id: "unit-react",
+      claimIds: ["claim-1"],
+      contribution: "tech_lead",
+    }],
+  });
+  input.strategy.firstPagePlan.summaryPlan = {
+    identity: {
+      engineerType: "Frontend engineer",
+      anchor: "Verified product experience",
+      scope: "React application delivery",
+      claimIds: ["claim-1"],
+      unitIds: ["unit-react"],
+    },
+    recentProof: {
+      accomplishment: "React application delivery",
+      contributionLevel: "tech_lead",
+      concreteContext: "Owned delivery of a React application",
+      claimIds: ["claim-1"],
+      primaryUnitId: "unit-react",
+    },
+    differentiator: null,
+  };
+  return input;
+}
+
 test("accepts a shortlist whose units carry the requirements they claim", () => {
   const result = validateApplicationStrategy(withShortlist([{
     unitId: "unit-react",
@@ -168,6 +203,45 @@ test("accepts a shortlist whose units carry the requirements they claim", () => 
     rationale: "Direct React ownership.",
   }]));
   assert.equal(result.valid, true);
+});
+
+test("the shipped strategy fixture uses the narrative summary plan schema", () => {
+  const strategy = JSON.parse(fs.readFileSync(
+    new URL("../data/personas/example/applications/acme-senior-fe-mar-25/application-strategy.json", import.meta.url),
+    "utf8"
+  ));
+  assert.equal(ZApplicationStrategy.safeParse(strategy).success, true);
+  assert.equal(strategy.firstPagePlan.summaryFocus, undefined);
+});
+
+test("accepts a summary plan grounded in verified claims and units", () => {
+  assert.equal(validateApplicationStrategy(withSummaryPlan()).valid, true);
+});
+
+test("rejects a recent proof contribution level that inflates its unit", () => {
+  const input = withSummaryPlan();
+  input.strategy.firstPagePlan.summaryPlan.recentProof.contributionLevel = "sole_owner";
+  const result = validateApplicationStrategy(input);
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) => issue.code === "summary_contribution_mismatch"));
+});
+
+test("rejects recent proof claims borrowed from a separate unit", () => {
+  const input = withSummaryPlan();
+  input.claimLedger.claims.push({
+    id: "claim-3",
+    status: "verified",
+    fact: "Delivered a separate release milestone.",
+  });
+  input.bank.units.push({
+    id: "unit-delivery",
+    claimIds: ["claim-3"],
+    contribution: "major_contributor",
+  });
+  input.strategy.firstPagePlan.summaryPlan.recentProof.claimIds.push("claim-3");
+  const result = validateApplicationStrategy(input);
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) => issue.code === "summary_recent_proof_crosses_units"));
 });
 
 test("rejects a shortlist entry naming an unknown unit", () => {

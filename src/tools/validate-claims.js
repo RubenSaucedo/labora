@@ -8,6 +8,7 @@ import { ZAccomplishmentBank } from "../schemas/accomplishments.js";
 import { ZClaimLedger } from "../schemas/provenance.js";
 import { ZJobSpec } from "../schemas/job-spec.js";
 import { ZTailoredResume } from "../schemas/tailored-resume.js";
+import { ZApplicationStrategy } from "../schemas/application-strategy.js";
 
 const resumePath = process.argv[2];
 const identityPath = process.argv[3];
@@ -18,8 +19,10 @@ const bankIndex = process.argv.indexOf("--accomplishments");
 const explicitBankPath = bankIndex >= 0 ? process.argv[bankIndex + 1] : null;
 const jobSpecIndex = process.argv.indexOf("--job-spec");
 const explicitJobSpecPath = jobSpecIndex >= 0 ? process.argv[jobSpecIndex + 1] : null;
+const strategyIndex = process.argv.indexOf("--application-strategy");
+const explicitStrategyPath = strategyIndex >= 0 ? process.argv[strategyIndex + 1] : null;
 if (!resumePath || !identityPath || !ledgerPath) {
-  process.stderr.write("Usage: labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>] [--job-spec <job-spec.json>]\n");
+  process.stderr.write("Usage: labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>] [--job-spec <job-spec.json>] [--application-strategy <application-strategy.json>]\n");
   process.exit(1);
 }
 
@@ -41,12 +44,17 @@ try {
   const jobSpec = fs.existsSync(jobSpecPath)
     ? ZJobSpec.parse(JSON.parse(fs.readFileSync(jobSpecPath, "utf8")))
     : null;
+  const strategyPath = explicitStrategyPath || path.join(path.dirname(resumePath), "application-strategy.json");
+  const applicationStrategy = fs.existsSync(strategyPath)
+    ? ZApplicationStrategy.parse(JSON.parse(fs.readFileSync(strategyPath, "utf8")))
+    : null;
   const result = validateResumeClaims({
     resume,
     identity,
     ledger,
     bank,
     jobSpec,
+    applicationStrategy,
     workspaceRoot: process.cwd(),
     personaRoot: personaRootFromProfileFile(identityPath),
   });

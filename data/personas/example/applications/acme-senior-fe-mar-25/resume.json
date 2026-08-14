@@ -11,7 +11,7 @@
     "github": "",
     "portfolio": ""
   },
-  "summary": "Senior Frontend Engineer with 7 years of experience building performant web applications. Specializes in React and TypeScript with measurable performance improvements and team mentoring experience.",
+  "summary": "Frontend engineer with 7 years of experience building performant web applications with React and TypeScript. Led a legacy dashboard migration to React and TypeScript that reduced page load times by 60%. Collaborated with a design team to create a component library used across 4 products.",
   "skills_primary": [
     "React",
     "TypeScript",
@@ -83,10 +83,54 @@
     "Do not add accessibility or testing claims unless the applicant provides evidence"
   ],
   "provenance": {
-    "summaryClaimIds": [
-      "claim-summary-7-years",
-      "claim-acme-migration",
-      "claim-acme-mentoring"
+    "summaryClaimIds": [],
+    "summary": [
+      {
+        "sentenceIndex": 0,
+        "text": "Frontend engineer with 7 years of experience building performant web applications with React and TypeScript.",
+        "clauses": [
+          {
+            "text": "Frontend engineer with 7 years of experience building performant web applications with React and TypeScript.",
+            "claimIds": [
+              "claim-summary-7-years",
+              "claim-acme-migration"
+            ],
+            "unitIds": [
+              "unit-acme-react-migration"
+            ]
+          }
+        ]
+      },
+      {
+        "sentenceIndex": 1,
+        "text": "Led a legacy dashboard migration to React and TypeScript that reduced page load times by 60%.",
+        "clauses": [
+          {
+            "text": "Led a legacy dashboard migration to React and TypeScript that reduced page load times by 60%.",
+            "claimIds": [
+              "claim-acme-migration"
+            ],
+            "unitIds": [
+              "unit-acme-react-migration"
+            ]
+          }
+        ]
+      },
+      {
+        "sentenceIndex": 2,
+        "text": "Collaborated with a design team to create a component library used across 4 products.",
+        "clauses": [
+          {
+            "text": "Collaborated with a design team to create a component library used across 4 products.",
+            "claimIds": [
+              "claim-startup-components"
+            ],
+            "unitIds": [
+              "unit-startup-spa"
+            ]
+          }
+        ]
+      }
     ],
     "bullets": [
       {
