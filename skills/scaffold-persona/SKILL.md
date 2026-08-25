@@ -22,6 +22,10 @@ Create:
 └── applications/
 ```
 
+`resume-conventions` holds the full layout contract, including who owns each
+directory and which evidence shape new material should use. This tree is the
+subset a new persona starts with; it is not a second declaration.
+
 Copy the `templates/profile/` tree into the persona's `profile/`. It carries the
 human-authored sources plus an empty `generated/` folder with its ownership
 contract; `resume-persona` fills that folder. Never
