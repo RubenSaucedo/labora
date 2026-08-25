@@ -68,6 +68,18 @@ is JSON but human-authored, so it stays with the sources. Everything under
 `generated/` is derived from the sources, is read by every downstream stage, and
 is written by exactly one skill.
 
+Ownership per directory is declared once, machine-readably, in
+`src/lib/workspace-layout.js`; `skills/resume-conventions/SKILL.md` is its prose
+form and `labora validate-workspace <persona>` reports divergence. This section
+explains *why* the boundary exists — it is not a second declaration of *where*
+it sits.
+
+The compiled ledgers now sit at `.labora/state/profile/` for a new persona, and
+stay at `profile/generated/` for one that already has them there;
+`src/lib/profile-state.js` resolves which. The boundary this section describes is
+unchanged by that — what moved is only whether machine state is presented to the
+operator as a peer of the career history they wrote.
+
 Hand-editing `generated/` is the failure mode this prevents. Claims are anchored
 to their source by content hash and line range, so a hand-written claim either
 fails validation or, worse, passes structurally while asserting something no

@@ -27,6 +27,23 @@ we print.
 
 ## Canonical layout
 
+This section is the **only** place the persona layout is declared in prose. Its
+machine-readable twin is `src/lib/workspace-layout.js`, and
+`labora validate-workspace <persona>` reports where a tree diverges from it. If
+another document appears to describe a different layout, that document is
+stale — fix it here first, then fix the document to point back at this section.
+
+Each top-level directory declares **who may write it**, which is the question an
+operator actually needs answered:
+
+| Directory | Ownership | Meaning |
+| --- | --- | --- |
+| `profile/` | authored | you write it; no tool rewrites it |
+| `evidence/` | captured | original bytes from elsewhere; edited only by the cleaning pass |
+| `applications/` | generated | stages write it; safe to delete, unsafe to hand-edit |
+| `job-search/` | generated | dated discovery runs |
+| `career-issues/` | authored | drafts a human files |
+
 ```text
 <workspace>/personas/<name>/
 ├─ profile/
@@ -34,10 +51,11 @@ we print.
 │  ├─ background.md              # human-authored
 │  ├─ career.md                  # human-authored (optional)
 │  ├─ search-preferences.json    # human-authored
-│  └─ generated/                 # profile-builder writes; all other stages read
-│     ├─ identity.json
-│     ├─ claims.json
-│     └─ accomplishments.json
+│  └─ generated/                 # PROFILE.md — the rendered review surface
+├─ .labora/state/profile/        # compiled ledgers; machine state, never edited
+│  ├─ identity.json
+│  ├─ claims.json
+│  └─ accomplishments.json
 ├─ evidence/
 │  ├─ performance-reviews/{raw,extracted,text,validations}
 │  ├─ repositories/<date>/{repositories.md,repositories.json}
@@ -64,10 +82,50 @@ we print.
 
 ### Profile ownership
 
-`profile/generated/` is written by the **`profile-builder` agent only**, which
-applies the `resume-persona` skill to do it. Every other stage reads that folder
-and treats it as the verified ceiling on what may be asserted anywhere
-downstream.
+The compiled ledgers — `identity.json`, `claims.json`, `accomplishments.json` —
+are written by the **`profile-builder` agent only**, which applies the
+`resume-persona` skill to do it. Every other stage reads them and treats them as
+the verified ceiling on what may be asserted anywhere downstream.
+
+They are machine state: nobody authors them, nobody may hand-edit them, and
+deleting them costs a rebuild and nothing else. So they live at
+`.labora/state/profile/`, outside the tree the operator authors.
+
+**A persona that already keeps them at `profile/generated/` keeps using that
+path.** State is written wherever it already lives — resolved by
+`src/lib/profile-state.js`, never moved by a read. Writing to the new path while
+the old one still held a copy would leave two ledgers that disagree, and a
+resume built from the stale one is exactly the failure the hash checks exist to
+catch, arriving through the layout instead. Moving an existing persona is a
+migration with a dry run and a reversible manifest.
+
+`labora migrate-workspace <persona>` is that migration. It defaults to a dry run
+and prints the plan; `--apply` executes it and writes a manifest to
+`.labora/state/migrations/`; `--revert <manifest>` undoes it. Three properties
+make it safe to run on a real persona:
+
+- **It moves whole files and never rewrites their contents.** Claims anchor to
+  path plus content hash plus line range, so preserved bytes mean the hash and
+  the line range are unchanged by construction and only the path needs
+  repointing. A migration that edited bytes would owe every claim a
+  re-verification it cannot perform.
+- **It is all-or-nothing.** A plan is applicable only when there are no open
+  questions, no problems and no destination collisions. Partial application is
+  the one outcome with no honest story to tell afterwards.
+- **It asks rather than guesses.** An evidence directory whose name is a bare
+  year or date has no subject to derive, so the tool reports it and waits for
+  `--name <path>=<new-name>`. It also refuses to migrate anything whose recorded
+  claim hash already disagrees with the file on disk — that tree has a staleness
+  problem to resolve first, and moving files would only hide it.
+
+Processing-stage evidence (`raw/`, `extracted/`, `text/`, `validations/`) is
+deliberately left alone. Converting it into a package means deciding which of
+those files is *the* grounding record, and that is a content decision, not a
+move.
+
+`profile/generated/` survives as the home of `PROFILE.md`, the rendered review
+surface. That is a different thing from machine state: it exists to be read, so
+hiding it under a dot-directory would serve tidiness at the operator's expense.
 
 The agent is named here rather than the skill because the boundary is a context
 boundary, not a file-permission one. `profile-builder` curates with no job and no
@@ -197,20 +255,37 @@ refers to these exact bytes. Edit a classified file and its declaration goes
 
 Run `labora validate-evidence-manifest <persona>`.
 
-### Layout
+### Evidence layout
 
-`evidence/<source-type>/<ISO-date>-<slug>.md`, where the date is when the
-evidence **describes**, not when it was imported.
+Three shapes exist on disk, and all three are **valid**. Claims anchor to path
+plus content hash plus line range, so renaming evidence re-anchors every claim
+citing it — nothing is worth that except a real defect. So the contract
+recognises what is already there and says only which shape new material should
+use:
 
-**Advisory, and deliberately not enforced by migration.** Claims anchor to path
-plus content hash plus line range, so any rename re-anchors every claim in the
-ledger. Nothing is worth that except a real defect.
+| Shape | Example | Status |
+| --- | --- | --- |
+| dated-subject package | `evidence/performance-reviews/2024-10-mid-year-review/` | **preferred for new evidence** |
+| processing stage | `evidence/performance-reviews/{raw,extracted,text,validations}/` | supported; what `resume-evidence` writes today |
+| capture date | `evidence/repositories/2026-08-25/` | supported; what `snapshot-repos` writes today |
 
-The one thing that *is* flagged is a bare `/<YYYY>/` segment, as a warning: it
-reads as the year the evidence describes while it usually records the import
-batch — a directory named `2025/` holding material from 2020 onward. Prefer
-`captured/<ISO-date>/` when the batch date is what you mean. `contentDate` and
-`capturedAt` in the manifest are authoritative either way; path dates never are.
+A directory name is a label for humans, never a provenance claim. The manifest's
+`contentDate` and `capturedAt` are authoritative about dates; a path date is
+not.
+
+Two names are ambiguous enough to be worth flagging, as warnings:
+
+- **A bare `/<YYYY>/` segment.** It reads as the year the evidence describes
+  while it usually records the import batch — a directory named `2025/` holding
+  material from 2020 onward. Prefer `<date>-<subject>`, or `captured/<ISO-date>/`
+  when the batch date really is what you mean.
+- **A date with no subject.** `2024-10-05/` cannot be identified without opening
+  it. Append a stable slug.
+
+Run `labora validate-workspace <persona>` to see both. It is **advisory** and
+exits 0: a misnamed directory is a navigation problem, not an assurance one, and
+it never blocks a build. `--strict` fails on warnings and exists for repository
+CI, not for someone applying to a job.
 
 ## Untrusted-input boundary
 
@@ -281,6 +356,8 @@ request. If it cannot be generalised without losing it, keep it in the workspace
 | Validate application strategy references | `labora validate-application-strategy <strategy.json> <job-spec.json> <claims.json> --accomplishments <accomplishments.json> --output <validations/strategy.json>` |
 | Score lexical and structured requirement coverage | `labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>` |
 | Validate a persona's profile alone (no job, no resume) | `labora validate-profile <persona-name>` |
+| Report where a persona tree diverges from the layout contract | `labora validate-workspace <persona>` (advisory; exits 0. `--strict` fails on warnings, for repository CI) |
+| Move a persona onto the current layout | `labora migrate-workspace <persona>` (dry run; `--apply` to execute, `--revert <manifest>` to undo) |
 | Validate every summary clause, bullet and skill against claims | `labora validate-claims <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` (reads `job-spec.json` and `application-strategy.json` beside the resume; exits `2` for unsupported content, `3` when only `profile/generated/` needs a rebuild) |
 | Render editable Markdown review companion | `labora format-markdown <resume.json> <out.md> --job <job.md> --contact <contact.md>` |
 | Render DOCX with deterministic contact injection | `labora format-docx <resume.json> <out.docx> --style <N> --job <job.md> --contact <contact.md>` |

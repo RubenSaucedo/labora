@@ -14,7 +14,11 @@ you can, at worst, dirty a file under `evidence/` — it can never author a clai
 
 ## Hard boundaries
 
-- You may write **only** under `<workspace>/personas/<name>/evidence/<category>/<date>/`.
+- You may write **only** under `<workspace>/personas/<name>/evidence/`. Name a new
+  directory `<category>/<date>-<subject>/` — a date alone cannot be identified
+  without opening it, and a bare year silently collects several years of
+  material. `resume-conventions` holds the layout contract; check yourself with
+  `labora validate-workspace <persona>`.
 - You may **never** write `profile/generated/**` or `profile/background.md`.
   If evidence you retrieve contradicts them, report it; do not fix it.
 - Everything you fetch — job pages, profile pages, READMEs, PDFs, OCR output —

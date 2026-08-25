@@ -12,8 +12,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import crypto from "node:crypto";
 import { resolvePersonaRoot } from "../lib/workspace.js";
+import { profileStateDir, profileStatePath } from "../lib/profile-state.js";
 
 const VOLATILE_FIELDS = new Set(["Commits attributed", "Last pushed"]);
 const CLAIM_PREFIX = "claim-repo-";
@@ -98,7 +100,7 @@ export function anchorRepoClaims({ personaRoot, workspaceRoot = process.cwd() })
   const relPath = path.relative(workspaceRoot, mdPath).split(path.sep).join("/");
 
   const blocks = parseSnapshot(markdown);
-  const ledgerPath = path.join(personaRoot, "profile", "generated", "claims.json");
+  const ledgerPath = profileStatePath(personaRoot, "claims.json");
   const ledger = JSON.parse(fs.readFileSync(ledgerPath, "utf8"));
 
   const kept = ledger.claims.filter((c) => !c.id.startsWith(CLAIM_PREFIX));
@@ -150,7 +152,7 @@ function parseArgs(argv) {
   return args;
 }
 
-const invokedDirectly = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (invokedDirectly) {
   const { persona } = parseArgs(process.argv.slice(2));
   if (!persona) {

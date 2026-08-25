@@ -15,8 +15,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import crypto from "node:crypto";
 import { resolvePersonaRoot } from "../lib/workspace.js";
+import { profileStateDir, profileStatePath } from "../lib/profile-state.js";
 
 function sha256(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
@@ -73,7 +75,7 @@ export function planMigration(ledger, personaRoot) {
   return { changes, problems };
 }
 
-const invokedDirectly = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (invokedDirectly) {
   const args = process.argv.slice(2);
   const write = args.includes("--write");
@@ -84,7 +86,7 @@ if (invokedDirectly) {
   }
 
   const personaRoot = resolvePersonaRoot(persona);
-  const claimsPath = path.join(personaRoot, "profile", "generated", "claims.json");
+  const claimsPath = profileStatePath(personaRoot, "claims.json");
   if (!fs.existsSync(claimsPath)) {
     console.error(`no ledger at ${claimsPath}`);
     process.exit(1);

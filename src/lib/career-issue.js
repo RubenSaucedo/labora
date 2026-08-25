@@ -8,6 +8,7 @@
 // for that reason, not because a schema library was unavailable.
 import fs from "node:fs";
 import path from "node:path";
+import { profileStatePath } from "./profile-state.js";
 
 // The four kinds differ in what closing them actually buys, so they are not
 // interchangeable labels on one template. `polish` buys a signal of care;
@@ -142,7 +143,7 @@ export function normalizeDraft(input) {
 export function collectForbiddenTerms(personaRoot) {
   const terms = new Set(JOB_SEARCH_TERMS);
 
-  const identity = readJsonIf(path.join(personaRoot, "profile/generated/identity.json")) || {};
+  const identity = readJsonIf(profileStatePath(personaRoot, "identity.json")) || {};
   for (const experience of identity.experience || identity.experiences || []) {
     if (experience?.company) terms.add(String(experience.company));
   }
