@@ -87,6 +87,31 @@ structurally while asserting something no evidence supports.
 The boundary is ownership, not file type. `search-preferences.json` is JSON but
 human-authored, so it lives with the sources.
 
+#### When `generated/` is behind its source
+
+Editing a human-authored source after `profile-builder` ran does not invalidate
+the resume; it invalidates the *records derived from* that source. `claims.json`
+records the sha256 of every file it was verified against, so this is proven, not
+guessed, and `validate-claims` reports it as its own class:
+
+| | `unsupported_assertion` | `stale_derived_record` |
+| --- | --- | --- |
+| means | the evidence does not support this | `generated/` is behind its source |
+| owner | the writer | `profile-builder` |
+| CLI exit | `2` | `3` |
+| next step | change the content | rebuild the profile |
+| may continue | nothing downstream | content review, Markdown review, draft preview |
+
+Both are errors and both keep `valid` false, so neither can reach
+`send_ready`, run the judges, or produce a DOCX or PDF. The difference is only
+what may proceed meanwhile: on exit `3` the run state is `review_only`, the
+result carries a single `rebuildPacket` naming every stale record, and review
+work continues under a visible `UNVALIDATED / PROFILE REBUILD REQUIRED` marker.
+
+A run that mixes the two is `invalid`, not `review_only`. Recoverable debt never
+excuses unsupported content, and the rebuild is still not a licence to
+hand-edit `generated/`.
+
 
 `claims.json` is the private fact ledger. Every tailored bullet and displayed
 skill maps to verified claim IDs through `resume.json.provenance`; provenance is
@@ -256,7 +281,7 @@ request. If it cannot be generalised without losing it, keep it in the workspace
 | Validate application strategy references | `labora validate-application-strategy <strategy.json> <job-spec.json> <claims.json> --accomplishments <accomplishments.json> --output <validations/strategy.json>` |
 | Score lexical and structured requirement coverage | `labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>` |
 | Validate a persona's profile alone (no job, no resume) | `labora validate-profile <persona-name>` |
-| Validate every summary clause, bullet and skill against claims | `labora validate-claims <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` (reads `job-spec.json` and `application-strategy.json` beside the resume) |
+| Validate every summary clause, bullet and skill against claims | `labora validate-claims <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` (reads `job-spec.json` and `application-strategy.json` beside the resume; exits `2` for unsupported content, `3` when only `profile/generated/` needs a rebuild) |
 | Render editable Markdown review companion | `labora format-markdown <resume.json> <out.md> --job <job.md> --contact <contact.md>` |
 | Render DOCX with deterministic contact injection | `labora format-docx <resume.json> <out.docx> --style <N> --job <job.md> --contact <contact.md>` |
 | Render text-layer PDF | `labora format-pdf <resume.json> <out.pdf> --style <N> --job <job.md> --contact <contact.md>` |

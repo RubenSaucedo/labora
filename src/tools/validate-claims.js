@@ -64,7 +64,30 @@ try {
     fs.writeFileSync(outputPath, json);
   }
   process.stdout.write(json);
-  if (!result.valid) process.exitCode = 2;
+  // Two distinct non-zero codes, because the two situations have different next
+  // steps. Neither is success: a caller that only checks for zero keeps its
+  // current behavior, and a caller that wants to continue review work has to
+  // ask for exit 3 deliberately.
+  //
+  //   2  unsupported assertion -- the resume outruns the evidence. Fix content.
+  //   3  stale derived record  -- profile/generated/ is behind its source.
+  //                              Rebuild it; review work may continue.
+  if (!result.valid) {
+    const reviewOnly = result.state === "review_only";
+    process.exitCode = reviewOnly ? 3 : 2;
+    if (reviewOnly && result.rebuildPacket) {
+      const packet = result.rebuildPacket;
+      process.stderr.write(
+        `\nPROFILE REBUILD REQUIRED -- ${packet.records.length} stale record(s), no unsupported content.\n` +
+        `  owner:    ${packet.owner} (only it may write profile/generated/)\n` +
+        `  action:   ${packet.requiredAction}\n` +
+        `  deferred: ${packet.blocks.join(", ")}\n` +
+        `  continue: ${packet.allows.join(", ")}\n` +
+        packet.records.map((record) => `  - ${record.location}: ${record.code}\n`).join("") +
+        `\nThis resume is UNVALIDATED and cannot be released until the rebuild lands.\n`
+      );
+    }
+  }
 } catch (error) {
   process.stderr.write(`validate-claims error: ${error.message}\n`);
   process.exit(1);
