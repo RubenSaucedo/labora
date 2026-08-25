@@ -369,12 +369,21 @@ test("the profile-generated owner is named consistently across contracts", () =>
     path.join(repoRoot, "skills/resume-conventions/SKILL.md"),
     "utf8",
   );
+  // Pinned on the owner, not on the path: the ledgers moved out of the authored
+  // tree, and a test that pins their location makes the layout unmovable while
+  // guarding nothing about who may write them.
   assert.match(
     contract,
-    /`profile\/generated\/` is written by the \*\*`profile-builder` agent only\*\*/,
+    /compiled\s+ledgers[\s\S]{0,300}?written by the \*\*`profile-builder` agent only\*\*/,
     "resume-conventions is loaded first by every skill and agent, so it must name " +
       "the same owner as AGENTS.md; naming the skill instead of the agent invites " +
       "a job-holding context to run the skill and call it compliant",
+  );
+  const agentsDoc = fs.readFileSync(path.join(repoRoot, "AGENTS.md"), "utf8");
+  assert.match(
+    agentsDoc,
+    /compiled profile ledgers are written by the `profile-builder` agent only/,
+    "AGENTS.md must name the same owner as resume-conventions",
   );
 });
 
