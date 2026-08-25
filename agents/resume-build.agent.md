@@ -44,6 +44,17 @@ must be rebuilt from the earliest stale dependency.
    than from verified claims, which is the fabrication path the ledger exists to
    close. Pass it only the persona root and application directory. It must return
    with claim validation passing.
+
+   If `validate-claims` exits `3`, stop the pipeline here but do **not** report
+   the run as a factual failure. Every remaining error is a
+   `stale_derived_record`: a human-authored source moved ahead of
+   `profile/generated/`. Report the single `rebuildPacket` — its owner, its
+   required action, and every stale record — and name `profile-builder` as the
+   stage that resolves it. Steps 6 through 8 stay deferred, the artifact is not
+   rendered, and no judge runs. Content and Markdown review may continue while
+   marked `UNVALIDATED / PROFILE REBUILD REQUIRED`. Exit `2` is different: the
+   resume asserts something the evidence does not support, and only the content
+   can change.
 6. `resume-format`, including artifact validation.
 7. Launch `judge-ats`, `judge-engineer`, and `judge-hr` as **separate
    sub-agents**, each in its own fresh context — not as skills loaded into this

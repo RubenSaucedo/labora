@@ -134,3 +134,10 @@ Reject:
 Draft mode is not complete until `labora validate-claims` passes with zero
 errors. Review mode must name the mapped claim IDs used by every proposed
 rewrite and clearly label any unresolved evidence gap.
+
+Exit `3` is the one failure you do not fix by rewriting. It means every
+remaining error is a `stale_derived_record`: a human-authored source moved ahead
+of `profile/generated/`, and only `profile-builder` can reconcile it. Report the
+`rebuildPacket`, keep the draft marked `UNVALIDATED / PROFILE REBUILD REQUIRED`,
+and continue review work. Never edit `generated/` to clear it, and never treat
+the draft as validated.
