@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { resolvePersonaRoot } from "../lib/workspace.js";
+import { profileStateDir, profileStatePath } from "../lib/profile-state.js";
 import { triageRequirement, GAP_STATUS } from "../lib/gap-triage.js";
 
 const arg = (flag, fallback = null) => {
@@ -32,7 +33,7 @@ if (!personaArg || !requirementsPath) {
 
 try {
   const personaRoot = fs.existsSync(personaArg) ? personaArg : resolvePersonaRoot(personaArg);
-  const generated = path.join(personaRoot, "profile/generated");
+  const generated = profileStateDir(personaRoot);
   const readIf = (file) =>
     fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : null;
 

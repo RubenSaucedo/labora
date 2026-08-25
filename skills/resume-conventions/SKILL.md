@@ -51,10 +51,11 @@ operator actually needs answered:
 │  ├─ background.md              # human-authored
 │  ├─ career.md                  # human-authored (optional)
 │  ├─ search-preferences.json    # human-authored
-│  └─ generated/                 # profile-builder writes; all other stages read
-│     ├─ identity.json
-│     ├─ claims.json
-│     └─ accomplishments.json
+│  └─ generated/                 # PROFILE.md — the rendered review surface
+├─ .labora/state/profile/        # compiled ledgers; machine state, never edited
+│  ├─ identity.json
+│  ├─ claims.json
+│  └─ accomplishments.json
 ├─ evidence/
 │  ├─ performance-reviews/{raw,extracted,text,validations}
 │  ├─ repositories/<date>/{repositories.md,repositories.json}
@@ -81,10 +82,26 @@ operator actually needs answered:
 
 ### Profile ownership
 
-`profile/generated/` is written by the **`profile-builder` agent only**, which
-applies the `resume-persona` skill to do it. Every other stage reads that folder
-and treats it as the verified ceiling on what may be asserted anywhere
-downstream.
+The compiled ledgers — `identity.json`, `claims.json`, `accomplishments.json` —
+are written by the **`profile-builder` agent only**, which applies the
+`resume-persona` skill to do it. Every other stage reads them and treats them as
+the verified ceiling on what may be asserted anywhere downstream.
+
+They are machine state: nobody authors them, nobody may hand-edit them, and
+deleting them costs a rebuild and nothing else. So they live at
+`.labora/state/profile/`, outside the tree the operator authors.
+
+**A persona that already keeps them at `profile/generated/` keeps using that
+path.** State is written wherever it already lives — resolved by
+`src/lib/profile-state.js`, never moved by a read. Writing to the new path while
+the old one still held a copy would leave two ledgers that disagree, and a
+resume built from the stale one is exactly the failure the hash checks exist to
+catch, arriving through the layout instead. Moving an existing persona is a
+migration with a dry run and a reversible manifest.
+
+`profile/generated/` survives as the home of `PROFILE.md`, the rendered review
+surface. That is a different thing from machine state: it exists to be read, so
+hiding it under a dot-directory would serve tidiness at the operator's expense.
 
 The agent is named here rather than the skill because the boundary is a context
 boundary, not a file-permission one. `profile-builder` curates with no job and no

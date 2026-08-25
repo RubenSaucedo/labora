@@ -60,14 +60,26 @@ export const AUTHORED_PROFILE_FILES = Object.freeze([
 ]);
 
 /**
- * Where compiled profile state lives today.
+ * Where compiled profile state lives.
  *
- * It sits inside the authored tree, which is precisely the complaint: three
- * machine-owned ledgers and a fourth generated review surface are presented as
- * peers of the files the operator actually writes. The linter reports that as
- * an observation rather than a defect, because moving it is a migration.
+ * Machine state belongs outside the tree the operator authors, so a new persona
+ * keeps its ledgers under `.labora/state/profile/`. A persona that already has
+ * them at `profile/generated/` keeps them there until it is explicitly
+ * migrated — see `src/lib/profile-state.js` for why that is resolved rather
+ * than moved on next write.
  */
+export const PROFILE_STATE_DIR = ".labora/state/profile";
 export const GENERATED_PROFILE_DIR = "profile/generated";
+
+/**
+ * Generated files that are meant to be *read* by a person.
+ *
+ * `profile/generated/` survives as the home of the rendered review surface.
+ * That is a different thing from machine state: it exists to be looked at, so
+ * hiding it under a dot-directory would serve tidiness at the operator's
+ * expense.
+ */
+export const REVIEW_SURFACE_FILES = Object.freeze(["PROFILE.md", "README.md"]);
 
 /**
  * Evidence package shapes, in preference order.

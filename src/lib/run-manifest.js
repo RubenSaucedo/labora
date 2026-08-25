@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { pluginRoot as PLUGIN_ROOT, pathLabel } from "./paths.js";
+import { profileStateDir } from "./profile-state.js";
 
 // Bumped when the fingerprint or output-key format changes. A manifest written
 // under an older version is ignored rather than misread, so stages recompute
@@ -133,8 +134,10 @@ function evidenceValidationStatus(personaRoot) {
 
 export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applicationDir, style }) {
   const profile = path.join(personaRoot, "profile");
-  // resume-persona owns everything under generated/; every other stage reads it.
-  const generated = path.join(profile, "generated");
+  // profile-builder owns the compiled ledgers; every other stage reads them.
+  // Their location depends on the persona's layout, so it is resolved rather
+  // than assumed — a legacy persona keeps them under profile/generated/.
+  const generated = profileStateDir(personaRoot);
   const evidence = path.join(personaRoot, "evidence", "performance-reviews");
   const repositories = path.join(personaRoot, "evidence", "repositories");
   const judges = path.join(applicationDir, "judges");

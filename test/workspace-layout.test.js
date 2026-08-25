@@ -87,13 +87,26 @@ test("a non-kebab-case evidence type is flagged and routed away from a hand rena
   assert.match(found.route, /re-anchors every claim/);
 });
 
-test("generated profile state is reported as an observation, not a warning", () => {
-  const root = persona(["profile/generated"]);
+test("compiled ledgers in the authored tree are reported as an observation, not a warning", () => {
+  const root = persona([], { "profile/generated/claims.json": "{}\n" });
   const result = lintPersonaLayout(root);
   const found = result.findings.find((f) => f.code === "generated_state_in_authored_tree");
   assert.ok(found);
   assert.equal(found.severity, "info");
+  assert.match(found.message, /claims\.json/);
   assert.equal(result.warningCount, 0);
+});
+
+test("an empty generated/ is not reported, because nothing machine-owned is sitting among authored files", () => {
+  const result = lintPersonaLayout(persona(["profile/generated"]));
+  assert.equal(codes(result).filter((c) => c === "generated_state_in_authored_tree").length, 0);
+});
+
+test("a persona already keeping state under .labora/ has nothing to report about it", () => {
+  const root = persona([], { ".labora/state/profile/claims.json": "{}\n" });
+  const result = lintPersonaLayout(root);
+  assert.equal(codes(result).filter((c) => c === "generated_state_in_authored_tree").length, 0);
+  assert.equal(codes(result).filter((c) => c === "undeclared_directory").length, 0);
 });
 
 test("an undeclared top-level directory is reported so the operator knows no stage reads it", () => {
@@ -126,7 +139,10 @@ test("every authored profile file is accepted without comment", () => {
 });
 
 test("every finding carries a route, because a gap without a next step is unfinished work", () => {
-  const root = persona(["evidence/performance-reviews/2025", "evidence/Bad_Name", "notes", "profile/generated"]);
+  const root = persona(
+    ["evidence/performance-reviews/2025", "evidence/Bad_Name", "notes"],
+    { "profile/generated/claims.json": "{}\n" }
+  );
   const result = lintPersonaLayout(root);
   assert.ok(result.findings.length >= 4);
   for (const f of result.findings) {

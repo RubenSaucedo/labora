@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { resolvePersonaRoot } from "./workspace.js";
+import { personaRootFromStateFile, profileStateDir, profileStatePath } from "./profile-state.js";
 
 // v2 layout (Option A). The persona container is resolved by workspace.js and
 // normally lives OUTSIDE this repo in a private workspace (see labora.json /
@@ -41,16 +42,16 @@ export function getPersonaDir(name) {
 }
 
 // ---- profile ----
-// Human-authored sources live at the profile root; everything resume-persona
-// produces lives under profile/generated/ so the ownership boundary is visible
-// in the filesystem rather than only in documentation.
+// Human-authored sources live at the profile root. Compiled ledgers are machine
+// state and live wherever profile-state.js resolves them: `.labora/state/profile/`
+// for a new persona, `profile/generated/` for one that already has state there.
 export function getProfileDir(name) {
   const dir = path.join(personaRootPath(name), "profile");
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 export function getGeneratedDir(name) {
-  const dir = path.join(personaRootPath(name), "profile", "generated");
+  const dir = profileStateDir(personaRootPath(name));
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -67,13 +68,13 @@ export function getBackgroundPath(name) {
   return path.join(personaRootPath(name), "profile", "background.md");
 }
 export function getIdentityPath(name) {
-  return path.join(personaRootPath(name), "profile", "generated", "identity.json");
+  return profileStatePath(personaRootPath(name), "identity.json");
 }
 export function getClaimsPath(name) {
-  return path.join(personaRootPath(name), "profile", "generated", "claims.json");
+  return profileStatePath(personaRootPath(name), "claims.json");
 }
 export function getAccomplishmentsPath(name) {
-  return path.join(personaRootPath(name), "profile", "generated", "accomplishments.json");
+  return profileStatePath(personaRootPath(name), "accomplishments.json");
 }
 
 // ---- applications (one dir per job: JD + outputs together) ----
@@ -160,16 +161,9 @@ export function saveSummaryApplicant(name, jobSlug, markdown) {
 }
 
 // ---- path introspection ----
-// Generated artifacts sit at <persona>/profile/generated/<file>, while older
-// layouts kept them at <persona>/profile/<file>. Walk up to the persona root
-// instead of hardcoding a depth, so callers work under either layout.
+// A compiled ledger may sit at <persona>/.labora/state/profile/<file> (current)
+// or <persona>/profile/generated/<file> (legacy, and older layouts kept it at
+// <persona>/profile/<file>). All three must resolve to the same persona root.
 export function personaRootFromProfileFile(filePath) {
-  let dir = path.dirname(path.resolve(filePath));
-  for (let hops = 0; hops < 4; hops += 1) {
-    if (path.basename(dir) === "profile") return path.dirname(dir);
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return path.dirname(path.dirname(path.resolve(filePath)));
+  return personaRootFromStateFile(filePath);
 }

@@ -5,6 +5,7 @@ import {
   AUTHORED_PROFILE_FILES,
   EVIDENCE_SHAPES,
   GENERATED_PROFILE_DIR,
+  PROFILE_STATE_DIR,
   OWNERSHIP,
   PERSONA_DIRECTORIES,
   isBareDateSegment,
@@ -153,15 +154,20 @@ function lintProfile(personaRoot, findings) {
     ));
   }
 
-  // The complaint this whole contract exists to answer. Reported once, as an
-  // observation about the layout rather than about the persona.
-  if (fs.existsSync(path.join(personaRoot, GENERATED_PROFILE_DIR))) {
+  // The complaint this contract exists to answer: are compiled ledgers sitting
+  // among the files the operator authors? Reported only when they actually are.
+  const legacyState = path.join(personaRoot, GENERATED_PROFILE_DIR);
+  const strandedLedgers = listDir(legacyState)
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) => entry.name);
+  if (strandedLedgers.length) {
     findings.push(finding(
       "info",
       "generated_state_in_authored_tree",
-      "Compiled ledgers sit inside profile/, the directory the operator authors, so generated state and authored career history are presented as peers.",
+      `Compiled ledgers (${strandedLedgers.sort().join(", ")}) sit inside profile/, the directory the operator authors, so machine state and authored career history are presented as peers.`,
       GENERATED_PROFILE_DIR,
-      "Recognised and supported. Only profile-builder may write it; never hand-edit it to make a validation pass."
+  PROFILE_STATE_DIR,
+      `Recognised and supported; nothing is wrong with this persona. New personas keep them at ${PROFILE_STATE_DIR}, and a migrator will move an existing one on request. Until then, never hand-edit them to make a validation pass.`
     ));
   }
 }
@@ -201,7 +207,8 @@ export function lintPersonaLayout(personaRoot) {
     infoCount: findings.filter((f) => f.severity === "info").length,
     preferredEvidenceShape: EVIDENCE_SHAPES.find((shape) => shape.preferred).example,
     ownership: PERSONA_DIRECTORIES.map(({ name, ownership }) => ({ path: name, ownership })),
-    generatedProfileDir: GENERATED_PROFILE_DIR,
+    profileStateDir: PROFILE_STATE_DIR,
+    reviewSurfaceDir: GENERATED_PROFILE_DIR,
     ownershipVocabulary: OWNERSHIP,
   };
 }
