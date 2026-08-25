@@ -99,6 +99,30 @@ resume built from the stale one is exactly the failure the hash checks exist to
 catch, arriving through the layout instead. Moving an existing persona is a
 migration with a dry run and a reversible manifest.
 
+`labora migrate-workspace <persona>` is that migration. It defaults to a dry run
+and prints the plan; `--apply` executes it and writes a manifest to
+`.labora/state/migrations/`; `--revert <manifest>` undoes it. Three properties
+make it safe to run on a real persona:
+
+- **It moves whole files and never rewrites their contents.** Claims anchor to
+  path plus content hash plus line range, so preserved bytes mean the hash and
+  the line range are unchanged by construction and only the path needs
+  repointing. A migration that edited bytes would owe every claim a
+  re-verification it cannot perform.
+- **It is all-or-nothing.** A plan is applicable only when there are no open
+  questions, no problems and no destination collisions. Partial application is
+  the one outcome with no honest story to tell afterwards.
+- **It asks rather than guesses.** An evidence directory whose name is a bare
+  year or date has no subject to derive, so the tool reports it and waits for
+  `--name <path>=<new-name>`. It also refuses to migrate anything whose recorded
+  claim hash already disagrees with the file on disk — that tree has a staleness
+  problem to resolve first, and moving files would only hide it.
+
+Processing-stage evidence (`raw/`, `extracted/`, `text/`, `validations/`) is
+deliberately left alone. Converting it into a package means deciding which of
+those files is *the* grounding record, and that is a content decision, not a
+move.
+
 `profile/generated/` survives as the home of `PROFILE.md`, the rendered review
 surface. That is a different thing from machine state: it exists to be read, so
 hiding it under a dot-directory would serve tidiness at the operator's expense.
@@ -333,6 +357,7 @@ request. If it cannot be generalised without losing it, keep it in the workspace
 | Score lexical and structured requirement coverage | `labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>` |
 | Validate a persona's profile alone (no job, no resume) | `labora validate-profile <persona-name>` |
 | Report where a persona tree diverges from the layout contract | `labora validate-workspace <persona>` (advisory; exits 0. `--strict` fails on warnings, for repository CI) |
+| Move a persona onto the current layout | `labora migrate-workspace <persona>` (dry run; `--apply` to execute, `--revert <manifest>` to undo) |
 | Validate every summary clause, bullet and skill against claims | `labora validate-claims <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` (reads `job-spec.json` and `application-strategy.json` beside the resume; exits `2` for unsupported content, `3` when only `profile/generated/` needs a rebuild) |
 | Render editable Markdown review companion | `labora format-markdown <resume.json> <out.md> --job <job.md> --contact <contact.md>` |
 | Render DOCX with deterministic contact injection | `labora format-docx <resume.json> <out.docx> --style <N> --job <job.md> --contact <contact.md>` |
