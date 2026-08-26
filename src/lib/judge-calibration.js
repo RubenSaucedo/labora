@@ -7,7 +7,7 @@
  * whether the three actually agree. This module aggregates historical judge
  * outputs into distributions, per-model breakdowns, month-over-month drift, and
  * cross-judge agreement so drift can be caught before it silently changes who
- * gets marked send_ready.
+ * reaches an operator's review without its weakness being visible.
  *
  * Pure and deterministic — the caller collects judge JSON from disk and hands it
  * in as records; nothing here does I/O.

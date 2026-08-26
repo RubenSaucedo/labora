@@ -43,7 +43,7 @@ export const STALE_RECORD_REMEDY = Object.freeze({
  * The run state a caller should act on.
  *
  * `review_only` exists so an orchestrator has a name for "not releasable, but
- * not finished either". It can never become `send_ready`: it is reported only
+ * not finished either". It never clears the ledger: it is reported only
  * when errors exist, and errors keep `valid` false.
  */
 export function classifyRunState(issues) {

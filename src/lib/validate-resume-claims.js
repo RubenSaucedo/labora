@@ -1674,7 +1674,7 @@ export function validateResumeClaims({
     infoCount: issues.length - errors.length - warnings.length,
     // What the caller may do now. `review_only` means every error is
     // recoverable workflow debt, so review work can continue while carrying a
-    // visible stale marker. It is never `send_ready`: it is reported only when
+    // visible stale marker. It never clears the ledger: it is reported only when
     // errors exist, and errors keep `valid` false.
     state: classifyRunState(issues),
     // One packet for every stale record, so a rebuild is planned once rather

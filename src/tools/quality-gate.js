@@ -120,7 +120,10 @@ try {
   const outputPath = path.join(applicationDir, "release.json");
   fs.writeFileSync(outputPath, JSON.stringify(result, null, 2) + "\n");
   process.stdout.write(JSON.stringify(result, null, 2) + "\n");
-  if (result.state === "blocked") process.exitCode = 2;
+  // Only an absent artifact is a non-zero exit. Findings are reported, never
+  // enforced: exiting non-zero because a heuristic or a model judge disliked
+  // the resume is precisely the authority this tool no longer claims.
+  if (result.state === "generation_failed") process.exitCode = 2;
 } catch (error) {
   process.stderr.write(`quality-gate error: ${error.message}\n`);
   process.exit(1);
