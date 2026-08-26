@@ -17,6 +17,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { validateResumeClaims } from "../lib/validate-resume-claims.js";
+import { validateAccomplishments } from "../lib/validate-accomplishments.js";
 import { normalizeIdentity } from "../lib/normalize-identity.js";
 import { ZAccomplishmentBank } from "../schemas/accomplishments.js";
 import { ZClaimLedger } from "../schemas/provenance.js";
@@ -88,11 +89,17 @@ export function validateProfile(personaRoot, { workspaceRoot = process.cwd() } =
     workspaceRoot,
     personaRoot,
   });
+  const accomplishmentIssues = bank
+    ? validateAccomplishments({ bank, ledger, identity }).issues
+    : [];
 
   // The synthetic resume deliberately renders every catalog section, so a
   // complaint that it omits a required exact section is an artefact of this
   // harness rather than a defect in the profile.
-  const issues = result.issues.filter((i) => i.code !== "identity_section_mismatch");
+  const issues = [
+    ...result.issues.filter((i) => i.code !== "identity_section_mismatch"),
+    ...accomplishmentIssues,
+  ];
 
   return {
     valid: issues.every((i) => i.severity !== "error"),

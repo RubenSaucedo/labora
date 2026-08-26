@@ -174,7 +174,9 @@ whole workstream into one summary sentence.
 When an internal name must be generalized, write the `externalFact` so it drops
 the codename without inventing anything: it may not introduce a number absent from
 `fact`, and each named or canonical term must be supported by `fact` plus the
-`externalSources` excerpts that authorize the generalized label.
+`externalSources` excerpts that authorize the generalized label. Keep it atomic
+and factual: never include instructions such as recommended wording, a one-line
+statement, a resume bullet, or what a future writer should lead with.
 
 Claims consumed by the validator must reference a cleaned text/markdown source
 with exact line ranges so the canonical fact can be checked against the source
@@ -186,9 +188,10 @@ Group the ledger into accomplishment units in `profile/generated/accomplishments
 One unit is one coherent piece of work: a workstream, a delivery, an ownership
 role. A claim may appear in more than one unit when it genuinely supports both.
 
-Units carry structure, never prose. `title` and `externalTitle` are retrieval
-labels; every renderable sentence still comes from a claim. Fill the structured
-fields honestly, because downstream selection trusts them:
+Units carry structure, never prose. `title` and `externalTitle` are short,
+job-neutral retrieval labels, never imperatives, assessments, recommended
+wording, or mini-bullets. Every renderable sentence still comes from a claim.
+Fill the structured fields honestly, because downstream selection trusts them:
 
 - `contribution` records what the candidate did, not what the team did.
 - `scope.productionExposure` separates shipped work from a prototype.
@@ -209,7 +212,8 @@ belong to the identity record, not to a workstream.
 1. Read sources with line numbers (`nl -ba` is acceptable).
 2. Produce the identity record and the claims ledger.
 3. Validate with `ZIdentity` and `ZClaimLedger`.
-4. Build the accomplishment bank and validate it with `ZAccomplishmentBank` and
-   `validateAccomplishments`. Every issue is an error; there are no warnings.
-5. Record the `persona` stage with `run-state` for each existing application
+4. Build the accomplishment bank and validate it with `ZAccomplishmentBank`.
+5. Run `labora validate-profile <persona>`. It validates claim grounding,
+   external-fact and unit-label hygiene, and accomplishment-bank integrity.
+6. Record the `persona` stage with `run-state` for each existing application
    that will consume the rebuilt profile.
