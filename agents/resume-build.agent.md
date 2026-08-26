@@ -82,9 +82,15 @@ must be rebuilt from the earliest stale dependency.
 Report the DOCX/PDF paths, lexical and required coverage, deterministic
 validation results, judge verdicts, and `release.json.state`.
 
-- `blocked`: clearly state why it must not be sent.
-- `human_review`: state the decision requiring human judgment.
-- `send_ready`: still require explicit human approval before sending.
+- `generation_failed`: say plainly that no document was produced, and what
+  failed. Never present this as a judgement about the application.
+- `review_ready`: report every finding with its status and its suggested
+  actions, including the ones that make the resume look weaker. Do not
+  recommend against applying, and do not describe any finding as a bar to
+  sending — it is not one.
+
+Sending is the operator's act. Point at `labora approve <application-dir>
+--accept-all`; never run it for them, and never read a clean report as consent.
 
 Batch mode runs this complete isolation boundary per job and compares release
 states; it never mixes persona data.

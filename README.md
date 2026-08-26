@@ -101,11 +101,24 @@ walk around the boundary it exists to enforce.
 The `resume-build` agent checks content hashes, rebuilds stale stages, and writes
 `release.json` with one of:
 
-- `send_ready`
-- `human_review`
-- `blocked`
+- `review_ready` — an artifact exists, and here is everything Labora
+  established and failed to establish about it, as findings
+- `generation_failed` — no document was produced; there is nothing to review yet
 
-Human approval remains mandatory.
+Nothing else. Labora reports; it never refuses. Every finding carries how the
+statement was established — `verified`, `user_attested`, `uncertain`,
+`unsupported` — and the smallest next action, and none of them prevents you from
+rendering or sending your own resume.
+
+Approval is a separate, explicit act:
+
+```console
+labora approve applications/<job-slug> --accept-all
+```
+
+That is the only thing that produces `operator_approved`. It binds to one exact
+artifact hash and one exact finding set, and stops applying the moment either
+changes.
 
 ## Data layout
 

@@ -202,8 +202,8 @@ test("a judge that rewrites the supplied model is caught as stale", () => {
     artifactType: "docx",
   });
   assert.ok(
-    result.hardBlockers.some((blocker) => /ATS judge metadata is stale.*model/.test(blocker)),
-    `expected a model mismatch blocker, got: ${JSON.stringify(result.hardBlockers)}`
+    result.findings.some((f) => f.code === "judge_metadata_stale" && /model/.test(f.finding)),
+    `expected a model mismatch finding, got: ${JSON.stringify(result.findings)}`
   );
   assert.equal(result.gates.atsJudge, false);
 });
@@ -216,7 +216,7 @@ test("a judge that copies the supplied model verbatim raises no model blocker", 
     artifactPath: "resume.docx",
     artifactType: "docx",
   });
-  assert.ok(!result.hardBlockers.some((blocker) => /model/.test(blocker)));
+  assert.ok(!result.findings.some((f) => /\bmodel\b/.test(f.finding)));
 });
 
 test("the release record carries the model configuration as evidence", () => {
@@ -275,7 +275,7 @@ test("an unknown model on either side does not invalidate a verdict", () => {
     atsJudge: judgeFixture({ model: "claude-opus-5" }),
     expectedJudgeMetadata: { ats: expectedFor(UNKNOWN_MODEL) },
   });
-  assert.ok(!wentUnknown.hardBlockers.some((b) => /model/.test(b)), JSON.stringify(wentUnknown.hardBlockers));
+  assert.ok(!wentUnknown.findings.some((f) => /\bmodel\b/.test(f.finding)), JSON.stringify(wentUnknown.findings));
   assert.equal(wentUnknown.gates.atsJudge, true);
 
   const wasUnknown = evaluateQualityGate({
@@ -283,7 +283,7 @@ test("an unknown model on either side does not invalidate a verdict", () => {
     atsJudge: judgeFixture({ model: UNKNOWN_MODEL }),
     expectedJudgeMetadata: { ats: expectedFor("claude-opus-5") },
   });
-  assert.ok(!wasUnknown.hardBlockers.some((b) => /model/.test(b)));
+  assert.ok(!wasUnknown.findings.some((f) => /\bmodel\b/.test(f.finding)));
 });
 
 // Every per-agent field must stay null when nothing was read. Reporting
@@ -345,15 +345,16 @@ test("expectedJudgeMetadata records the configured model", async () => {
   assert.equal(metadata.model, "gpt-5.4");
 });
 
-// A release record written before this field existed must still parse.
+// A release record must still parse with judgeModels absent, in every shape the
+// model report can take.
 test("a real report round-trips through the release schema in every state", () => {
   const base = {
-    schemaVersion: "1.0",
-    state: "send_ready",
+    schemaVersion: "2.0",
+    state: "review_ready",
     generatedAt: new Date().toISOString(),
     artifact: { path: "r.docx", type: "docx", hash: "a".repeat(64) },
-    hardBlockers: [],
-    reviewReasons: [],
+    findings: [],
+    findingSummary: { verified: 0, user_attested: 0, uncertain: 0, unsupported: 0 },
     gates: {
       strategy: true, claims: true, artifact: true, requirements: true,
       coreRequirements: true, atsJudge: true, engineerJudge: true, hrJudge: true,

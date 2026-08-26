@@ -50,27 +50,44 @@ answering three unrelated questions. They are separated permanently:
 
 | Dimension | Asks | Values |
 | --- | --- | --- |
-| `artifact_assurance` | Is this document honest and intact? | `pass` / `blocked` |
+| `artifact_assurance` | Is this document honest and intact? | `pass` / `findings` |
 | `eligibility` | Does a categorical requirement bar this application? | `met` / `unmet` / `unknown` |
 | `application_outlook` | How strong does this look? | `strong` / `plausible` / `low` / `unknown` |
 
 Rules:
 
-- **Only integrity failures block assurance.** An unsupported rendered
-  claim, a confidentiality leak, a corrupted or stale artifact, a
-  validation that did not execute. These are facts about the document,
-  and they are non-negotiable.
-- **Only a *confirmed* unmet categorical requirement blocks
-  send-readiness.** `unknown` never blocks — it prompts a question.
-- **A weak outlook never blocks anything.** Judge verdicts are
-  simulations of external screening behaviour, not facts about the
-  candidate. A `decline` is an estimate, and an estimate must not
-  occupy the same state as fabrication.
+- **Nothing Labora concludes blocks the operator.** Every evidence,
+  claim, eligibility, strategy, coverage and judge concern is a
+  **finding**: what was established, what was not, and the smallest
+  next action. A finding is reported, never enforced. The person whose
+  career this describes decides what to send.
+- **The only non-review state is a missing artifact.** If rendering did
+  not produce a document, Labora reports `generation_failed` — not a
+  veto, simply the truthful statement that there is nothing to review
+  yet. Everything else is `review_ready`.
+- **Only a *confirmed* unmet categorical requirement is reported as
+  unsupported.** `unknown` prompts a question.
+- **A weak outlook is an estimate.** Judge verdicts are simulations of
+  external screening behaviour, not facts about the candidate. A
+  `decline` is reported as an estimate and labelled as one.
+- **Labora never authors the decision to send.** There is no
+  tool-written `send_ready`. `operator_approved` is recorded only by an
+  explicit human act, bound to one exact artifact hash and one exact
+  finding set, and it stops applying the moment either changes.
+
+How a statement came to be believed is recorded on it, always:
+`verified` (established from mapped evidence), `user_attested` (the
+operator confirms it and Labora cannot independently check),
+`uncertain` (inconclusive), `unsupported` (this corpus does not support
+it). None of these prevents generation. Hiding the difference between
+them would be the real dishonesty; refusing to render is merely
+paternalism, and it was never Labora's to exercise.
 
 This resolves the tension between autonomy and assurance honestly.
-Labora refusing to *certify* an application as send-ready is not Labora
-refusing to *let you* apply. The candidate may always inspect and
-export a draft that Labora will not label `send_ready`.
+Labora reports everything it found and nothing it did not, and then
+gets out of the way. An assistant that stops a person from describing
+their own work has confused a heuristic with a fact, and the cost of
+that confusion falls entirely on the applicant.
 
 ## The five principles
 

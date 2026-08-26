@@ -427,11 +427,24 @@ fingerprint and output hashes remain unchanged.
 
 ### `release.json`
 
-The final state:
+What the gate established, and nothing more:
 
-- `blocked`: hard factual, eligibility, strategy, artifact or judge failure;
-- `human_review`: no hard failure, but core gaps or uncertainty remain;
-- `send_ready`: all configured gates pass.
+- `review_ready`: an artifact exists; every concern is a finding carrying its
+  status (`verified` / `user_attested` / `uncertain` / `unsupported`), its
+  basis, and its suggested actions;
+- `generation_failed`: the requested artifact was not produced.
+
+There is no state in which the tool refuses. `gates` is retained alongside the
+findings as evidence of which perspectives held up, but nothing may turn a
+`false` there into a refusal.
+
+### `release-approval.json`
+
+Written only by `labora approve`, only from an explicit operator act. It names
+one artifact hash and one set of acknowledged finding IDs, and it is the only
+source of `operator_approved`. Keeping it in a separate file is what makes the
+guarantee structural: the gate never opens it, so it cannot author an approval
+even by mistake.
 
 ### `outcome.json`
 

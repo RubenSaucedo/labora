@@ -15,8 +15,9 @@ task(agent_type: "labora:resume-build", prompt: "<persona> <job-slug>, style N i
 ```
 
 It runs the hash-aware pipeline end to end and finishes with
-`applications/<job-slug>/release.json`. Only `release.json.state = send_ready`
-is eligible for human-approved sending.
+`applications/<job-slug>/release.json`, which reports findings and never
+refuses. Sending is recorded separately by `labora approve`, and only from an
+explicit operator act.
 
 Do not run any stage in the calling context. The conductor holds the job
 description, which is exactly why it must delegate profile curation and every

@@ -9,9 +9,15 @@ Labora helps a person get a job. An assurance pipeline drifts toward saying no,
 because a blocked good application is silent while a passed bad one is felt. So
 a gap is an opportunity with a named next step, never a verdict; *we have no
 evidence of X* is never *the candidate lacks X*; and Labora never emits "not a
-fit" — it reports coverage and lets the human decide whether to apply. That
-flexibility governs what we look for and ask about. It never governs what we
-print: every rendered bullet still maps to a verified claim ID.
+fit" — it reports coverage and lets the human decide whether to apply.
+
+Labora reports; it never refuses. Every concern is a **finding** carrying how
+the statement was established — `verified`, `user_attested`, `uncertain`,
+`unsupported` — and the smallest next action. No finding stops generation, and
+no heuristic or model judge has authority over what a person may say about
+their own career. What Labora owes instead is that the label is always true:
+an `unsupported` bullet is rendered *and* reported as unsupported, and is never
+relabelled as verified.
 
 Pipeline:
 
@@ -47,7 +53,8 @@ Core rules:
 - Inaccessible evidence is not absent evidence. Private repositories, internal
   documents and NDA'd work are where most senior work lives; judge the strength
   of the signal and record honestly how it was attested.
-- Every bullet and displayed skill maps to verified claim IDs.
+- Every bullet and displayed skill carries its provenance state. Rendering an
+  `unsupported` bullet is permitted; relabelling it as verified is not.
 - Contact remains blank until deterministic rendering from `profile/contact.md`.
 - The compiled profile ledgers are written by the `profile-builder` agent only;
   every other stage reads them. They live at `.labora/state/profile/`, or at
@@ -66,8 +73,8 @@ Core rules:
   available in degraded advisory mode. Stop only a stage whose required tool
   refuses because its dependency is unavailable. Never approximate that
   calculation or validation by hand: a gate that cannot execute must not be
-  mistaken for one that passed, and `send_ready` remains unavailable when a
-  required gate cannot run. Use `labora doctor` to distinguish missing npm,
+  mistaken for one that passed, and a finding recording that it could not run is
+  required. Use `labora doctor` to distinguish missing npm,
   registry authentication or policy, network/TLS failure, and a healthy
   registry that is ready for setup.
 - The plugin's own files and the user's workspace are two different roots.
@@ -76,7 +83,9 @@ Core rules:
   working directory. Never resolve a plugin file against `process.cwd()` — a
   workspace that happens to contain `agents/` or `skills/` would then supply the
   prompt a judge is certified against.
-- Only `release.json.state = send_ready` is eligible for human-approved sending.
+- Only an explicit operator act writes `release-approval.json`. Labora never
+  authors it, never infers it from a clean run, and it stops applying the moment
+  the artifact or the finding set changes.
 
 Dispatch agents; never stand in for them. The isolation between conductor,
 scouts, curator and judges is what makes their verdicts independent and

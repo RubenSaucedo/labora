@@ -160,11 +160,13 @@ guessed, and `validate-claims` reports it as its own class:
 | next step | change the content | rebuild the profile |
 | may continue | nothing downstream | content review, Markdown review, draft preview |
 
-Both are errors and both keep `valid` false, so neither can reach
-`send_ready`, run the judges, or produce a DOCX or PDF. The difference is only
-what may proceed meanwhile: on exit `3` the run state is `review_only`, the
-result carries a single `rebuildPacket` naming every stale record, and review
-work continues under a visible `UNVALIDATED / PROFILE REBUILD REQUIRED` marker.
+Both are errors and both keep `valid` false. Neither prevents rendering — the
+release gate reports them as findings and the operator decides — but they mean
+very different things, and collapsing them would report a bookkeeping lag as a
+statement about the person. The difference is what may proceed meanwhile: on
+exit `3` the run state is `review_only`, the result carries a single
+`rebuildPacket` naming every stale record, and review work continues under a
+visible `UNVALIDATED / PROFILE REBUILD REQUIRED` marker.
 
 A run that mixes the two is `invalid`, not `review_only`. Recoverable debt never
 excuses unsupported content, and the rebuild is still not a licence to
@@ -404,7 +406,8 @@ guesses, and only for requirements that were actually checked.
 - `tailored-resume.js` — final content plus non-rendered sentence/clause
   provenance for the summary and claim mappings for every other composed field.
 - `judge-output.js` — ATS, engineer, and HR judge contracts.
-- `release-output.js` — `send_ready | human_review | blocked`.
+- `release-output.js` — `review_ready | generation_failed`, plus the separate
+  `ZReleaseApproval` written only by an explicit operator act.
 - `application-outcome.js` — objective operator-confirmed funnel events.
 
 Validate before writing. Schemas are strict; unexpected fields are errors.
@@ -415,16 +418,19 @@ Validate before writing. Schemas are strict; unexpected fields are errors.
    achievement may appear without a source-hashed claim whose canonical fact is
    substantively supported by the referenced source excerpt.
 2. Every tailored experience entry keeps the identity stable `id`, company, role and
-   period. Every bullet and displayed skill must map to verified claim IDs.
+   period. Every bullet and displayed skill carries its provenance state.
+   Rendering an `unsupported` bullet is permitted; relabelling it as verified is
+   not.
 3. Repeated performance reviews do not create repeated accomplishments.
 4. Internal metadata (`provenance`, `keywords_mapped`, gaps, notes) is never
    rendered or counted as resume coverage.
 5. A stage is reusable only when `run-state check` reports it fresh. File
    existence alone is not idempotence.
-6. Missing hard eligibility is a blocker. Missing core experience is an honest
-   human-review concern, not an invitation to invent or an automatic rejection.
-7. The final pipeline must produce `release.json`. Only `send_ready` is eligible
-   for sending, and human approval is still required.
+6. Uncovered hard eligibility is a finding, not a refusal. It states that no
+   wording in this document covers a stated requirement, which is never the same
+   as the requirement being unmet.
+7. The final pipeline must produce `release.json`. Sending is the operator's
+   act, recorded by `labora approve` and by nothing else.
 8. An open issue is a promise, not evidence. Nothing under `career-issues/`, and
    no issue filed from it, may ever be read as a claim or counted as coverage —
    otherwise the ledger becomes gameable by typing. Only merged, shipped or
