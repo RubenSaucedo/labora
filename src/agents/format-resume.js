@@ -704,6 +704,7 @@ export function agent2ResumeToFormatterJson(resume, options = {}) {
     role: e.role ?? "",
     startDate: e.period ?? "",
     endDate: "",
+    location: e.location ?? "",
     highlights: Array.isArray(e.bullets) ? e.bullets : [],
     progression: Array.isArray(e.progression) ? e.progression : [],
   }));

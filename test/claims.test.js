@@ -77,6 +77,20 @@ test("accepts fully mapped verified claims", () => {
   assert.equal(result.valid, true);
 });
 
+test("a rendered experience location must match the identity record", () => {
+  const input = fixture();
+  input.identity.experience[0].location = "Austin, TX";
+  input.resume.experience[0].location = "Seattle, WA";
+
+  const result = validateResumeClaims(input);
+
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) =>
+    issue.code === "experience_identity_changed"
+    && issue.location === "experience[0].location"
+  ));
+});
+
 test("rejects claims grounded in story.md now that it is not an approved source", () => {
   const input = fixture();
   const storyPath = path.join(input.workspaceRoot, "profile", "story.md");

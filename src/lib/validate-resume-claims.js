@@ -1042,7 +1042,8 @@ export function validateResumeClaims({
     }
 
     if (coreEntry) {
-      for (const field of ["company", "role", "period"]) {
+      for (const field of ["company", "role", "period", "location"]) {
+        if (field === "location" && !entry[field]) continue;
         if (normalize(entry[field]) !== normalize(coreEntry[field])) {
           issues.push(issue(
             "error",
