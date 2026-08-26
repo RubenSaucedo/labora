@@ -34,7 +34,11 @@ shape only and never ground a fact.
   verified career jump should remain visible. `label`, `externalLabel`,
   `externalLabelKind` and `date` are each checked against the identity record,
   so tailoring cannot promote or suppress a step by rewriting its semantics.
-- Every bullet maps to one or more verified claim IDs.
+- Every bullet maps to one or more verified claim IDs. Prefer one claim per
+  bullet. Where a bullet needs two, no validator can check that the outcome in
+  one record belongs to the subject in the other, so the bullet is reported as
+  `uncertain` rather than verified — write two bullets instead of one that only
+  stands when both records are read together.
 - Every displayed skill maps to verified claim IDs and exists in the identity record.
 - Education matches the identity record exactly.
 - Projects, certifications, and awards are a catalog: render any subset that
