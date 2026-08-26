@@ -149,6 +149,33 @@ function renderableFact(claim) {
   return claim.externalFact ? claim.externalFact : claim.fact;
 }
 
+/**
+ * How much of some rendered text a set of claims actually covers.
+ *
+ * Returned as a token set rather than a ratio so the union and a single claim
+ * can be compared directly. A ratio would need a threshold, and any threshold
+ * here is a guess: the question is not "is this well enough supported" -- the
+ * union check above already asks that -- but "does the support depend on
+ * combining records".
+ */
+function coveredTokens(text, claims) {
+  const evidence = new Set(claims.flatMap((claim) => substantiveTokens(renderableFact(claim))));
+  return new Set(substantiveTokens(text).filter((token) => evidence.has(token)));
+}
+
+/**
+ * What a single claim does not cover, named so a reader can see the split.
+ *
+ * The point of the composition finding is that someone can look at it and spot
+ * in seconds that an outcome came from the other record. "Support is
+ * distributed" alone would not do that; "claim-a does not cover: full,
+ * allocation" does.
+ */
+function termsMissingFromClaim(text, claim) {
+  const covered = coveredTokens(text, [claim]);
+  return substantiveTokens(text).filter((token) => !covered.has(token)).slice(0, 8);
+}
+
 function claimDisclosureIssue({ claimId, authorization, location, subject = "Claim" }) {
   if (authorization === "withheld_unclassified") {
     return issue(
@@ -1198,6 +1225,46 @@ export function validateResumeClaims({
             `Numeric claim "${token}" is not present in the mapped source claims.`,
             bulletLocation
           ));
+      }
+
+      // Joining several claims into one blob proves the words exist somewhere.
+      // It does not prove the outcome belongs to the subject it modifies: a
+      // bullet can move a result from one record onto another's subject and
+      // still pass every check above, because every term is present in the
+      // union.
+      //
+      // The signal is whether the union covers more of the bullet than the best
+      // single claim does. If it does, the bullet stands only when the records
+      // are read together, and nothing here established that they may be. If it
+      // does not, one claim already carries everything the union carries, so
+      // there is nothing for a second record to leak in.
+      //
+      // No lexical validator can settle that relationship, so this does not
+      // claim the bullet is wrong. It reports that the bullet was never
+      // established -- a warning, which the release gate renders as `uncertain`
+      // rather than `unsupported`. The label stops asserting more than was
+      // checked, which is the only part of this that can be made true.
+      //
+      // A single mapped claim is exempt because the union is that claim.
+      if (mappedClaims.length > 1) {
+        const unionCoverage = coveredTokens(bullet, mappedClaims).size;
+        const bestSingle = Math.max(...mappedClaims.map((claim) => coveredTokens(bullet, [claim]).size));
+        if (unionCoverage > bestSingle) {
+          const split = mappedClaims
+            .map((claim) => {
+              const missing = termsMissingFromClaim(bullet, claim);
+              return missing.length
+                ? `${claim.id} does not cover: ${missing.join(", ")}`
+                : `${claim.id} covers every term`;
+            })
+            .join("; ");
+          issues.push(issue(
+            "warning",
+            "bullet_attribution_unverified",
+            `No single mapped claim supports this bullet on its own, so it holds only if ${mappedClaims.map((claim) => claim.id).join(" and ")} are read together -- and that composition is unverified. ${split}. Split the bullet so each part rests on one record, or map it to a claim that carries the whole statement.`,
+            bulletLocation
+          ));
+        }
       }
     }
   }
