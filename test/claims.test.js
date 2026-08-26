@@ -305,6 +305,64 @@ test("externalFact cannot smuggle numbers or technologies past the internal fact
   assert.equal(result.issues.some((issue) => issue.code === "external_fact_ungrounded"), true);
 });
 
+test("externalFact cannot contain editorial instructions", () => {
+  const input = fixture();
+  const claim = input.ledger.claims[0];
+  claim.disclosure = "internal_generalizable";
+  claim.externalFact =
+    "The defensible one-line statement is: used React to reduce latency by 40%.";
+
+  const result = validateResumeClaims(input);
+
+  assert.equal(result.valid, false);
+  assert.equal(
+    result.issues.some((issue) => issue.code === "external_fact_editorial_instruction"),
+    true
+  );
+});
+
+test("externalFact must remain substantively supported without rejecting factual verbs", () => {
+  const unsupported = fixture();
+  unsupported.ledger.claims[0].disclosure = "internal_generalizable";
+  unsupported.ledger.claims[0].externalFact =
+    "Improved collaboration and strategic execution across teams.";
+
+  const unsupportedResult = validateResumeClaims(unsupported);
+
+  assert.equal(unsupportedResult.valid, false);
+  assert.equal(
+    unsupportedResult.issues.some((issue) => issue.code === "external_fact_substantive_mismatch"),
+    true
+  );
+
+  const factual = fixture();
+  const claim = factual.ledger.claims[0];
+  claim.fact = "Led delivery, built a React cache, and reduced request latency by 40%.";
+  claim.disclosure = "internal_generalizable";
+  claim.externalFact =
+    "Led delivery, built a React cache, and reduced request latency by 40%.";
+  const sourcePath = path.join(factual.workspaceRoot, "profile", "career.md");
+  fs.writeFileSync(
+    sourcePath,
+    "Engineer — Example (2022 - Present)\nLed delivery, built a React cache, and reduced request latency by 40%."
+  );
+  claim.sources[0].fileHash = crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(sourcePath))
+    .digest("hex");
+
+  const factualResult = validateResumeClaims(factual);
+
+  assert.equal(factualResult.valid, true);
+  assert.equal(
+    factualResult.issues.some((issue) =>
+      ["external_fact_editorial_instruction", "external_fact_substantive_mismatch"]
+        .includes(issue.code)
+    ),
+    false
+  );
+});
+
 test("claim parse preserves disclosure-key presence without disclosure backfill", () => {
   const source = {
     path: "profile/background.md",

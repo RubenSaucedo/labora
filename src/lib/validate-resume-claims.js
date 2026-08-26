@@ -8,6 +8,7 @@ import { renderAuthorization } from "./disclosure.js";
 import { validateObservations } from "./validate-observations.js";
 import { loadManifest, resolveProvenance } from "./evidence-provenance.js";
 import { analyzeProgression } from "./progression.js";
+import { profileEditorialMarker } from "./profile-output-hygiene.js";
 import {
   STALE_RECORD_REMEDY,
   UNSUPPORTED_ASSERTION,
@@ -892,6 +893,15 @@ export function validateResumeClaims({
         claim.fact,
         ...readExcerpts(claim.externalSources, sourceLocation).excerpts,
       ].join("\n");
+      const editorialMarker = profileEditorialMarker(claim.externalFact);
+      if (editorialMarker) {
+        issues.push(issue(
+          "error",
+          "external_fact_editorial_instruction",
+          `Claim "${claim.id}" externalFact contains editorial guidance (${editorialMarker}) instead of only factual content.`,
+          sourceLocation
+        ));
+      }
       const invented = [
         ...unsupportedNumericTokens(claim.externalFact, claim.fact),
         ...unsupportedCanonicalTerms(claim.externalFact, generalizationEvidence),
@@ -902,6 +912,14 @@ export function validateResumeClaims({
           "error",
           "external_fact_ungrounded",
           `Claim "${claim.id}" externalFact introduces unsupported content: ${invented.join(", ")}.`,
+          sourceLocation
+        ));
+      }
+      if (textSupportRatio(claim.externalFact, generalizationEvidence) < 0.4) {
+        issues.push(issue(
+          "error",
+          "external_fact_substantive_mismatch",
+          `Claim "${claim.id}" externalFact is not substantively supported by its fact or external sources.`,
           sourceLocation
         ));
       }

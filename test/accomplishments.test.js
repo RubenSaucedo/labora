@@ -1,11 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   validateAccomplishments,
   rankAccomplishments,
 } from "../src/lib/validate-accomplishments.js";
+import { validateProfile } from "../src/tools/validate-profile.js";
 import { ZAccomplishmentBank } from "../src/schemas/accomplishments.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -122,6 +124,49 @@ test("a unit cannot reference an experience missing from the identity record", (
   );
   assert.equal(result.valid, false);
   assert.ok(codes(result).includes("unknown_experience_id"));
+});
+
+test("unit labels reject editorial guidance and accept neutral retrieval phrases", () => {
+  for (const unit of [
+    baseUnit({ title: "Lead with this: caching performance win" }),
+    baseUnit({ externalTitle: "Recommended resume wording: request caching performance" }),
+  ]) {
+    const result = validateAccomplishments(fixture([unit]));
+    assert.equal(result.valid, false);
+    assert.ok(codes(result).includes("unit_label_editorial_instruction"));
+  }
+
+  const neutral = validateAccomplishments(
+    fixture([baseUnit({ title: "Request caching performance" })])
+  );
+  assert.equal(neutral.valid, true);
+  assert.ok(!codes(neutral).includes("unit_label_editorial_instruction"));
+});
+
+test("validate-profile includes accomplishment label hygiene", () => {
+  const personaRoot = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), "labora-profile-hygiene-")),
+    "example"
+  );
+  fs.cpSync(path.join(repoRoot, "data", "personas", "example"), personaRoot, {
+    recursive: true,
+  });
+  const bankPath = path.join(
+    personaRoot,
+    "profile",
+    "generated",
+    "accomplishments.json"
+  );
+  const bank = JSON.parse(fs.readFileSync(bankPath, "utf8"));
+  bank.units[0].title = "Lead with this: caching performance win";
+  fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+
+  const result = validateProfile(personaRoot, {
+    workspaceRoot: path.dirname(personaRoot),
+  });
+
+  assert.equal(result.valid, false);
+  assert.ok(codes(result).includes("unit_label_editorial_instruction"));
 });
 
 test("unit date ranges must be coherent", () => {
