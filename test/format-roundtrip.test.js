@@ -157,6 +157,36 @@ test("persisted tailored resumes cannot contain contact data", () => {
   assert.equal(ZTailoredResume.safeParse(resume).success, false);
 });
 
+test("experience location survives schema, adapter, and every formatter", async () => {
+  const resume = tailoredResume();
+  resume.experience[0].location = "Austin, TX";
+  const parsed = ZTailoredResume.parse(resume);
+  const formatter = agent2ResumeToFormatterJson(injectContact(parsed, {
+    name: "Jane Example",
+    email: "jane@example.com",
+    phone: "+1 555-123-4567",
+  }));
+  const markdown = resumeJsonToMarkdown(formatter);
+  const html = resumeJsonToHtml(formatter);
+  const docx = await formatResumeToDocxBuffer({ resumeJson: formatter, style: 1 });
+  const docxText = await extractTextFromDocx({ buffer: docx });
+
+  assert.equal(formatter.experience[0].location, "Austin, TX");
+  for (const rendered of [markdown, html, docxText]) {
+    assert.match(rendered, /Example \| 2022 - Present \| Austin, TX/);
+  }
+  assert.equal(
+    validateRenderedArtifact({ resume: formatter, extractedText: markdown }).valid,
+    true
+  );
+  const withoutLocation = validateRenderedArtifact({
+    resume: formatter,
+    extractedText: markdown.replace("Austin, TX", ""),
+  });
+  assert.equal(withoutLocation.valid, false);
+  assert.ok(withoutLocation.missingFields.includes("experience[0].location"));
+});
+
 test("requires every duplicate rendered field occurrence", () => {
   const formatter = agent2ResumeToFormatterJson(injectContact(tailoredResume(), {
     name: "Jane Example",
