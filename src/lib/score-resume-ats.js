@@ -278,6 +278,41 @@ function percentage(matched, total) {
   return total === 0 ? null : Math.round((matched / total) * 100);
 }
 
+function lexicalCoverageItems(evaluations, jobTitle, resumeText) {
+  const itemsByTerm = new Map();
+
+  function addItem(term, source, matcher) {
+    const existing = itemsByTerm.get(term);
+    if (existing) {
+      existing.sources.push(source);
+      if (matcher === "canonical") existing.matcher = matcher;
+      return;
+    }
+    itemsByTerm.set(term, { term, matcher, sources: [source] });
+  }
+
+  for (const evaluation of evaluations.filter((item) => item.checkable)) {
+    for (const term of evaluation.requirement.canonicalTerms) {
+      addItem(term, {
+        type: "canonical_requirement",
+        requirement_id: evaluation.requirement.id,
+      }, "canonical");
+    }
+  }
+
+  for (const term of significantRequirementTokens(jobTitle)) {
+    addItem(term, { type: "job_title", requirement_id: null }, "surface");
+  }
+
+  return [...itemsByTerm.values()].map(({ term, matcher, sources }) => ({
+    term,
+    matched: matcher === "canonical"
+      ? canonicalTermMatched(resumeText, term)
+      : containsSurfaceForm(resumeText, term),
+    sources,
+  }));
+}
+
 function formatRisks(resume) {
   const risks = [];
   if (!resume?.summary || resume.summary.trim().length < 80) {
@@ -322,17 +357,7 @@ export function scoreAts({ resume, job, jobSpec }) {
   const checkableOf = (group) => group.filter((evaluation) => evaluation.checkable);
   const semanticReview = evaluations.filter((evaluation) => !evaluation.checkable);
 
-  const canonicalTerms = [...new Set(spec.requirements.flatMap((requirement) => requirement.canonicalTerms))];
-  const fallbackTerms = [...new Set(spec.requirements
-    .filter((requirement) => requirement.canonicalTerms.length === 0 && requirement.kind !== "years")
-    .flatMap((requirement) => significantRequirementTokens(requirement.text))
-  )];
-  const titleTerms = significantRequirementTokens(job?.title || "");
-  const lexicalItems = [
-    ...canonicalTerms.map((term) => ({ term, matched: canonicalTermMatched(resumeText, term) })),
-    ...fallbackTerms.map((term) => ({ term, matched: containsSurfaceForm(resumeText, term) })),
-    ...titleTerms.map((term) => ({ term, matched: containsSurfaceForm(resumeText, term) })),
-  ].filter((item, index, items) => items.findIndex((candidate) => candidate.term === item.term) === index);
+  const lexicalItems = lexicalCoverageItems(evaluations, job?.title || "", resumeText);
   const matchedTerms = lexicalItems.filter((item) => item.matched).map((item) => item.term);
   const missingTerms = lexicalItems.filter((item) => !item.matched).map((item) => item.term);
 
@@ -394,7 +419,7 @@ export function scoreAts({ resume, job, jobSpec }) {
   }
 
   return {
-    metric_version: "3.0",
+    metric_version: "4.0",
     // What was actually measured, always visible alongside the percentage. A
     // coverage figure whose denominator is not reported can be improved by
     // shrinking the denominator, which is the failure mode this fix would
@@ -418,6 +443,19 @@ export function scoreAts({ resume, job, jobSpec }) {
       reason: "no_deterministic_matcher",
       partial_signals: evaluation.matchedSignals,
     })),
+    lexical_assessment: {
+      advisory: true,
+      denominator_count: lexicalItems.length,
+      matched_count: matchedTerms.length,
+      missing_count: missingTerms.length,
+      denominator_requirement_ids: [...new Set(lexicalItems.flatMap((item) =>
+        item.sources.map((source) => source.requirement_id).filter(Boolean)
+      ))],
+      excluded_semantic_review_requirement_ids: semanticReview.map(
+        (evaluation) => evaluation.requirement.id
+      ),
+      terms: lexicalItems,
+    },
     coverage_percent: lexicalCoverage,
     lexical_coverage_percent: lexicalCoverage,
     requirement_coverage_percent: requirementCoverage,

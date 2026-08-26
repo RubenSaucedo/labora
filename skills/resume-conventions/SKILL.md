@@ -377,7 +377,12 @@ request. If it cannot be generalised without losing it, keep it in the workspace
 | Re-anchor repository claims after a snapshot | `labora anchor-repo-claims --persona <name>` |
 | Validate evidence cleaning | `labora validate-evidence-cleaning <extracted.md> <cleaned.md> --metadata <extracted.json> --output <validation.json>` |
 
-`coverage_percent` is lexical coverage, not an ATS hiring probability.
+`coverage_percent` is advisory lexical coverage, not an ATS hiring probability.
+Its denominator contains only canonical requirement terms and job-title terms;
+free-form requirements that need semantic review contribute no tokens.
+`lexical_assessment.terms` reports every denominator term and its source
+requirement ID, while `excluded_semantic_review_requirement_ids` makes the
+excluded semantic denominator explicit.
 `requirement_coverage_percent` evaluates structured required lines, and is
 computed over `required_assessment.checkable_count` — the requirements a
 deterministic matcher can actually settle — never over the full requirement

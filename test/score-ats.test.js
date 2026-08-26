@@ -407,3 +407,89 @@ test("a checkable requirement is still reported missing", () => {
   assert.ok(result.must_have_missing.length > 0);
   assert.ok(result.requirements.some((item) => item.assessment === "unmatched"));
 });
+
+test("semantic-only responsibilities do not reduce lexical coverage", () => {
+  const baseJob = {
+    title: "Frontend Engineer",
+    description: "### Requirements\n- Expert in React and TypeScript",
+  };
+  const withResponsibility = {
+    ...baseJob,
+    description: `${baseJob.description}
+### Responsibilities
+- Maintain a widget platform, write clear and efficient code, and gather feedback to improve it.`,
+  };
+
+  const baseline = scoreAts({ resume: resume(), job: baseJob });
+  const result = scoreAts({ resume: resume(), job: withResponsibility });
+
+  assert.equal(result.lexical_coverage_percent, baseline.lexical_coverage_percent);
+  assert.equal(
+    result.lexical_assessment.denominator_count,
+    baseline.lexical_assessment.denominator_count
+  );
+  assert.ok(result.semantic_review_required.some((item) =>
+    item.text.startsWith("Maintain a widget platform")
+  ));
+});
+
+test("generic verbs cannot improve lexical coverage", () => {
+  const responsibilityJob = {
+    title: "Frontend Engineer",
+    description: `### Requirements
+- Expert in React and TypeScript
+### Responsibilities
+- Write clear code, ensure quality, and contribute feedback.`,
+  };
+  const baseline = scoreAts({ resume: resume(), job: responsibilityJob });
+  const withGenericVerbs = scoreAts({
+    resume: resume({
+      summary: "Frontend engineer who can write, ensure, and contribute.",
+    }),
+    job: responsibilityJob,
+  });
+
+  assert.equal(withGenericVerbs.lexical_coverage_percent, baseline.lexical_coverage_percent);
+  assert.ok(!baseline.lexical_assessment.terms.some((item) =>
+    ["write", "ensure", "contribute"].includes(item.term)
+  ));
+  assert.deepEqual(
+    withGenericVerbs.lexical_assessment.terms,
+    baseline.lexical_assessment.terms
+  );
+});
+
+test("adding a missing canonical skill improves lexical coverage", () => {
+  const skillJob = {
+    title: "Platform Engineer",
+    description: "### Requirements\n- Kubernetes experience",
+  };
+  const baseline = scoreAts({ resume: resume(), job: skillJob });
+  const withSkill = scoreAts({
+    resume: resume({ skills_secondary: ["Kubernetes"] }),
+    job: skillJob,
+  });
+
+  assert.ok(withSkill.lexical_coverage_percent > baseline.lexical_coverage_percent);
+  assert.ok(withSkill.matched_keywords.includes("kubernetes"));
+});
+
+test("lexical assessment reports every denominator term and source", () => {
+  const result = scoreAts({ resume: resume(), job: proseJob });
+  const canonicalTerm = result.lexical_assessment.terms.find(
+    (item) => item.term === "react"
+  );
+
+  assert.equal(result.lexical_assessment.advisory, true);
+  assert.equal(
+    result.lexical_assessment.denominator_count,
+    result.lexical_assessment.terms.length
+  );
+  assert.ok(canonicalTerm.sources.some((source) =>
+    source.type === "canonical_requirement" && source.requirement_id
+  ));
+  assert.deepEqual(
+    result.lexical_assessment.excluded_semantic_review_requirement_ids.sort(),
+    result.semantic_review_required.map((item) => item.id).sort()
+  );
+});
