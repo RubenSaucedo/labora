@@ -122,21 +122,129 @@ const workflowsSpec = {
   }],
 };
 
+const workflowsWithAlternativesSpec = {
+  ...workflowsSpec,
+  requirements: [
+    ...workflowsSpec.requirements,
+    {
+      id: "req-002",
+      severity: "core",
+      text: "Production experience with React",
+      canonicalTerms: ["react"],
+      surfaceForms: ["React"],
+    },
+  ],
+};
+
 test("a collision is read from the job spec and the ledger, never from ATS scoring", () => {
   const findings = analyzeHeadline({
+    atsTitle: "Software Engineer, Workflows",
+    targetRole: "Software Engineer",
+    resume: { provenance: { headline: [] } },
+    ledger: {
+      claims: [{
+        id: "c2",
+        fact: "Built production React applications.",
+        status: "verified",
+        disclosure: "public",
+      }],
+    },
+    jobSpec: workflowsWithAlternativesSpec,
+  });
+  const collision = findings.find((item) => item.code === "headline_requirement_collision");
+  assert.equal(collision.severity, "warning");
+  assert.match(collision.message, /req-001/);
+  assert.deepEqual(collision.alternatives, [
+    {
+      headline: "Software Engineer",
+      qualifier: null,
+      claimIds: [],
+      basis: "role_positioning",
+    },
+    {
+      headline: "Software Engineer, React",
+      qualifier: "React",
+      claimIds: ["c2"],
+      basis: "verified_claim",
+    },
+  ]);
+  assert.match(collision.suggestedNote, /req-001/);
+  assert.equal(
+    findings.find((item) => item.code === "headline_collision_note_missing")?.severity,
+    "warning"
+  );
+  assert.ok(
+    findings.every((item) => item.severity !== "error"),
+    "lexical coverage may never block a release"
+  );
+});
+
+test("recording the narrower posting meaning clears the missing-note finding", () => {
+  const findings = analyzeHeadline({
+    atsTitle: "Software Engineer, Workflows",
+    targetRole: "Software Engineer",
+    resume: {
+      provenance: { headline: [] },
+      notes_for_human: [
+        "Headline collision: Workflows overlaps req-001; confirm the narrower meaning.",
+      ],
+    },
+    ledger: { claims: [] },
+    jobSpec: workflowsSpec,
+  });
+
+  assert.ok(findings.some((item) => item.code === "headline_requirement_collision"));
+  assert.ok(!findings.some((item) => item.code === "headline_collision_note_missing"));
+});
+
+test("copying the unresolved note placeholder does not record a chosen action", () => {
+  const initial = analyzeHeadline({
     atsTitle: "Software Engineer, Workflows",
     targetRole: "Software Engineer",
     resume: { provenance: { headline: [] } },
     ledger: { claims: [] },
     jobSpec: workflowsSpec,
   });
+  const suggestedNote = initial.find(
+    (item) => item.code === "headline_requirement_collision"
+  ).suggestedNote;
+  const findings = analyzeHeadline({
+    atsTitle: "Software Engineer, Workflows",
+    targetRole: "Software Engineer",
+    resume: {
+      provenance: { headline: [] },
+      notes_for_human: [suggestedNote],
+    },
+    ledger: { claims: [] },
+    jobSpec: workflowsSpec,
+  });
+
+  assert.ok(findings.some((item) => item.code === "headline_collision_note_missing"));
+});
+
+test("headline alternatives never rely on unrenderable claims", () => {
+  const findings = analyzeHeadline({
+    atsTitle: "Software Engineer, Workflows",
+    targetRole: "Software Engineer",
+    resume: { provenance: { headline: [] } },
+    ledger: {
+      claims: [{
+        id: "c2",
+        fact: "Built production React applications.",
+        status: "verified",
+        disclosure: "internal_only",
+      }],
+    },
+    jobSpec: workflowsWithAlternativesSpec,
+  });
   const collision = findings.find((item) => item.code === "headline_requirement_collision");
-  assert.equal(collision.severity, "warning");
-  assert.match(collision.message, /req-001/);
-  assert.ok(
-    findings.every((item) => item.severity !== "error"),
-    "lexical coverage may never block a release"
-  );
+
+  assert.deepEqual(collision.alternatives, [{
+    headline: "Software Engineer",
+    qualifier: null,
+    claimIds: [],
+    basis: "role_positioning",
+  }]);
 });
 
 test("ledger support clears the collision", () => {
