@@ -67,6 +67,11 @@ mkdir -p ~/src/labora-<you>/personas && cd ~/src/labora-<you>
 git init          # optional, but if you do version it, keep the repo PRIVATE
 ```
 
+Old installations may have added root-level `agents/` or `skills/` links or
+copies as a workaround for a retired path-resolution bug. Labora no longer
+reads them; the session-start advisory reports them so you can confirm their
+origin and remove obsolete entries. It never deletes or reads workspace content.
+
 **4. Work from that directory.** That is the entire configuration: labora finds
 `personas/` because you ran it there. Agents and skills route by intent:
 
