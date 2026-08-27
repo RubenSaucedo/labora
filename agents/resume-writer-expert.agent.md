@@ -76,6 +76,13 @@ present. Keep 40-70 words as an editing heuristic, weave role terms into the
 narrative, and never turn the opening into a comma-separated skill inventory.
 Map every material clause directly to claims and accomplishment units.
 
+Copy `firstPagePlan.headline` exactly. Copy each
+`firstPagePlan.headlinePlan.qualifiers[]` entry into
+`resume.provenance.headline` with the same `term` and `claimIds`. If the planned
+headline no longer reads truthfully beside the drafted body, report the conflict
+in `notes_for_human` and return to application strategy; do not silently invent
+or substitute a qualifier.
+
 ## The lead bullet
 
 The first bullet under a role establishes the reader's model of that experience.
