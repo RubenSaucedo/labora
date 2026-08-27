@@ -117,6 +117,80 @@ function ledgerSupportFor(requirement, ledger) {
     });
 }
 
+function phraseAsWritten(requirement, form) {
+  const text = String(requirement?.text || "");
+  const index = text.toLowerCase().indexOf(String(form).toLowerCase());
+  return index >= 0 ? text.slice(index, index + String(form).length) : String(form);
+}
+
+function groundedHeadlineAlternatives({
+  segment,
+  targetRole,
+  jobSpec,
+  ledger,
+  excludedRequirementIds,
+}) {
+  const role = String(targetRole || headlineSegments(jobSpec?.title)[0] || "").trim();
+  const alternatives = [];
+  const seen = new Set();
+
+  function add(alternative) {
+    const key = normalize(alternative.headline);
+    if (!key || seen.has(key) || key === normalize(`${role}, ${segment}`)) return;
+    seen.add(key);
+    alternatives.push(alternative);
+  }
+
+  if (role) {
+    add({
+      headline: role,
+      qualifier: null,
+      claimIds: [],
+      basis: "role_positioning",
+    });
+  }
+
+  for (const requirement of jobSpec?.requirements || []) {
+    if (alternatives.length >= 3) break;
+    if (excludedRequirementIds.has(requirement.id)) continue;
+    if (!["core", "preferred", "soft_signal"].includes(requirement.severity)) continue;
+
+    const supportingClaims = ledgerSupportFor(requirement, ledger);
+    if (!supportingClaims.length) continue;
+    const forms = [...(requirement.surfaceForms || []), ...(requirement.canonicalTerms || [])];
+    const qualifier = forms.find((form) => {
+      const key = normalize(form);
+      return key && supportingClaims.some((claim) => normalize(renderableFact(claim)).includes(key));
+    });
+    if (!qualifier || normalize(qualifier) === normalize(segment)) continue;
+    const writtenQualifier = phraseAsWritten(requirement, qualifier);
+    add({
+      headline: role ? `${role}, ${writtenQualifier}` : writtenQualifier,
+      qualifier: writtenQualifier,
+      claimIds: supportingClaims.map((claim) => claim.id),
+      basis: "verified_claim",
+    });
+  }
+
+  return alternatives;
+}
+
+function collisionIsNoted(resume, segment, requirementId) {
+  const segmentKey = normalize(segment);
+  const requirementKey = normalize(requirementId);
+  const unresolvedPlaceholder = normalize(
+    "Chosen action: <confirm the meaning or use a grounded alternative>"
+  );
+  return (resume?.notes_for_human || []).some((note) => {
+    const key = normalize(note);
+    return (
+      key.includes(segmentKey) &&
+      key.includes(requirementKey) &&
+      !key.includes(unresolvedPlaceholder)
+    );
+  });
+}
+
 function jobSpecText(jobSpec) {
   if (!jobSpec) return "";
   return normalize(
@@ -177,9 +251,23 @@ export function analyzeHeadline({
     }
 
     if (jobSpec && ledger) {
-      for (const requirement of requirementsMatching(segment, jobSpec)) {
-        if (!["hard_eligibility", "core"].includes(requirement.severity)) continue;
-        if (ledgerSupportFor(requirement, ledger).length) continue;
+      const collisions = requirementsMatching(segment, jobSpec).filter((requirement) =>
+        ["hard_eligibility", "core"].includes(requirement.severity) &&
+        ledgerSupportFor(requirement, ledger).length === 0
+      );
+      const alternatives = groundedHeadlineAlternatives({
+        segment,
+        targetRole,
+        jobSpec,
+        ledger,
+        excludedRequirementIds: new Set(collisions.map((requirement) => requirement.id)),
+      });
+      const alternativeText = alternatives.map((item) => `"${item.headline}"`).join(" or ");
+      for (const requirement of collisions) {
+        const suggestedNote =
+          `Headline collision: "${segment}" overlaps ${requirement.id} ` +
+          `("${requirement.text}"); the current claim ledger does not support that narrower ` +
+          "posting meaning. Chosen action: <confirm the meaning or use a grounded alternative>.";
         findings.push({
           severity: "warning",
           code: "headline_requirement_collision",
@@ -187,9 +275,25 @@ export function analyzeHeadline({
             `The headline asserts "${segment}", which this posting uses for ${requirement.id} ` +
             `("${requirement.text}"). No verified claim speaks to that requirement, so the top ` +
             "line may adopt a narrower meaning than the body can defend. Confirm which sense is " +
-            "meant, or lead with a qualifier the ledger carries.",
+            "meant, or lead with a qualifier the ledger carries." +
+            (alternativeText ? ` Grounded options: ${alternativeText}.` : "") +
+            " This review takes minutes and affects this application only.",
           location: "ats_title",
+          alternatives,
+          suggestedNote,
         });
+        if (!collisionIsNoted(resume, segment, requirement.id)) {
+          findings.push({
+            severity: "warning",
+            code: "headline_collision_note_missing",
+            message:
+              `The unresolved "${segment}" / ${requirement.id} collision is not recorded in ` +
+              `notes_for_human. Add the supplied note and record the chosen action; this takes ` +
+              "minutes and affects this application only.",
+            location: "notes_for_human",
+            suggestedNote,
+          });
+        }
       }
     }
 

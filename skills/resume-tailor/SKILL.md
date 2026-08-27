@@ -116,7 +116,10 @@ Then, per qualifier:
    "platform", "runtime", "infrastructure". Copying the title silently adopts
    the narrow reading, and that is precisely the reading hardest to defend in an
    interview. `headline_requirement_collision` names these; resolve each one
-   rather than shipping past it.
+   rather than shipping past it. The finding supplies role-only and
+   claim-backed alternatives when available. If the collision remains, copy
+   its `suggestedNote` into `notes_for_human`, replace the placeholder with the
+   chosen action, and keep the narrower posting meaning visible to the reviewer.
 3. **Never headline what the body cannot carry.** If `gaps_or_risks` records a
    requirement as uncovered, the headline may not assert it. A document that
    documents a gap and headlines it is one file arguing with itself.

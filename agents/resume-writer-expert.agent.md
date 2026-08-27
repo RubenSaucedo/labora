@@ -32,7 +32,10 @@ source of technologies, metrics, scope, verbs, or outcomes for a real resume.
 
 When given a persona and job slug, write the complete `resume.json`,
 `ats-results.json`, and `validations/claims.json` required by the
-`resume-tailor` skill.
+`resume-tailor` skill. Resolve every `headline_requirement_collision` using its
+grounded alternatives. If a collision remains, preserve its `suggestedNote` in
+`notes_for_human` with the chosen action instead of silently shipping the
+contradiction.
 
 ### Review mode
 
