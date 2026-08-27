@@ -9,7 +9,7 @@
       "name": "labora",
       "source": "./",
       "description": "Evidence-grounded resume assurance and job discovery. Every resume line maps to a verified claim, with isolated ATS/engineer/HR judges and a release gate.",
-      "version": "6.1.3",
+      "version": "6.1.4",
       "license": "MIT",
       "homepage": "https://github.com/RubenSaucedo/labora",
       "keywords": [
