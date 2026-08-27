@@ -639,6 +639,37 @@ test("mapping a headline qualifier to a verified claim clears the warning", () =
   assert.equal(result.issues.some((issue) => issue.code.startsWith("headline_term_un")), false);
 });
 
+test("the writer must preserve the validated headline plan and qualifier mappings", () => {
+  const input = fixture();
+  input.resume.target_role = "Engineer";
+  input.resume.ats_title = "Engineer, React";
+  input.resume.provenance.headline = [{ term: "React", claimIds: ["claim-latency"] }];
+  input.applicationStrategy = {
+    firstPagePlan: {
+      headline: "Engineer, React",
+      headlinePlan: {
+        positioning: "Engineer",
+        qualifiers: [{ term: "React", claimIds: ["claim-latency"] }],
+      },
+    },
+  };
+
+  const matching = validateResumeClaims(input);
+  assert.ok(!matching.issues.some((issue) => issue.code.startsWith("headline_plan_")));
+
+  input.resume.ats_title = "Engineer, TypeScript";
+  input.resume.provenance.headline = [{ term: "React", claimIds: ["different-claim"] }];
+  const changed = validateResumeClaims(input);
+  assert.equal(
+    changed.issues.find((issue) => issue.code === "headline_plan_not_applied")?.severity,
+    "warning"
+  );
+  assert.equal(
+    changed.issues.find((issue) => issue.code === "headline_plan_provenance_mismatch")?.severity,
+    "warning"
+  );
+});
+
 test("no headline finding can ever block a release", () => {
   const input = fixture();
   input.resume.target_role = "Engineer";

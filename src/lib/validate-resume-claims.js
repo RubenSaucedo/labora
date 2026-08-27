@@ -1676,6 +1676,40 @@ export function validateResumeClaims({
     }
   }
 
+  const plannedHeadline = applicationStrategy?.firstPagePlan?.headline;
+  const plannedQualifiers =
+    applicationStrategy?.firstPagePlan?.headlinePlan?.qualifiers || [];
+  if (plannedHeadline && normalize(plannedHeadline) !== normalize(resume.ats_title)) {
+    issues.push(issue(
+      "warning",
+      "headline_plan_not_applied",
+      "The tailored headline differs from the validated application strategy. " +
+      "Update and revalidate the strategy instead of silently changing positioning.",
+      "ats_title"
+    ));
+  }
+  const headlineMappings = new Map(
+    (resume.provenance?.headline || []).map((mapping) => [
+      normalize(mapping.term),
+      [...(mapping.claimIds || [])].sort(),
+    ])
+  );
+  for (const qualifier of plannedQualifiers) {
+    const mappedClaimIds = headlineMappings.get(normalize(qualifier.term)) || [];
+    const plannedClaimIds = [...(qualifier.claimIds || [])].sort();
+    if (
+      mappedClaimIds.length !== plannedClaimIds.length ||
+      mappedClaimIds.some((claimId, index) => claimId !== plannedClaimIds[index])
+    ) {
+      issues.push(issue(
+        "warning",
+        "headline_plan_provenance_mismatch",
+        `Headline qualifier "${qualifier.term}" does not preserve the strategy's claim mapping.`,
+        "ats_title"
+      ));
+    }
+  }
+
   // Headline diagnostics. Advisory by construction: every signal about a
   // headline is lexical, and lexical coverage may never block a release.
   // Requirement collisions read the structured job spec and the ledger, never

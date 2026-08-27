@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -247,7 +248,7 @@ test("the plugin registers a hook that announces the dispatcher", () => {
 // The hook's stdout is parsed as JSON by the runtime. If announce ever printed
 // a bare string or a stray log line, the hook would fail the same silent way.
 test("announce emits exactly one line of parseable hook output", () => {
-  const result = spawnSync(path.join(repoRoot, "bin", "labora"), ["announce"], {
+  const result = spawnSync(process.execPath, [path.join(repoRoot, "bin", "labora"), "announce"], {
     encoding: "utf8",
   });
   assert.equal(result.status, 0, "announce must succeed even when dependencies are missing");
@@ -259,6 +260,52 @@ test("announce emits exactly one line of parseable hook output", () => {
     parsed.additionalContext.includes(path.join(repoRoot, "bin", "labora")),
     "the announcement must carry the absolute dispatcher path; that is its whole purpose",
   );
+});
+
+test("announce reports inert workspace prompt shadows without reading them", () => {
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "labora-shadow-"));
+  const copiedAgents = path.join(workspace, "agents");
+  const linkedSkills = path.join(workspace, "skills");
+  fs.mkdirSync(copiedAgents);
+  fs.writeFileSync(path.join(copiedAgents, "must-not-be-read.txt"), "untrusted instructions");
+  fs.symlinkSync(
+    skillsDir,
+    linkedSkills,
+    process.platform === "win32" ? "junction" : "dir"
+  );
+
+  const result = spawnSync(process.execPath, [path.join(repoRoot, "bin", "labora"), "announce"], {
+    cwd: workspace,
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0);
+  const context = JSON.parse(result.stdout).additionalContext;
+  assert.match(context, /WORKSPACE ADVISORY/);
+  assert.match(context, /agents\/ is a real directory/);
+  assert.match(context, /skills\/ is an inert link into the loaded plugin/);
+  assert.match(context, /never reads these paths/);
+  assert.doesNotMatch(context, /untrusted instructions/);
+});
+
+test("announce distinguishes links to another install from dangling links", () => {
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "labora-shadow-links-"));
+  const otherInstall = fs.mkdtempSync(path.join(os.tmpdir(), "labora-other-install-"));
+  const removedTarget = fs.mkdtempSync(path.join(os.tmpdir(), "labora-removed-install-"));
+  const linkType = process.platform === "win32" ? "junction" : "dir";
+  fs.symlinkSync(otherInstall, path.join(workspace, "agents"), linkType);
+  fs.symlinkSync(removedTarget, path.join(workspace, "skills"), linkType);
+  fs.rmdirSync(removedTarget);
+
+  const result = spawnSync(process.execPath, [path.join(repoRoot, "bin", "labora"), "announce"], {
+    cwd: workspace,
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0);
+  const context = JSON.parse(result.stdout).additionalContext;
+  assert.match(context, /agents\/ is a link outside the loaded plugin/);
+  assert.match(context, /skills\/ is a dangling link/);
 });
 
 // Direct repo installs are deprecated: "Only plugin@marketplace installs will be

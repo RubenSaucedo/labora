@@ -53,6 +53,18 @@
   ],
   "firstPagePlan": {
     "headline": "Senior Frontend Engineer | React and TypeScript",
+    "headlinePlan": {
+      "positioning": "Senior Frontend Engineer",
+      "qualifiers": [
+        {
+          "term": "React and TypeScript",
+          "claimIds": [
+            "claim-acme-migration"
+          ],
+          "rationale": "The posting names both technologies and the migration claim verifies recent ownership and impact with them."
+        }
+      ]
+    },
     "summaryPlan": {
       "identity": {
         "engineerType": "Frontend engineer",
