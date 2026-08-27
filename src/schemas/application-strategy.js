@@ -31,6 +31,15 @@ const ZSummaryPlan = z.object({
   }).strict().nullable().default(null),
 }).strict();
 
+const ZHeadlinePlan = z.object({
+  positioning: z.string().min(1),
+  qualifiers: z.array(z.object({
+    term: z.string().min(1),
+    claimIds: z.array(z.string().min(1)).min(1),
+    rationale: z.string().min(1),
+  }).strict()).max(2).default([]),
+}).strict();
+
 export const ZApplicationStrategy = z.object({
   schemaVersion: z.literal("2.0"),
   status: z.enum(["ready", "needs_evidence", "blocked"]),
@@ -52,6 +61,9 @@ export const ZApplicationStrategy = z.object({
   }).strict()).default([]),
   firstPagePlan: z.object({
     headline: z.string().min(1),
+    // Nullable only so pre-plan artifacts remain readable. Strategy validation
+    // requires a plan before new work can proceed.
+    headlinePlan: ZHeadlinePlan.nullable().default(null),
     summaryPlan: ZSummaryPlan,
     leadClaimIds: z.array(z.string()).min(1),
     skillsOrder: z.array(z.string()).default([]),
