@@ -4,7 +4,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
-import { recordStage, stageStatus, stageDefinitions } from "../src/lib/run-manifest.js";
+import {
+  recordStage,
+  stageDependencyFingerprint,
+  stageStatus,
+  stageDefinitions,
+} from "../src/lib/run-manifest.js";
 
 function writeValidEvidence(persona, rawContent = "pdf-v1", layout = []) {
   const base = path.join(persona, "evidence", "performance-reviews");
@@ -33,6 +38,32 @@ function writeValidEvidence(persona, rawContent = "pdf-v1", layout = []) {
   }));
   return { rawPath, validationPath };
 }
+
+test("moving an unchanged agent prompt does not invalidate stage freshness", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "resume-agent-path-"));
+  const flat = path.join(root, "flat", "agents", "judge-example.agent.md");
+  const grouped = path.join(root, "grouped", "agents", "judges", "judge-example.agent.md");
+  fs.mkdirSync(path.dirname(flat), { recursive: true });
+  fs.mkdirSync(path.dirname(grouped), { recursive: true });
+  fs.writeFileSync(flat, "same prompt");
+  fs.writeFileSync(grouped, "same prompt");
+
+  const flatFingerprint = stageDependencyFingerprint(
+    [flat],
+    { plugin: path.join(root, "flat") }
+  );
+  const groupedFingerprint = stageDependencyFingerprint(
+    [grouped],
+    { plugin: path.join(root, "grouped") }
+  );
+  assert.equal(groupedFingerprint, flatFingerprint);
+
+  fs.writeFileSync(grouped, "changed prompt");
+  assert.notEqual(
+    stageDependencyFingerprint([grouped], { plugin: path.join(root, "grouped") }),
+    flatFingerprint
+  );
+});
 
 test("invalidates a recorded stage when an upstream input changes", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "resume-state-"));
@@ -253,7 +284,9 @@ test("tailoring freshness includes the specialist prompt and writing reference",
   );
 
   assert.ok(
-    dependencies.some((dependency) => dependency.endsWith("/agents/resume-writer-expert.agent.md"))
+    dependencies.some((dependency) =>
+      dependency.endsWith("/agents/resume-builders/resume-writer-expert.agent.md")
+    )
   );
   assert.ok(
     dependencies.some((dependency) =>

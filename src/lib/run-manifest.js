@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { pluginRoot as PLUGIN_ROOT, pathLabel } from "./paths.js";
+import { pluginAgentLogicalPath, pluginAgentPath } from "./plugin-components.js";
 import { profileStateDir } from "./profile-state.js";
 
 // Bumped when the fingerprint or output-key format changes. A manifest written
@@ -52,16 +53,29 @@ function directoryFiles(directory) {
   return files.sort();
 }
 
-function fingerprint(paths, roots) {
+function dependencyLabel(target, roots) {
+  const label = pathLabel(target, roots);
+  if (
+    label.startsWith("plugin:") &&
+    path.basename(target).endsWith(".agent.md")
+  ) {
+    return `plugin:${pluginAgentLogicalPath(target)}`;
+  }
+  return label;
+}
+
+export function stageDependencyFingerprint(paths, roots) {
   const parts = [];
   for (const target of paths) {
     if (!target) continue;
     if (fs.existsSync(target) && fs.statSync(target).isDirectory()) {
       const files = directoryFiles(target);
-      if (!files.length) parts.push(`${pathLabel(target, roots)}:EMPTY`);
-      for (const file of files) parts.push(`${pathLabel(file, roots)}:${fileHash(file)}`);
+      if (!files.length) parts.push(`${dependencyLabel(target, roots)}:EMPTY`);
+      for (const file of files) {
+        parts.push(`${dependencyLabel(file, roots)}:${fileHash(file)}`);
+      }
     } else {
-      parts.push(`${pathLabel(target, roots)}:${fileHash(target) || "MISSING"}`);
+      parts.push(`${dependencyLabel(target, roots)}:${fileHash(target) || "MISSING"}`);
     }
   }
   return hashBuffer(Buffer.from(parts.join("\n")));
@@ -133,6 +147,12 @@ function evidenceValidationStatus(personaRoot) {
 }
 
 export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applicationDir, style }) {
+  const agentPrompts = {
+    judgeAts: pluginAgentPath(pluginRoot, "judge-ats"),
+    judgeEngineer: pluginAgentPath(pluginRoot, "judge-engineer"),
+    judgeHr: pluginAgentPath(pluginRoot, "judge-hr"),
+    resumeWriter: pluginAgentPath(pluginRoot, "resume-writer-expert"),
+  };
   const profile = path.join(personaRoot, "profile");
   // profile-builder owns the compiled ledgers; every other stage reads them.
   // Their location depends on the persona's layout, so it is resolved rather
@@ -209,7 +229,7 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
         path.join(applicationDir, "job-spec.json"),
         path.join(applicationDir, "application-strategy.json"),
         path.join(validations, "strategy.json"),
-        path.join(pluginRoot, "agents", "resume-writer-expert.agent.md"),
+        agentPrompts.resumeWriter,
         path.join(pluginRoot, "skills", "resume-tailor", "SKILL.md"),
         path.join(
           pluginRoot,
@@ -277,7 +297,7 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
         path.join(applicationDir, "job.md"),
         path.join(applicationDir, "ats-results.json"),
         path.join(pluginRoot, "skills", "resume-conventions", "SKILL.md"),
-        path.join(pluginRoot, "agents", "judge-ats.agent.md"),
+        agentPrompts.judgeAts,
         path.join(pluginRoot, "skills", "judge-ats", "SKILL.md"),
         path.join(pluginRoot, "src", "schemas", "judge-output.js"),
         path.join(pluginRoot, "src", "lib", "judge-input.js"),
@@ -292,7 +312,7 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
         ...deliveryArtifacts,
         path.join(applicationDir, "job.md"),
         path.join(pluginRoot, "skills", "resume-conventions", "SKILL.md"),
-        path.join(pluginRoot, "agents", "judge-engineer.agent.md"),
+        agentPrompts.judgeEngineer,
         path.join(pluginRoot, "skills", "judge-engineer", "SKILL.md"),
         path.join(pluginRoot, "src", "schemas", "judge-output.js"),
         path.join(pluginRoot, "src", "lib", "judge-input.js"),
@@ -307,7 +327,7 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
         ...deliveryArtifacts,
         path.join(applicationDir, "job.md"),
         path.join(pluginRoot, "skills", "resume-conventions", "SKILL.md"),
-        path.join(pluginRoot, "agents", "judge-hr.agent.md"),
+        agentPrompts.judgeHr,
         path.join(pluginRoot, "skills", "judge-hr", "SKILL.md"),
         path.join(pluginRoot, "src", "schemas", "judge-output.js"),
         path.join(pluginRoot, "src", "lib", "judge-input.js"),
@@ -358,7 +378,7 @@ export function stageStatus({ pluginRoot = PLUGIN_ROOT, applicationDir, style = 
   const evidenceStatus = evidenceValidationStatus(personaRoot);
 
   for (const [name, definition] of Object.entries(definitions)) {
-    const currentFingerprint = fingerprint(definition.dependencies, roots);
+    const currentFingerprint = stageDependencyFingerprint(definition.dependencies, roots);
     const outputHashes = Object.fromEntries(
       definition.outputs.map((output) => [pathLabel(output, roots), fileHash(output)])
     );

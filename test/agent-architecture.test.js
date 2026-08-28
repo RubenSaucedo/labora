@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { pluginAgentFiles, pluginAgentPath } from "../src/lib/plugin-components.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const agentsDir = path.join(repoRoot, "agents");
@@ -10,9 +11,10 @@ const agentsDir = path.join(repoRoot, "agents");
 const BROWSER_TOOL = /^browser_/;
 
 function parseAgent(file) {
-  const raw = fs.readFileSync(path.join(agentsDir, file), "utf8");
+  const raw = fs.readFileSync(file, "utf8");
   const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(raw);
-  assert.ok(match, `${file} must open with a YAML frontmatter block`);
+  const relativeFile = path.relative(agentsDir, file);
+  assert.ok(match, `${relativeFile} must open with a YAML frontmatter block`);
   const [, frontmatter, body] = match;
 
   const name = /^name:\s*(.+)$/m.exec(frontmatter);
@@ -20,7 +22,7 @@ function parseAgent(file) {
   const tools = /^tools:\s*\[([\s\S]*?)\]/m.exec(frontmatter);
 
   return {
-    file,
+    file: relativeFile,
     name: name ? name[1].trim().replace(/^["']|["']$/g, "") : null,
     description: description ? description[1].trim() : null,
     tools: tools
@@ -36,8 +38,9 @@ function parseAgent(file) {
   };
 }
 
-const agentFiles = fs.readdirSync(agentsDir).filter((f) => f.endsWith(".agent.md"));
-const agents = new Map(agentFiles.map((f) => [parseAgent(f).name, parseAgent(f)]));
+const agentFiles = pluginAgentFiles(repoRoot);
+const parsedAgents = agentFiles.map(parseAgent);
+const agents = new Map(parsedAgents.map((agent) => [agent.name, agent]));
 
 test("every agent declares valid frontmatter", () => {
   assert.ok(agentFiles.length > 0, "no agents found");
@@ -48,8 +51,8 @@ test("every agent declares valid frontmatter", () => {
     assert.ok(Array.isArray(agent.tools), `${file} is missing a tools array`);
     assert.equal(
       agent.name,
-      file.replace(/\.agent\.md$/, ""),
-      `${file} name must match its filename so the plugin can resolve it`,
+      path.basename(file, ".agent.md"),
+      `${agent.file} name must match its filename so the plugin can resolve it`,
     );
     assert.ok(agent.body.trim().length > 0, `${file} has an empty body`);
   }
@@ -192,7 +195,7 @@ test("the conductor delegates rather than absorbing the pipeline", () => {
 // of the user, after the agent has already started work.
 test("every tool an agent or skill is told to run exists", () => {
   const docs = [
-    ...agentFiles.map((f) => path.join(agentsDir, f)),
+    ...agentFiles,
     ...fs
       .readdirSync(path.join(repoRoot, "skills"))
       .map((d) => path.join(repoRoot, "skills", d, "SKILL.md"))
@@ -306,10 +309,7 @@ function declaredTools(file, raw) {
 }
 
 function contractFiles() {
-  const files = fs
-    .readdirSync(agentsDir)
-    .filter((f) => f.endsWith(".agent.md"))
-    .map((f) => path.join(agentsDir, f));
+  const files = [...agentFiles];
 
   const skillsDir = path.join(repoRoot, "skills");
   for (const dir of fs.readdirSync(skillsDir)) {
@@ -391,7 +391,7 @@ test("discovery is contracted to record the companies that returned nothing", ()
   const discovery = agents.get("scout-discovery").prose;
   // prose strips markdown punctuation, so enum values are checked against source.
   const source = fs.readFileSync(
-    path.join(repoRoot, "agents/scout-discovery.agent.md"),
+    pluginAgentPath(repoRoot, "scout-discovery"),
     "utf8",
   );
   assert.match(

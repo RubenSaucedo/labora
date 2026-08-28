@@ -5,12 +5,15 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { pluginAgentFiles } from "../src/lib/plugin-components.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MANIFEST_PATH = path.join(repoRoot, ".claude-plugin", "plugin.json");
 const MARKETPLACE_PATH = path.join(repoRoot, ".claude-plugin", "marketplace.json");
 const skillsDir = path.join(repoRoot, "skills");
-const agentsDir = path.join(repoRoot, "agents");
+const agentNames = new Set(
+  pluginAgentFiles(repoRoot).map((file) => path.basename(file, ".agent.md"))
+);
 
 function frontmatter(file) {
   const raw = fs.readFileSync(file, "utf8");
@@ -33,10 +36,13 @@ test("plugin.json declares directories that exist", () => {
     assert.ok(manifest[key], `plugin.json is missing "${key}"`);
   }
   for (const key of ["agents", "skills"]) {
-    assert.ok(
-      fs.existsSync(path.join(repoRoot, manifest[key])),
-      `plugin.json points "${key}" at ${manifest[key]}, which does not exist`,
-    );
+    const configuredPaths = Array.isArray(manifest[key]) ? manifest[key] : [manifest[key]];
+    for (const configuredPath of configuredPaths) {
+      assert.ok(
+        fs.existsSync(path.join(repoRoot, configuredPath)),
+        `plugin.json points "${key}" at ${configuredPath}, which does not exist`,
+      );
+    }
   }
 });
 
@@ -139,7 +145,7 @@ test("skills dispatching to agents name real agents", () => {
   for (const dir of skillDirs) {
     const raw = fs.readFileSync(path.join(skillsDir, dir, "SKILL.md"), "utf8");
     for (const [, agent] of raw.matchAll(/labora:([a-z0-9-]+)/g)) {
-      if (!fs.existsSync(path.join(agentsDir, `${agent}.agent.md`))) {
+      if (!agentNames.has(agent)) {
         missing.push(`skills/${dir} dispatches to labora:${agent}, which has no agent file`);
       }
     }
