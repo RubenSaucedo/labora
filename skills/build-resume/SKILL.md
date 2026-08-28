@@ -8,7 +8,7 @@ argument-hint: "<persona> <job-slug> [--style N]"
 
 # /build-resume — run the assurance pipeline end to end
 
-Launch the `resume-build` agent (`agents/resume-build.agent.md`).
+Launch the `resume-build` agent (`agents/resume-builders/resume-build.agent.md`).
 
 ```text
 task(agent_type: "labora:resume-build", prompt: "<persona> <job-slug>, style N if given")

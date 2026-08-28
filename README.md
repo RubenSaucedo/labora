@@ -262,6 +262,19 @@ who knows the target job shades facts toward it, an advocate holding raw evidenc
 composes from sources no claim covers, and a judge that has seen the rationale
 grades what you meant instead of what the page says.
 
+Agent definitions are grouped by the outcome they own:
+
+```text
+agents/
+├── judges/
+├── job-scouts/
+├── profile-builders/
+└── resume-builders/
+```
+
+The plugin manifest lists each directory explicitly. Agent names remain flat and
+stable at runtime, so callers still dispatch `labora:<agent-name>`.
+
 | Posture | Agent | Sees | Writes |
 |---|---|---|---|
 | Intake | `applicant-intake` | the operator's answers | human-authored `profile/` sources |
