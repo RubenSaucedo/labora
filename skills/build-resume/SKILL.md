@@ -3,7 +3,7 @@ name: build-resume
 description: "Runs the full resume assurance pipeline for one job. Launches the resume-build conductor agent, which sequences evidence, profile, job analysis, tailoring, claim validation, rendering, artifact gates and the three independent judges, then writes applications/<job-slug>/release.json. Hash-aware, so it reuses only stages that are genuinely fresh."
 tools: [bash, view, glob, grep]
 user-invocable: true
-argument-hint: "<persona> <job-slug> [--style N]"
+argument-hint: "<persona> <job-slug> [--style ID]"
 ---
 
 # /build-resume — run the assurance pipeline end to end

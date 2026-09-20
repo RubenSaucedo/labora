@@ -12,27 +12,46 @@
       "code": "cross_parser_divergence",
       "field": "experience[1].highlights[0]",
       "detail": "Recovered by the primary parser but not ocr-render."
+    },
+    {
+      "severity": "warning",
+      "code": "cross_parser_divergence",
+      "field": "skills[8]",
+      "detail": "Recovered by the primary parser but not ocr-render."
     }
   ],
-  "artifactPath": "final-resume-style-1.pdf",
+  "styleProfile": {
+    "id": "precision-minimal",
+    "displayName": "Precision Minimal",
+    "source": "flag"
+  },
+  "artifactPath": "final-resume-style-precision-minimal.pdf",
   "artifactType": "pdf",
-  "artifactHash": "fff622a44d46a869f0da5184570a00c3fc85f50d5c44bc737aaa61a2af8fc7c6",
+  "artifactHash": "af2ed7c9334f6124cb2fe57735e09d03a4bb7c9d232bf5d6ffb74e5eeb65de7b",
   "pageCount": 1,
   "crossParser": {
     "secondaryParser": "ocr-render",
-    "agreementPercent": 98,
+    "agreementPercent": 95,
     "divergentFields": [
-      "experience[1].highlights[0]"
+      "experience[1].highlights[0]",
+      "skills[8]"
     ],
     "onlyPrimaryMissing": [],
     "onlySecondaryMissing": [
-      "experience[1].highlights[0]"
+      "experience[1].highlights[0]",
+      "skills[8]"
     ],
     "issues": [
       {
         "severity": "warning",
         "code": "cross_parser_divergence",
         "field": "experience[1].highlights[0]",
+        "detail": "Recovered by the primary parser but not ocr-render."
+      },
+      {
+        "severity": "warning",
+        "code": "cross_parser_divergence",
+        "field": "skills[8]",
         "detail": "Recovered by the primary parser but not ocr-render."
       }
     ]

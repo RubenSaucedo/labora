@@ -1,7 +1,7 @@
 # Acme Corp — Senior Frontend Engineer
 
-- DOCX: `final-resume-style-1.docx`
-- PDF: `final-resume-style-1.pdf` (1 page, selected delivery)
+- DOCX: `final-resume-style-precision-minimal.docx`
+- PDF: `final-resume-style-precision-minimal.pdf` (1 page, selected delivery)
 - Lexical coverage: 61%
 - Required requirement coverage: 50%
 - Claim validation: pass

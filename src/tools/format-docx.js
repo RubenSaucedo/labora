@@ -3,11 +3,11 @@
 // This tool never rewrites content; it only maps fields into a styled document.
 //
 // Usage:
-//   labora format-docx <resume.json> <out.docx> --contact <contact.md> --job <job.md> [--style N] [--max-skills N]
+//   labora format-docx <resume.json> <out.docx> --contact <contact.md> --job <job.md> [--style ID] [--max-skills N]
 //
-// --style N   1=Classic ATS (default), 2=Clean modern, 3=Compact, 4=2027
-// --job       optional job.md to inform formatter ordering
-// --max-skills default 15
+// --style ID     named style profile; see the list below (default precision-minimal)
+// --job          job.md, so rendering and validation select the same skills
+// --max-skills   default 15
 import fs from "node:fs";
 import {
   agent2ResumeToFormatterJson,
@@ -15,6 +15,7 @@ import {
 } from "../agents/format-resume.js";
 import { loadJobFromFile } from "../lib/job-parser.js";
 import { injectContact, loadContact } from "../lib/profile-contact.js";
+import { DEFAULT_STYLE_ID, listStyleProfiles, resolveStyleProfile } from "../lib/resume-style.js";
 import { ZTailoredResume } from "../schemas/tailored-resume.js";
 
 function getFlag(name, fallback) {
@@ -22,17 +23,31 @@ function getFlag(name, fallback) {
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
+function styleHelp() {
+  return listStyleProfiles()
+    .map((profile) => `  ${profile.id.padEnd(20)} ${profile.displayName} — ${profile.signal}`)
+    .join("\n");
+}
+
 const resumePath = process.argv[2];
 const outPath = process.argv[3];
 if (!resumePath || !outPath || resumePath.startsWith("--")) {
   process.stderr.write(
-    "Usage: labora format-docx <resume.json> <out.docx> --contact <contact.md> --job <job.md> [--style N] [--max-skills N]\n"
+    "Usage: labora format-docx <resume.json> <out.docx> --contact <contact.md> --job <job.md> " +
+    `[--style ID] [--max-skills N]\n\nStyles (default ${DEFAULT_STYLE_ID}):\n${styleHelp()}\n`
   );
   process.exit(1);
 }
 
-const styleArg = parseInt(getFlag("--style", "1"), 10);
-const style = [1, 2, 3, 4].includes(styleArg) ? styleArg : 1;
+// An unknown style is refused, never quietly replaced: a resume rendered under a
+// profile nobody selected carries a visual contract nobody reviewed.
+let style;
+try {
+  style = resolveStyleProfile(getFlag("--style", DEFAULT_STYLE_ID)).id;
+} catch (error) {
+  process.stderr.write(`format-docx error: ${error.message}\n`);
+  process.exit(1);
+}
 const maxSkills = parseInt(getFlag("--max-skills", "15"), 10) || 15;
 const jobPath = getFlag("--job", null);
 const contactPath = getFlag("--contact", getFlag("--context", null));

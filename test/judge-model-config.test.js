@@ -20,7 +20,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const FIXTURE_APPLICATION = path.join(
   repoRoot, "data", "personas", "example", "applications", "acme-senior-fe-mar-25"
 );
-const FIXTURE_ARTIFACT = path.join(FIXTURE_APPLICATION, "final-resume-style-1.docx");
+const FIXTURE_ARTIFACT = path.join(FIXTURE_APPLICATION, "final-resume-style-precision-minimal.docx");
 
 function withSettings(contents) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "labora-settings-"));

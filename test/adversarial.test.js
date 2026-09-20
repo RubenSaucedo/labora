@@ -190,7 +190,7 @@ function passingGateInputs(hash) {
       hr: { ...metadata },
     },
     artifactHash: hash,
-    artifactPath: "final-resume-style-1.docx",
+    artifactPath: "final-resume-style-precision-minimal.docx",
     artifactType: "docx",
   };
 }

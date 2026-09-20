@@ -79,11 +79,11 @@ test("invalidates a recorded stage when an upstream input changes", () => {
   fs.writeFileSync(path.join(generated, "claims.json"), "{}");
   fs.writeFileSync(path.join(generated, "accomplishments.json"), "{}");
 
-  recordStage({ applicationDir: app, stage: "persona", style: 1 });
-  assert.equal(stageStatus({ applicationDir: app, style: 1 }).stages.persona.fresh, true);
+  recordStage({ applicationDir: app, stage: "persona", style: "precision-minimal" });
+  assert.equal(stageStatus({ applicationDir: app, style: "precision-minimal" }).stages.persona.fresh, true);
 
   fs.writeFileSync(path.join(profile, "career.md"), "Career v2");
-  assert.equal(stageStatus({ applicationDir: app, style: 1 }).stages.persona.fresh, false);
+  assert.equal(stageStatus({ applicationDir: app, style: "precision-minimal" }).stages.persona.fresh, false);
 });
 
 test("invalidates persona when raw evidence changes", () => {
@@ -102,11 +102,11 @@ test("invalidates persona when raw evidence changes", () => {
   fs.writeFileSync(path.join(generated, "accomplishments.json"), "{}");
   const { rawPath } = writeValidEvidence(persona);
 
-  recordStage({ applicationDir: app, stage: "persona", style: 1 });
+  recordStage({ applicationDir: app, stage: "persona", style: "precision-minimal" });
   fs.writeFileSync(rawPath, "pdf-v2");
 
   assert.equal(
-    stageStatus({ applicationDir: app, style: 1 }).stages.persona.fresh,
+    stageStatus({ applicationDir: app, style: "precision-minimal" }).stages.persona.fresh,
     false
   );
 });
@@ -128,7 +128,7 @@ test("accepts dated evidence layouts", () => {
   writeValidEvidence(persona, "pdf-v1", ["2026"]);
 
   assert.doesNotThrow(() =>
-    recordStage({ applicationDir: app, stage: "persona", style: 1 })
+    recordStage({ applicationDir: app, stage: "persona", style: "precision-minimal" })
   );
 });
 
@@ -152,7 +152,7 @@ test("persona cannot be recorded with failed evidence cleaning", () => {
   fs.writeFileSync(validationPath, JSON.stringify(validation));
 
   assert.throws(
-    () => recordStage({ applicationDir: app, stage: "persona", style: 1 }),
+    () => recordStage({ applicationDir: app, stage: "persona", style: "precision-minimal" }),
     /assurance checks failed/
   );
 });
@@ -178,9 +178,9 @@ test("propagates artifact staleness into judges and the quality gate", () => {
     [path.join(app, "application-strategy.json")]: "{}",
     [path.join(app, "resume.json")]: "{}",
     [path.join(app, "ats-results.json")]: "{}",
-    [path.join(app, "final-resume-style-1.docx")]: "docx-v1",
-    [path.join(app, "final-resume-style-1.md")]: "markdown-v1",
-    [path.join(app, "final-resume-style-1.pdf")]: "pdf-v1",
+    [path.join(app, "final-resume-style-precision-minimal.docx")]: "docx-v1",
+    [path.join(app, "final-resume-style-precision-minimal.md")]: "markdown-v1",
+    [path.join(app, "final-resume-style-precision-minimal.pdf")]: "pdf-v1",
     [path.join(app, "validations", "claims.json")]: "{}",
     [path.join(app, "validations", "strategy.json")]: "{}",
     [path.join(app, "validations", "artifact.json")]: "{}",
@@ -194,18 +194,18 @@ test("propagates artifact staleness into judges and the quality gate", () => {
     "persona", "job_analysis", "application_strategy", "tailor", "format", "validate_claims",
     "validate_artifact", "judge_ats", "judge_engineer", "judge_hr", "quality_gate",
   ]) {
-    recordStage({ applicationDir: app, stage, style: 1 });
+    recordStage({ applicationDir: app, stage, style: "precision-minimal" });
   }
 
-  fs.writeFileSync(path.join(app, "final-resume-style-1.md"), "manual edit");
-  let status = stageStatus({ applicationDir: app, style: 1 });
+  fs.writeFileSync(path.join(app, "final-resume-style-precision-minimal.md"), "manual edit");
+  let status = stageStatus({ applicationDir: app, style: "precision-minimal" });
   assert.equal(status.stages.format.fresh, false);
   assert.equal(status.stages.validate_artifact.fresh, false);
   assert.equal(status.stages.quality_gate.fresh, false);
 
-  fs.writeFileSync(path.join(app, "final-resume-style-1.md"), "markdown-v1");
-  fs.unlinkSync(path.join(app, "final-resume-style-1.pdf"));
-  status = stageStatus({ applicationDir: app, style: 1 });
+  fs.writeFileSync(path.join(app, "final-resume-style-precision-minimal.md"), "markdown-v1");
+  fs.unlinkSync(path.join(app, "final-resume-style-precision-minimal.pdf"));
+  status = stageStatus({ applicationDir: app, style: "precision-minimal" });
   assert.equal(status.stages.format.fresh, false);
   assert.equal(status.stages.judge_ats.fresh, false);
   assert.equal(status.stages.quality_gate.fresh, false);
@@ -228,7 +228,7 @@ test("every persona-stage output lives under profile/generated/", () => {
   const definitions = stageDefinitions({
     personaRoot: path.join(root, "data", "personas", "example"),
     applicationDir: app,
-    style: 1,
+    style: "precision-minimal",
   });
 
   assert.ok(definitions.persona.outputs.length > 0);
@@ -249,7 +249,7 @@ test("no stage writes to a human-authored profile source", () => {
   const definitions = stageDefinitions({
     personaRoot: persona,
     applicationDir: app,
-    style: 1,
+    style: "precision-minimal",
   });
 
   const humanSources = new Set([
@@ -277,7 +277,7 @@ test("tailoring freshness includes the specialist prompt and writing reference",
   const definitions = stageDefinitions({
     personaRoot: persona,
     applicationDir: app,
-    style: 1,
+    style: "precision-minimal",
   });
   const dependencies = definitions.tailor.dependencies.map((dependency) =>
     dependency.split(path.sep).join("/")
@@ -302,7 +302,7 @@ test("progression policy participates in every stage that consumes rendered prog
   const definitions = stageDefinitions({
     personaRoot: persona,
     applicationDir: app,
-    style: 1,
+    style: "precision-minimal",
   });
 
   for (const stage of ["format", "validate_claims", "validate_artifact"]) {

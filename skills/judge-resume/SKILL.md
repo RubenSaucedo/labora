@@ -3,7 +3,7 @@ name: judge-resume
 description: "Re-runs the three independent gates against a rendered delivery artifact. Launches judge-ats, judge-engineer and judge-hr as separate isolated agents, each consuming its own prepare-judge-input bundle, then aggregates their verdicts into applications/<job-slug>/release.json via the resume-quality-gate skill."
 tools: [bash, view, glob, grep]
 user-invocable: true
-argument-hint: "<persona> <job-slug> [--style N]"
+argument-hint: "<persona> <job-slug> [--style ID]"
 ---
 
 # /judge-resume — run the three independent gates
@@ -18,9 +18,9 @@ consuming its own `prepare-judge-input` bundle:
 | `judge-hr` | `applications/<job-slug>/judges/hr.json` |
 
 ```text
-task(agent_type: "labora:judge-ats",      prompt: "<persona> <job-slug> [--style N]")
-task(agent_type: "labora:judge-engineer", prompt: "<persona> <job-slug> [--style N]")
-task(agent_type: "labora:judge-hr",       prompt: "<persona> <job-slug> [--style N]")
+task(agent_type: "labora:judge-ats",      prompt: "<persona> <job-slug> [--style ID]")
+task(agent_type: "labora:judge-engineer", prompt: "<persona> <job-slug> [--style ID]")
+task(agent_type: "labora:judge-hr",       prompt: "<persona> <job-slug> [--style ID]")
 ```
 
 Then load `resume-quality-gate` to aggregate the three verdicts into

@@ -9,7 +9,7 @@ user-invocable: false
 
 Load `resume-conventions`.
 
-Run `labora quality-gate <application-dir> --style <N> --artifact
+Run `labora quality-gate <application-dir> --style <ID> --artifact
 <selected-delivery-artifact>`. The tool writes `release.json`.
 
 This gate reports. It does not decide. Two states are reachable:

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { pluginRoot as PLUGIN_ROOT, pathLabel } from "./paths.js";
+import { DEFAULT_STYLE_ID, resolveStyleProfile } from "./resume-style.js";
 import { pluginAgentLogicalPath, pluginAgentPath } from "./plugin-components.js";
 import { profileStateDir } from "./profile-state.js";
 
@@ -146,7 +147,16 @@ function evidenceValidationStatus(personaRoot) {
   return { valid: issues.length === 0, issues };
 }
 
-export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applicationDir, style }) {
+export function stageDefinitions({
+  pluginRoot = PLUGIN_ROOT,
+  personaRoot,
+  applicationDir,
+  style = DEFAULT_STYLE_ID,
+}) {
+  // A style ID names the artifacts and is recorded as this run's visual
+  // contract, so an unknown one is refused rather than used to build filenames
+  // that no renderer would ever write.
+  const styleId = resolveStyleProfile(style).id;
   const agentPrompts = {
     judgeAts: pluginAgentPath(pluginRoot, "judge-ats"),
     judgeEngineer: pluginAgentPath(pluginRoot, "judge-engineer"),
@@ -162,9 +172,9 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
   const repositories = path.join(personaRoot, "evidence", "repositories");
   const judges = path.join(applicationDir, "judges");
   const validations = path.join(applicationDir, "validations");
-  const docx = path.join(applicationDir, `final-resume-style-${style}.docx`);
-  const markdown = path.join(applicationDir, `final-resume-style-${style}.md`);
-  const pdf = path.join(applicationDir, `final-resume-style-${style}.pdf`);
+  const docx = path.join(applicationDir, `final-resume-style-${styleId}.docx`);
+  const markdown = path.join(applicationDir, `final-resume-style-${styleId}.md`);
+  const pdf = path.join(applicationDir, `final-resume-style-${styleId}.pdf`);
   const previews = path.join(applicationDir, "previews");
   const deliveryArtifacts = [docx, ...(fs.existsSync(pdf) ? [pdf] : [])];
   const renderedArtifacts = [...deliveryArtifacts, markdown];
@@ -257,6 +267,10 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
         path.join(pluginRoot, "src", "tools", "format-pdf.js"),
         path.join(pluginRoot, "src", "tools", "render-artifact-preview.js"),
         path.join(pluginRoot, "src", "lib", "profile-contact.js"),
+        // The style registry is a rendering input: editing a profile changes
+        // every artifact it produced, so format goes stale when it changes.
+        path.join(pluginRoot, "src", "lib", "resume-style.js"),
+        path.join(pluginRoot, "src", "schemas", "resume-style.js"),
         path.join(pluginRoot, "src", "schemas", "tailored-resume.js"),
       ],
       outputs: renderedArtifacts,
@@ -287,6 +301,7 @@ export function stageDefinitions({ pluginRoot = PLUGIN_ROOT, personaRoot, applic
         path.join(pluginRoot, "src", "tools", "validate-artifact.js"),
         path.join(pluginRoot, "src", "agents", "format-resume.js"),
         path.join(pluginRoot, "src", "lib", "progression.js"),
+        path.join(pluginRoot, "src", "lib", "resume-style.js"),
         path.join(applicationDir, "job.md"),
       ],
       outputs: [path.join(validations, "artifact.json")],
@@ -368,8 +383,9 @@ export function readManifest(applicationDir) {
   return JSON.parse(fs.readFileSync(target, "utf8"));
 }
 
-export function stageStatus({ pluginRoot = PLUGIN_ROOT, applicationDir, style = 1 }) {
+export function stageStatus({ pluginRoot = PLUGIN_ROOT, applicationDir, style = DEFAULT_STYLE_ID }) {
   assertPluginRoot(pluginRoot);
+  const profile = resolveStyleProfile(style);
   const personaRoot = path.dirname(path.dirname(applicationDir));
   const roots = { plugin: pluginRoot, persona: personaRoot, application: applicationDir };
   const definitions = stageDefinitions({ pluginRoot, personaRoot, applicationDir, style });
@@ -414,10 +430,21 @@ export function stageStatus({ pluginRoot = PLUGIN_ROOT, applicationDir, style = 
     stage.fresh = stage.selfFresh && stage.dependenciesFresh;
   }
 
-  return { schemaVersion: SCHEMA_VERSION, style, stages };
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    style: profile.id,
+    styleProfile: { id: profile.id, displayName: profile.displayName },
+    stages,
+  };
 }
 
-export function recordStage({ pluginRoot = PLUGIN_ROOT, applicationDir, stage, style = 1, model = "" }) {
+export function recordStage({
+  pluginRoot = PLUGIN_ROOT,
+  applicationDir,
+  stage,
+  style = DEFAULT_STYLE_ID,
+  model = "",
+}) {
   const status = stageStatus({ pluginRoot, applicationDir, style });
   if (!status.stages[stage]) throw new Error(`Unknown stage "${stage}".`);
   if (!status.stages[stage].outputsPresent) throw new Error(`Stage "${stage}" outputs are incomplete.`);
@@ -432,7 +459,10 @@ export function recordStage({ pluginRoot = PLUGIN_ROOT, applicationDir, stage, s
 
   const manifest = readManifest(applicationDir);
   manifest.schemaVersion = SCHEMA_VERSION;
-  manifest.style = style;
+  // Run state names the visual contract this run was rendered under, so a later
+  // reader does not have to infer it from a filename.
+  manifest.style = status.style;
+  manifest.styleProfile = status.styleProfile;
   manifest.stages ||= {};
   manifest.stages[stage] = {
     fingerprint: status.stages[stage].fingerprint,
