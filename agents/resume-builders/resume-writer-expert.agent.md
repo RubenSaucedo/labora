@@ -32,7 +32,10 @@ source of technologies, metrics, scope, verbs, or outcomes for a real resume.
 
 When given a persona and job slug, write the complete `resume.json`,
 `ats-results.json`, and `validations/claims.json` required by the
-`resume-tailor` skill.
+`resume-tailor` skill. Resolve every `headline_requirement_collision` using its
+grounded alternatives. If a collision remains, preserve its `suggestedNote` in
+`notes_for_human` with the chosen action instead of silently shipping the
+contradiction.
 
 ### Review mode
 
@@ -75,6 +78,13 @@ proof at its exact contribution level, then the selected differentiator when
 present. Keep 40-70 words as an editing heuristic, weave role terms into the
 narrative, and never turn the opening into a comma-separated skill inventory.
 Map every material clause directly to claims and accomplishment units.
+
+Copy `firstPagePlan.headline` exactly. Copy each
+`firstPagePlan.headlinePlan.qualifiers[]` entry into
+`resume.provenance.headline` with the same `term` and `claimIds`. If the planned
+headline no longer reads truthfully beside the drafted body, report the conflict
+in `notes_for_human` and return to application strategy; do not silently invent
+or substitute a qualifier.
 
 ## The lead bullet
 
@@ -134,3 +144,10 @@ Reject:
 Draft mode is not complete until `labora validate-claims` passes with zero
 errors. Review mode must name the mapped claim IDs used by every proposed
 rewrite and clearly label any unresolved evidence gap.
+
+Exit `3` is the one failure you do not fix by rewriting. It means every
+remaining error is a `stale_derived_record`: a human-authored source moved ahead
+of `profile/generated/`, and only `profile-builder` can reconcile it. Report the
+`rebuildPacket`, keep the draft marked `UNVALIDATED / PROFILE REBUILD REQUIRED`,
+and continue review work. Never edit `generated/` to clear it, and never treat
+the draft as validated.

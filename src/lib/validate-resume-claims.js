@@ -8,6 +8,13 @@ import { renderAuthorization } from "./disclosure.js";
 import { validateObservations } from "./validate-observations.js";
 import { loadManifest, resolveProvenance } from "./evidence-provenance.js";
 import { analyzeProgression } from "./progression.js";
+import { profileEditorialMarker } from "./profile-output-hygiene.js";
+import {
+  STALE_RECORD_REMEDY,
+  UNSUPPORTED_ASSERTION,
+  classifyRunState,
+  rebuildPacket,
+} from "./diagnostic-class.js";
 
 const SUPPORT_STOPWORDS = new Set([
   "a", "an", "and", "at", "by", "for", "from", "in", "into", "of", "on",
@@ -30,8 +37,27 @@ function numericTokens(value) {
   )].map((token) => token.replace(/\+$/, ""));
 }
 
-function issue(severity, code, message, location = "") {
-  return { severity, code, message, location };
+/**
+ * A finding. `severity` says how much it matters; `class` says what kind of
+ * wrong it is, which is what decides whether any other work may proceed.
+ *
+ * Errors default to `unsupported_assertion` because that is the assumption that
+ * fails safe: a finding whose cause has not been positively established as
+ * recoverable is treated as a factual defect. `remedy` upgrades a specific
+ * finding only where the validator has evidence for the cause.
+ */
+function issue(severity, code, message, location = "", remedy = null) {
+  const finding = { severity, code, message, location };
+  if (severity !== "error") return finding;
+  if (!remedy) return { ...finding, class: UNSUPPORTED_ASSERTION };
+  return {
+    ...finding,
+    class: remedy.class,
+    owner: remedy.owner,
+    requiredAction: remedy.requiredAction,
+    blocks: [...remedy.blocks],
+    allows: [...remedy.allows],
+  };
 }
 
 function stem(token) {
@@ -124,6 +150,33 @@ function renderableFact(claim) {
   return claim.externalFact ? claim.externalFact : claim.fact;
 }
 
+/**
+ * How much of some rendered text a set of claims actually covers.
+ *
+ * Returned as a token set rather than a ratio so the union and a single claim
+ * can be compared directly. A ratio would need a threshold, and any threshold
+ * here is a guess: the question is not "is this well enough supported" -- the
+ * union check above already asks that -- but "does the support depend on
+ * combining records".
+ */
+function coveredTokens(text, claims) {
+  const evidence = new Set(claims.flatMap((claim) => substantiveTokens(renderableFact(claim))));
+  return new Set(substantiveTokens(text).filter((token) => evidence.has(token)));
+}
+
+/**
+ * What a single claim does not cover, named so a reader can see the split.
+ *
+ * The point of the composition finding is that someone can look at it and spot
+ * in seconds that an outcome came from the other record. "Support is
+ * distributed" alone would not do that; "claim-a does not cover: full,
+ * allocation" does.
+ */
+function termsMissingFromClaim(text, claim) {
+  const covered = coveredTokens(text, [claim]);
+  return substantiveTokens(text).filter((token) => !covered.has(token)).slice(0, 8);
+}
+
 function claimDisclosureIssue({ claimId, authorization, location, subject = "Claim" }) {
   if (authorization === "withheld_unclassified") {
     return issue(
@@ -170,6 +223,24 @@ function normalizedMultiset(values) {
 function catalogKey(entry) {
   const { claimIds, ...rendered } = entry || {};
   return JSON.stringify(normalizedObject(rendered));
+}
+
+/**
+ * The visible words of an identity-section entry, for asking whether the
+ * human-authored corpus still says this. Provenance and identifiers are
+ * excluded for the same reason `catalogKey` excludes `claimIds`: neither is
+ * ever printed, and neither appears in a source document, so including them
+ * would guarantee a support miss.
+ */
+function renderedEntryText(entry) {
+  const { claimIds, id, ...rendered } = entry || {};
+  const collect = (value) => {
+    if (value == null) return [];
+    if (Array.isArray(value)) return value.flatMap(collect);
+    if (typeof value === "object") return Object.values(value).flatMap(collect);
+    return [String(value)];
+  };
+  return collect(rendered).filter(Boolean).join(" ");
 }
 
 function withinDir(root, candidate) {
@@ -656,9 +727,76 @@ export function validateResumeClaims({
 
   const resolvedRoot = fs.realpathSync(path.resolve(workspaceRoot));
   const resolvedPersonaRoot = fs.realpathSync(path.resolve(personaRoot || workspaceRoot));
+
+  // Staleness is established by evidence, never by a timestamp. Every claim
+  // source records the sha256 of the file it was verified against, so a source
+  // whose bytes no longer hash to that value proves the generated records were
+  // built from a different version of the human-authored corpus. A checkout, a
+  // copy, or a clock skew cannot fake this signal, and nothing else in the
+  // pipeline can produce it.
+  const changedSources = new Set();
+  const sourceChanged = (sourcePath, recordedHash) => {
+    if (sha256(sourcePath) === recordedHash) return false;
+    changedSources.add(path.relative(resolvedPersonaRoot, sourcePath).split(path.sep).join("/"));
+    return true;
+  };
+
+  // Why an identity-section check failed decides what may happen next, so it is
+  // established from evidence rather than assumed.
+  //
+  // Two facts must both hold before a mismatch is called recoverable: the
+  // generated records were provably built from different source bytes
+  // (`changedSources`), and the disputed entry is substantively present in the
+  // corpus as it stands today. The first alone would excuse a fabrication that
+  // happened to coincide with an unrelated edit. The second alone would excuse
+  // a hand-edited generated record. Together they describe exactly one
+  // situation: the human-authored source moved ahead of `profile/generated/`.
+  //
+  // Anything else stays an unsupported assertion, which is the failure the
+  // anti-fabrication guarantee exists to catch.
+  const currentApprovedCorpus = (() => {
+    let corpus = null;
+    return () => {
+      if (corpus !== null) return corpus;
+      const seen = new Set();
+      const parts = [];
+      for (const claim of ledger.claims) {
+        for (const source of claim.sources || []) {
+          const resolution = resolveClaimSource(source.path, {
+            personaRoot: resolvedPersonaRoot,
+            workspaceRoot: resolvedRoot,
+          });
+          if (!resolution.contained) continue;
+          if (!fs.existsSync(resolution.path) || !fs.statSync(resolution.path).isFile()) continue;
+          const real = fs.realpathSync(resolution.path);
+          if (seen.has(real)) continue;
+          if (!sourceMayGroundClaims(real, resolvedPersonaRoot)) continue;
+          seen.add(real);
+          parts.push(fs.readFileSync(real, "utf8"));
+        }
+      }
+      corpus = parts.join("\n");
+      return corpus;
+    };
+  })();
+
+  const identitySectionRemedy = (entries) => {
+    if (!changedSources.size) return null;
+    if (!entries.length) return null;
+    const corpus = currentApprovedCorpus();
+    if (!corpus) return null;
+    const supported = entries.every((entry) => excerptSupports(renderedEntryText(entry), corpus));
+    return supported ? STALE_RECORD_REMEDY : null;
+  };
+
+  const staleSuffix = () =>
+    ` The approved source changed (${[...changedSources].sort().join(", ")}), ` +
+    `so profile/generated/ is behind it. Rebuild with profile-builder; content review may continue meanwhile.`;
+
   const claimEvidence = new Map();
   const readExcerpts = (sources, sourceLocation) => {
     const excerpts = [];
+    let staleSources = false;
     for (const source of sources || []) {
       const permittedRoots = [resolvedPersonaRoot, resolvedRoot];
       const resolution = resolveClaimSource(source.path, {
@@ -688,8 +826,16 @@ export function validateResumeClaims({
         ));
         continue;
       }
-      if (sha256(sourcePath) !== source.fileHash) {
-        issues.push(issue("error", "source_hash_mismatch", `Source "${source.path}" changed after claim verification.`, sourceLocation));
+      if (sourceChanged(sourcePath, source.fileHash)) {
+        staleSources = true;
+        issues.push(issue(
+          "error",
+          "source_hash_mismatch",
+          `Source "${source.path}" changed after claim verification. The generated ` +
+          `records were built from an earlier version of this file; rebuild them with profile-builder.`,
+          sourceLocation,
+          STALE_RECORD_REMEDY
+        ));
         continue;
       }
       if (source.lineStart == null || source.lineEnd == null) {
@@ -705,19 +851,28 @@ export function validateResumeClaims({
       }
       excerpts.push(lines.slice(start - 1, end).join("\n"));
     }
-    return excerpts;
+    return { excerpts, staleSources };
   };
 
   for (const claim of ledger.claims) {
     const sourceLocation = `claim:${claim.id}`;
-    const excerpts = readExcerpts(claim.sources, sourceLocation);
+    const { excerpts, staleSources } = readExcerpts(claim.sources, sourceLocation);
     claimEvidence.set(claim.id, excerpts.join("\n"));
     if (!excerpts.some((excerpt) => excerptSupports(claim.fact, excerpt))) {
+      // A claim whose only source moved on has no excerpt to be judged against.
+      // That is a consequence of the staleness, not independent evidence of
+      // fabrication, so it carries the staleness remedy rather than dragging an
+      // otherwise recoverable run back to a hard stop.
+      const staleEvidence = staleSources && !excerpts.length;
       issues.push(issue(
         "error",
         "claim_source_mismatch",
-        `Claim "${claim.id}" is not substantively supported by its referenced source excerpt.`,
-        sourceLocation
+        `Claim "${claim.id}" is not substantively supported by its referenced source excerpt.` +
+        (staleEvidence
+          ? " Its only source changed after verification, so no excerpt could be read; rebuild before judging this claim."
+          : ""),
+        sourceLocation,
+        staleEvidence ? STALE_RECORD_REMEDY : null
       ));
     }
 
@@ -734,7 +889,19 @@ export function validateResumeClaims({
       // A generalization may drop detail but must never introduce a number, and every
       // named or canonical term it uses must trace back to the internal fact or to an
       // approved source that authorizes the generalized wording.
-      const generalizationEvidence = [claim.fact, ...readExcerpts(claim.externalSources, sourceLocation)].join("\n");
+      const generalizationEvidence = [
+        claim.fact,
+        ...readExcerpts(claim.externalSources, sourceLocation).excerpts,
+      ].join("\n");
+      const editorialMarker = profileEditorialMarker(claim.externalFact);
+      if (editorialMarker) {
+        issues.push(issue(
+          "error",
+          "external_fact_editorial_instruction",
+          `Claim "${claim.id}" externalFact contains editorial guidance (${editorialMarker}) instead of only factual content.`,
+          sourceLocation
+        ));
+      }
       const invented = [
         ...unsupportedNumericTokens(claim.externalFact, claim.fact),
         ...unsupportedCanonicalTerms(claim.externalFact, generalizationEvidence),
@@ -745,6 +912,14 @@ export function validateResumeClaims({
           "error",
           "external_fact_ungrounded",
           `Claim "${claim.id}" externalFact introduces unsupported content: ${invented.join(", ")}.`,
+          sourceLocation
+        ));
+      }
+      if (textSupportRatio(claim.externalFact, generalizationEvidence) < 0.4) {
+        issues.push(issue(
+          "error",
+          "external_fact_substantive_mismatch",
+          `Claim "${claim.id}" externalFact is not substantively supported by its fact or external sources.`,
           sourceLocation
         ));
       }
@@ -759,13 +934,21 @@ export function validateResumeClaims({
     const label = entry.id || entry.role;
     const result = recordGrounding(entry, verifiedClaimEvidence, GROUNDED_RECORD_FIELDS.experience);
     if (!result.grounded) {
+      // The excerpt that used to ground this record can become unreadable when
+      // its source moves on, and the record then looks unproven for a reason
+      // that has nothing to do with what it says. Ask the corpus as it stands
+      // today: if it still states the record, this is rebuild debt, not a
+      // fabricated employer.
+      const remedy = result.empty ? null : identitySectionRemedy([entry]);
       issues.push(issue(
         "error",
         "identity_experience_unproven",
-        result.empty
+        (result.empty
           ? `Identity experience "${label}" carries no role, company or period to ground. Fill it in from an approved source, or remove the entry.`
-          : `Identity experience "${label}" is not grounded in an approved source excerpt: ${result.unsupported.join(", ")}. Add a source excerpt covering ${result.unsupported.length === 1 ? "that field" : "those fields"}, or correct the entry to match the evidence.`,
-        `identity.experience:${label}`
+          : `Identity experience "${label}" is not grounded in an approved source excerpt: ${result.unsupported.join(", ")}. Add a source excerpt covering ${result.unsupported.length === 1 ? "that field" : "those fields"}, or correct the entry to match the evidence.`) +
+        (remedy ? staleSuffix() : ""),
+        `identity.experience:${label}`,
+        remedy
       ));
     }
     for (const field of result.softMisses || []) {
@@ -877,7 +1060,8 @@ export function validateResumeClaims({
     }
 
     if (coreEntry) {
-      for (const field of ["company", "role", "period"]) {
+      for (const field of ["company", "role", "period", "location"]) {
+        if (field === "location" && !entry[field]) continue;
         if (normalize(entry[field]) !== normalize(coreEntry[field])) {
           issues.push(issue(
             "error",
@@ -1060,6 +1244,46 @@ export function validateResumeClaims({
             `Numeric claim "${token}" is not present in the mapped source claims.`,
             bulletLocation
           ));
+      }
+
+      // Joining several claims into one blob proves the words exist somewhere.
+      // It does not prove the outcome belongs to the subject it modifies: a
+      // bullet can move a result from one record onto another's subject and
+      // still pass every check above, because every term is present in the
+      // union.
+      //
+      // The signal is whether the union covers more of the bullet than the best
+      // single claim does. If it does, the bullet stands only when the records
+      // are read together, and nothing here established that they may be. If it
+      // does not, one claim already carries everything the union carries, so
+      // there is nothing for a second record to leak in.
+      //
+      // No lexical validator can settle that relationship, so this does not
+      // claim the bullet is wrong. It reports that the bullet was never
+      // established -- a warning, which the release gate renders as `uncertain`
+      // rather than `unsupported`. The label stops asserting more than was
+      // checked, which is the only part of this that can be made true.
+      //
+      // A single mapped claim is exempt because the union is that claim.
+      if (mappedClaims.length > 1) {
+        const unionCoverage = coveredTokens(bullet, mappedClaims).size;
+        const bestSingle = Math.max(...mappedClaims.map((claim) => coveredTokens(bullet, [claim]).size));
+        if (unionCoverage > bestSingle) {
+          const split = mappedClaims
+            .map((claim) => {
+              const missing = termsMissingFromClaim(bullet, claim);
+              return missing.length
+                ? `${claim.id} does not cover: ${missing.join(", ")}`
+                : `${claim.id} covers every term`;
+            })
+            .join("; ");
+          issues.push(issue(
+            "warning",
+            "bullet_attribution_unverified",
+            `No single mapped claim supports this bullet on its own, so it holds only if ${mappedClaims.map((claim) => claim.id).join(" and ")} are read together -- and that composition is unverified. ${split}. Split the bullet so each part rests on one record, or map it to a claim that carries the whole statement.`,
+            bulletLocation
+          ));
+        }
       }
     }
   }
@@ -1452,6 +1676,40 @@ export function validateResumeClaims({
     }
   }
 
+  const plannedHeadline = applicationStrategy?.firstPagePlan?.headline;
+  const plannedQualifiers =
+    applicationStrategy?.firstPagePlan?.headlinePlan?.qualifiers || [];
+  if (plannedHeadline && normalize(plannedHeadline) !== normalize(resume.ats_title)) {
+    issues.push(issue(
+      "warning",
+      "headline_plan_not_applied",
+      "The tailored headline differs from the validated application strategy. " +
+      "Update and revalidate the strategy instead of silently changing positioning.",
+      "ats_title"
+    ));
+  }
+  const headlineMappings = new Map(
+    (resume.provenance?.headline || []).map((mapping) => [
+      normalize(mapping.term),
+      [...(mapping.claimIds || [])].sort(),
+    ])
+  );
+  for (const qualifier of plannedQualifiers) {
+    const mappedClaimIds = headlineMappings.get(normalize(qualifier.term)) || [];
+    const plannedClaimIds = [...(qualifier.claimIds || [])].sort();
+    if (
+      mappedClaimIds.length !== plannedClaimIds.length ||
+      mappedClaimIds.some((claimId, index) => claimId !== plannedClaimIds[index])
+    ) {
+      issues.push(issue(
+        "warning",
+        "headline_plan_provenance_mismatch",
+        `Headline qualifier "${qualifier.term}" does not preserve the strategy's claim mapping.`,
+        "ats_title"
+      ));
+    }
+  }
+
   // Headline diagnostics. Advisory by construction: every signal about a
   // headline is lexical, and lexical coverage may never block a release.
   // Requirement collisions read the structured job spec and the ledger, never
@@ -1470,11 +1728,17 @@ export function validateResumeClaims({
     const actual = normalizedMultiset(resume.education || []);
     const expected = normalizedMultiset(identity.education || []);
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      // Every entry the resume renders must be supported, not merely the ones
+      // that differ. A resume that dropped a degree renders nothing new, and
+      // testing only the difference would classify it stale on an empty set.
+      const remedy = identitySectionRemedy(resume.education || []);
       issues.push(issue(
         "error",
         "identity_section_mismatch",
-        "education must match the identity record exactly; rebuild the identity record if the source record changed.",
-        "education"
+        "education must match the identity record exactly; rebuild the identity record if the source record changed." +
+        (remedy ? staleSuffix() : ""),
+        "education",
+        remedy
       ));
     }
   }
@@ -1490,21 +1754,27 @@ export function validateResumeClaims({
       permitted.set(key, (permitted.get(key) || 0) + 1);
     }
     const unsupported = [];
+    const unsupportedEntries = [];
     for (const entry of resume[field] || []) {
       const key = catalogKey(entry);
       const remaining = permitted.get(key) || 0;
       if (remaining === 0) {
         unsupported.push(entry?.name || entry?.title || key.slice(0, 60));
+        unsupportedEntries.push(entry);
       } else {
         permitted.set(key, remaining - 1);
       }
     }
     if (unsupported.length) {
+      const remedy = identitySectionRemedy(unsupportedEntries);
       issues.push(issue(
         "error",
         "identity_section_unsupported",
-        `${field} contains entries absent from the identity record: ${unsupported.join(", ")}. Rebuild the identity record if the source record changed.`,
-        field
+        `${field} contains entries absent from the identity record: ${unsupported.join(", ")}. ` +
+        `Rebuild the identity record if the source record changed.` +
+        (remedy ? staleSuffix() : ""),
+        field,
+        remedy
       ));
     }
   }
@@ -1512,6 +1782,8 @@ export function validateResumeClaims({
   const errors = issues.filter((item) => item.severity === "error");
   const warnings = issues.filter((item) => item.severity === "warning");
   return {
+    // Unchanged on purpose. The release gate reads `valid`, and a stale record
+    // is still an error, so classification cannot widen what may be sent.
     valid: errors.length === 0,
     errorCount: errors.length,
     // Counted by severity rather than by subtraction. `info` findings say
@@ -1520,6 +1792,14 @@ export function validateResumeClaims({
     // neutral observation.
     warningCount: warnings.length,
     infoCount: issues.length - errors.length - warnings.length,
+    // What the caller may do now. `review_only` means every error is
+    // recoverable workflow debt, so review work can continue while carrying a
+    // visible stale marker. It never clears the ledger: it is reported only when
+    // errors exist, and errors keep `valid` false.
+    state: classifyRunState(issues),
+    // One packet for every stale record, so a rebuild is planned once rather
+    // than rediscovered one failed run at a time.
+    rebuildPacket: rebuildPacket(issues),
     issues,
   };
 }

@@ -127,8 +127,21 @@ This is a private planning artifact. It is never rendered into the resume.
    qualifiers, and every qualifier asserts a capability that must map to
    verified claims. Prefer the posting's own phrasing where both are true;
    never propose a qualifier for a requirement `likelyConcerns` records as
-   unresolved. `resume-tailor` composes and maps it; this step decides what it
-   should say.
+   unresolved.
+
+   Record the decision in `headlinePlan`:
+
+   1. Put only the role being pursued in `positioning`.
+   2. Add at most two qualifiers that materially change what the candidate is
+      volunteering to discuss in an interview.
+   3. Use the posting's phrase when it is accurate and claim-supported.
+   4. Map every qualifier to verified claim IDs and state why it earns scarce
+      headline space. A technology already obvious throughout the body is not a
+      differentiator merely because it is true.
+   5. Make `headline` the ordered composition of positioning and qualifiers.
+
+   `resume-tailor` copies and maps this plan; it does not improvise a new
+   identity from the requisition title.
 7. Set status:
    - `ready`: no pending evidence questions;
    - `needs_evidence`: at least one question remains pending;

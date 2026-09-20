@@ -1,4 +1,5 @@
 import { RESTRICTION_RANK, renderAuthorization } from "./disclosure.js";
+import { profileEditorialMarker } from "./profile-output-hygiene.js";
 
 function issue(severity, code, message, location = "") {
   return { severity, code, message, location };
@@ -24,6 +25,19 @@ export function validateAccomplishments({ bank, ledger, identity }) {
 
   for (const unit of bank?.units || []) {
     const location = `unit:${unit.id}`;
+
+    for (const field of ["title", "externalTitle"]) {
+      if (!unit[field]) continue;
+      const editorialMarker = profileEditorialMarker(unit[field]);
+      if (editorialMarker) {
+        issues.push(issue(
+          "error",
+          "unit_label_editorial_instruction",
+          `Unit "${unit.id}" ${field} contains editorial guidance (${editorialMarker}) instead of a neutral retrieval label.`,
+          `${location}.${field}`
+        ));
+      }
+    }
 
     if (seen.has(unit.id)) {
       issues.push(issue("error", "duplicate_unit_id", `Unit id "${unit.id}" is declared more than once.`, location));

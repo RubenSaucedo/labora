@@ -77,6 +77,20 @@ test("accepts fully mapped verified claims", () => {
   assert.equal(result.valid, true);
 });
 
+test("a rendered experience location must match the identity record", () => {
+  const input = fixture();
+  input.identity.experience[0].location = "Austin, TX";
+  input.resume.experience[0].location = "Seattle, WA";
+
+  const result = validateResumeClaims(input);
+
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) =>
+    issue.code === "experience_identity_changed"
+    && issue.location === "experience[0].location"
+  ));
+});
+
 test("rejects claims grounded in story.md now that it is not an approved source", () => {
   const input = fixture();
   const storyPath = path.join(input.workspaceRoot, "profile", "story.md");
@@ -289,6 +303,64 @@ test("externalFact cannot smuggle numbers or technologies past the internal fact
   const result = validateResumeClaims(input);
   assert.equal(result.valid, false);
   assert.equal(result.issues.some((issue) => issue.code === "external_fact_ungrounded"), true);
+});
+
+test("externalFact cannot contain editorial instructions", () => {
+  const input = fixture();
+  const claim = input.ledger.claims[0];
+  claim.disclosure = "internal_generalizable";
+  claim.externalFact =
+    "The defensible one-line statement is: used React to reduce latency by 40%.";
+
+  const result = validateResumeClaims(input);
+
+  assert.equal(result.valid, false);
+  assert.equal(
+    result.issues.some((issue) => issue.code === "external_fact_editorial_instruction"),
+    true
+  );
+});
+
+test("externalFact must remain substantively supported without rejecting factual verbs", () => {
+  const unsupported = fixture();
+  unsupported.ledger.claims[0].disclosure = "internal_generalizable";
+  unsupported.ledger.claims[0].externalFact =
+    "Improved collaboration and strategic execution across teams.";
+
+  const unsupportedResult = validateResumeClaims(unsupported);
+
+  assert.equal(unsupportedResult.valid, false);
+  assert.equal(
+    unsupportedResult.issues.some((issue) => issue.code === "external_fact_substantive_mismatch"),
+    true
+  );
+
+  const factual = fixture();
+  const claim = factual.ledger.claims[0];
+  claim.fact = "Led delivery, built a React cache, and reduced request latency by 40%.";
+  claim.disclosure = "internal_generalizable";
+  claim.externalFact =
+    "Led delivery, built a React cache, and reduced request latency by 40%.";
+  const sourcePath = path.join(factual.workspaceRoot, "profile", "career.md");
+  fs.writeFileSync(
+    sourcePath,
+    "Engineer — Example (2022 - Present)\nLed delivery, built a React cache, and reduced request latency by 40%."
+  );
+  claim.sources[0].fileHash = crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(sourcePath))
+    .digest("hex");
+
+  const factualResult = validateResumeClaims(factual);
+
+  assert.equal(factualResult.valid, true);
+  assert.equal(
+    factualResult.issues.some((issue) =>
+      ["external_fact_editorial_instruction", "external_fact_substantive_mismatch"]
+        .includes(issue.code)
+    ),
+    false
+  );
 });
 
 test("claim parse preserves disclosure-key presence without disclosure backfill", () => {
@@ -565,6 +637,37 @@ test("mapping a headline qualifier to a verified claim clears the warning", () =
   const result = validateResumeClaims(input);
   assert.equal(result.valid, true);
   assert.equal(result.issues.some((issue) => issue.code.startsWith("headline_term_un")), false);
+});
+
+test("the writer must preserve the validated headline plan and qualifier mappings", () => {
+  const input = fixture();
+  input.resume.target_role = "Engineer";
+  input.resume.ats_title = "Engineer, React";
+  input.resume.provenance.headline = [{ term: "React", claimIds: ["claim-latency"] }];
+  input.applicationStrategy = {
+    firstPagePlan: {
+      headline: "Engineer, React",
+      headlinePlan: {
+        positioning: "Engineer",
+        qualifiers: [{ term: "React", claimIds: ["claim-latency"] }],
+      },
+    },
+  };
+
+  const matching = validateResumeClaims(input);
+  assert.ok(!matching.issues.some((issue) => issue.code.startsWith("headline_plan_")));
+
+  input.resume.ats_title = "Engineer, TypeScript";
+  input.resume.provenance.headline = [{ term: "React", claimIds: ["different-claim"] }];
+  const changed = validateResumeClaims(input);
+  assert.equal(
+    changed.issues.find((issue) => issue.code === "headline_plan_not_applied")?.severity,
+    "warning"
+  );
+  assert.equal(
+    changed.issues.find((issue) => issue.code === "headline_plan_provenance_mismatch")?.severity,
+    "warning"
+  );
 });
 
 test("no headline finding can ever block a release", () => {

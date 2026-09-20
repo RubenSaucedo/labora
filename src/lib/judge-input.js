@@ -5,6 +5,7 @@ import { assertSafeDocument } from "./file-safety.js";
 import { configuredModelLabel, defaultSettingsPath, judgeModelReport } from "./copilot-settings.js";
 import { loadJobFromFile } from "./job-parser.js";
 import { pluginRoot as PLUGIN_ROOT } from "./paths.js";
+import { pluginAgentPath, pluginAgentPromptLabel } from "./plugin-components.js";
 import { extractTextFromDocx } from "../utils/docx-to-text.js";
 import { extractTextFromPdf } from "../utils/pdf-to-md.js";
 
@@ -32,14 +33,17 @@ async function artifactText(artifactPath) {
 }
 
 function computePromptHash(pluginRoot, judge) {
-  const promptPaths = [
+  const promptFiles = [
     path.join(pluginRoot, "skills", "resume-conventions", "SKILL.md"),
-    path.join(pluginRoot, "agents", `judge-${judge}.agent.md`),
+    pluginAgentPath(pluginRoot, `judge-${judge}`),
     path.join(pluginRoot, "skills", `judge-${judge}`, "SKILL.md"),
   ];
-  const parts = promptPaths.map((filePath) =>
-    `${path.relative(pluginRoot, filePath)}:${fileHash(filePath)}`
-  );
+  const parts = promptFiles.map((filePath) => {
+    const relativePath = filePath.endsWith(".agent.md")
+      ? pluginAgentPromptLabel(filePath)
+      : path.relative(pluginRoot, filePath);
+    return `${relativePath}:${fileHash(filePath)}`;
+  });
   return sha256(parts.join("\n"));
 }
 

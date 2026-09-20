@@ -5,8 +5,10 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { resolvePersonaRoot } from "../lib/workspace.js";
+import { profileStateDir } from "../lib/profile-state.js";
 import { loadManifest, resolveProvenance, SOURCE_KIND_MEANING } from "../lib/evidence-provenance.js";
 
 
@@ -298,14 +300,21 @@ function main() {
   // to a separate private workspace.
   const personaRoot = fs.existsSync(personaArg) ? personaArg : resolvePersonaRoot(personaArg);
   const personaName = path.basename(personaRoot);
-  const generatedDir = path.join(personaRoot, "profile/generated");
-  if (!fs.existsSync(generatedDir)) {
-    console.error(`No generated profile at ${generatedDir}`);
+  // Ledgers are read from wherever this persona's compiled state lives, but the
+  // review surface is written where a person will actually look for it. Once
+  // the ledgers move out to .labora/state/, PROFILE.md stops being a fourth
+  // representation sitting beside them and becomes the only generated thing in
+  // the profile tree that is meant to be read.
+  const stateDir = profileStateDir(personaRoot);
+  if (!fs.existsSync(stateDir)) {
+    console.error(`No compiled profile state at ${stateDir}`);
     process.exit(2);
   }
-  const target = path.join(generatedDir, "PROFILE.md");
-  fs.writeFileSync(target, renderProfile(personaName, generatedDir, personaRoot));
+  const reviewDir = path.join(personaRoot, "profile", "generated");
+  fs.mkdirSync(reviewDir, { recursive: true });
+  const target = path.join(reviewDir, "PROFILE.md");
+  fs.writeFileSync(target, renderProfile(personaName, stateDir, personaRoot));
   console.log(`wrote ${target}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

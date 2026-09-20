@@ -195,22 +195,25 @@ function passingGateInputs(hash) {
   };
 }
 
-test("baseline all-pass inputs reach send_ready", () => {
+test("baseline all-pass inputs reach review_ready with nothing to report", () => {
   const result = evaluateQualityGate(passingGateInputs("a".repeat(64)));
-  assert.equal(result.state, "send_ready");
+  assert.equal(result.state, "review_ready");
+  assert.deepEqual(result.findings, []);
 });
 
-test("a judge verdict bound to a stale artifact hash is blocked", () => {
+test("a judge verdict bound to a stale artifact hash is reported as describing another document", () => {
   const inputs = passingGateInputs("a".repeat(64));
   inputs.atsJudge.metadata.evaluatedArtifactHash = "b".repeat(64);
   const result = evaluateQualityGate(inputs);
-  assert.equal(result.state, "blocked");
-  assert.ok(result.hardBlockers.some((b) => /evaluatedArtifactHash/.test(b)));
+  // Still surfaced in full. It just no longer decides for the operator.
+  assert.ok(result.findings.some((f) => /evaluatedArtifactHash/.test(f.finding)));
+  assert.equal(result.gates.atsJudge, false);
 });
 
-test("artifact validation produced for a different artifact is blocked", () => {
+test("artifact validation produced for a different artifact is reported", () => {
   const inputs = passingGateInputs("a".repeat(64));
   inputs.artifactValidation.artifactHash = "b".repeat(64);
   const result = evaluateQualityGate(inputs);
-  assert.equal(result.state, "blocked");
+  assert.ok(result.findings.some((f) => f.code === "diagnostics_describe_other_artifact"));
+  assert.equal(result.gates.artifact, false);
 });

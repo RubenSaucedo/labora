@@ -14,11 +14,22 @@ function fixture() {
     },
     claimLedger: {
       claims: [
-        { id: "claim-1", status: "verified", fact: "Built React applications." },
-        { id: "claim-2", status: "needs_review", fact: "Used GraphQL." },
+        {
+          id: "claim-1",
+          status: "verified",
+          disclosure: "public",
+          fact: "Built React applications.",
+        },
+        {
+          id: "claim-2",
+          status: "needs_review",
+          disclosure: "public",
+          fact: "Used GraphQL.",
+        },
       ],
     },
     strategy: {
+      targetRole: "Frontend Engineer",
       status: "ready",
       topSignals: [{
         requirementIds: ["req-001"],
@@ -26,7 +37,18 @@ function fixture() {
       }],
       likelyConcerns: [],
       evidenceRequests: [],
-      firstPagePlan: { leadClaimIds: ["claim-1"] },
+      firstPagePlan: {
+        headline: "Frontend Engineer | React",
+        headlinePlan: {
+          positioning: "Frontend Engineer",
+          qualifiers: [{
+            term: "React",
+            claimIds: ["claim-1"],
+            rationale: "The role asks for React and the verified claim establishes it.",
+          }],
+        },
+        leadClaimIds: ["claim-1"],
+      },
     },
   };
 }
@@ -34,6 +56,110 @@ function fixture() {
 test("accepts strategy references to verified claims and known requirements", () => {
   const result = validateApplicationStrategy(fixture());
   assert.equal(result.valid, true);
+});
+
+test("requires a structured headline plan", () => {
+  const input = fixture();
+  delete input.strategy.firstPagePlan.headlinePlan;
+
+  const result = validateApplicationStrategy(input);
+
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) => issue.code === "missing_headline_plan"));
+});
+
+test("headline plan must reproduce the headline and report weak qualifiers", () => {
+  const mismatch = fixture();
+  mismatch.strategy.firstPagePlan.headline = "Frontend Engineer | TypeScript";
+  const mismatchResult = validateApplicationStrategy(mismatch);
+  assert.equal(mismatchResult.valid, false);
+  assert.ok(mismatchResult.issues.some((issue) => issue.code === "headline_plan_mismatch"));
+
+  const unsupported = fixture();
+  unsupported.strategy.firstPagePlan.headline = "Frontend Engineer | Distributed Systems";
+  unsupported.strategy.firstPagePlan.headlinePlan.qualifiers[0].term = "Distributed Systems";
+  const unsupportedResult = validateApplicationStrategy(unsupported);
+  assert.equal(unsupportedResult.valid, true, "lexical support is advisory");
+  assert.ok(
+    unsupportedResult.warnings.some((issue) => issue.code === "headline_qualifier_unsupported")
+  );
+
+  const confidential = fixture();
+  confidential.claimLedger.claims[0].disclosure = "internal_only";
+  const confidentialResult = validateApplicationStrategy(confidential);
+  assert.equal(confidentialResult.valid, true, "confidential evidence is reported, not refused");
+  assert.ok(
+    confidentialResult.warnings.some((issue) => issue.code === "headline_qualifier_confidential")
+  );
+
+  const wrongRole = fixture();
+  wrongRole.strategy.firstPagePlan.headline = "Product Manager | React";
+  wrongRole.strategy.firstPagePlan.headlinePlan.positioning = "Product Manager";
+  const wrongRoleResult = validateApplicationStrategy(wrongRole);
+  assert.equal(wrongRoleResult.valid, false);
+  assert.ok(
+    wrongRoleResult.issues.some((issue) => issue.code === "headline_positioning_mismatch")
+  );
+});
+
+test("headline qualifier support may be distributed across mapped claims", () => {
+  const input = fixture();
+  input.strategy.firstPagePlan.headline = "Frontend Engineer | React and TypeScript";
+  input.strategy.firstPagePlan.headlinePlan.qualifiers[0] = {
+    term: "React and TypeScript",
+    claimIds: ["claim-1", "claim-2"],
+    rationale: "Names the two core technologies.",
+  };
+  input.claimLedger.claims[0].fact = "Built React applications.";
+  input.claimLedger.claims.push({
+    id: "claim-2",
+    status: "verified",
+    fact: "Delivered TypeScript services.",
+    disclosure: "public",
+  });
+
+  const result = validateApplicationStrategy(input);
+
+  assert.equal(result.valid, true);
+  assert.ok(!result.warnings.some((warning) => warning.code === "headline_qualifier_unsupported"));
+});
+
+test("headline composition preserves qualifiers that contain separator characters", () => {
+  const input = fixture();
+  input.strategy.firstPagePlan.headline = "Frontend Engineer | CI/CD";
+  input.strategy.firstPagePlan.headlinePlan.qualifiers[0] = {
+    term: "CI/CD",
+    claimIds: ["claim-1"],
+    rationale: "Names the verified delivery practice.",
+  };
+  input.claimLedger.claims[0].fact = "Built and maintained CI/CD pipelines.";
+
+  const result = validateApplicationStrategy(input);
+
+  assert.ok(!result.issues.some((issue) => issue.code === "headline_plan_mismatch"));
+});
+
+test("an unresolved requirement cannot silently become a headline qualifier", () => {
+  const input = fixture();
+  input.strategy.topSignals = [];
+  input.strategy.likelyConcerns = [{
+    requirementId: "req-001",
+    text: "React experience",
+    severity: "core",
+    evidenceStatus: "uncertain",
+  }];
+  input.strategy.evidenceRequests = [{
+    requirementId: "req-001",
+    resolution: "pending",
+  }];
+
+  const result = validateApplicationStrategy(input);
+
+  assert.equal(
+    result.warnings.find((warning) => warning.code === "headline_qualifier_unresolved_concern")
+      ?.severity,
+    "warning"
+  );
 });
 
 test("rejects unknown requirements and non-verified claims", () => {
@@ -149,6 +275,8 @@ test("compound license text ignores unrelated authorization acronyms", () => {
     text: "Current RN license and US work authorization required",
   };
   input.claimLedger.claims[0].fact = "Holds a current RN license.";
+  input.strategy.firstPagePlan.headline = "Frontend Engineer";
+  input.strategy.firstPagePlan.headlinePlan.qualifiers = [];
   const result = validateApplicationStrategy(input);
   assert.equal(result.valid, true);
 });

@@ -7,6 +7,7 @@ export const ZTailoredExperience = z.object({
   company: z.string().default(""),
   role: z.string().default(""),
   period: z.string().default(""),
+  location: z.string().default(""),
   bullets: z.array(z.string()).default([]),
   // Copied from the identity spine so a promotion inside a long tenure survives
   // into rendering. Claim-gated like any other rendered content.

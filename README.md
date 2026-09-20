@@ -67,6 +67,11 @@ mkdir -p ~/src/labora-<you>/personas && cd ~/src/labora-<you>
 git init          # optional, but if you do version it, keep the repo PRIVATE
 ```
 
+Old installations may have added root-level `agents/` or `skills/` links or
+copies as a workaround for a retired path-resolution bug. Labora no longer
+reads them; the session-start advisory reports them so you can confirm their
+origin and remove obsolete entries. It never deletes or reads workspace content.
+
 **4. Work from that directory.** That is the entire configuration: labora finds
 `personas/` because you ran it there. Agents and skills route by intent:
 
@@ -101,11 +106,24 @@ walk around the boundary it exists to enforce.
 The `resume-build` agent checks content hashes, rebuilds stale stages, and writes
 `release.json` with one of:
 
-- `send_ready`
-- `human_review`
-- `blocked`
+- `review_ready` — an artifact exists, and here is everything Labora
+  established and failed to establish about it, as findings
+- `generation_failed` — no document was produced; there is nothing to review yet
 
-Human approval remains mandatory.
+Nothing else. Labora reports; it never refuses. Every finding carries how the
+statement was established — `verified`, `user_attested`, `uncertain`,
+`unsupported` — and the smallest next action, and none of them prevents you from
+rendering or sending your own resume.
+
+Approval is a separate, explicit act:
+
+```console
+labora approve applications/<job-slug> --accept-all
+```
+
+That is the only thing that produces `operator_approved`. It binds to one exact
+artifact hash and one exact finding set, and stops applying the moment either
+changes.
 
 ## Data layout
 
@@ -243,6 +261,19 @@ Contamination, not capability, is what breaks an assurance pipeline: a curator
 who knows the target job shades facts toward it, an advocate holding raw evidence
 composes from sources no claim covers, and a judge that has seen the rationale
 grades what you meant instead of what the page says.
+
+Agent definitions are grouped by the outcome they own:
+
+```text
+agents/
+├── judges/
+├── job-scouts/
+├── profile-builders/
+└── resume-builders/
+```
+
+The plugin manifest lists each directory explicitly. Agent names remain flat and
+stable at runtime, so callers still dispatch `labora:<agent-name>`.
 
 | Posture | Agent | Sees | Writes |
 |---|---|---|---|

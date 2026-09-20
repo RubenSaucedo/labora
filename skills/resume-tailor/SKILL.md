@@ -34,7 +34,11 @@ shape only and never ground a fact.
   verified career jump should remain visible. `label`, `externalLabel`,
   `externalLabelKind` and `date` are each checked against the identity record,
   so tailoring cannot promote or suppress a step by rewriting its semantics.
-- Every bullet maps to one or more verified claim IDs.
+- Every bullet maps to one or more verified claim IDs. Prefer one claim per
+  bullet. Where a bullet needs two, no validator can check that the outcome in
+  one record belongs to the subject in the other, so the bullet is reported as
+  `uncertain` rather than verified — write two bullets instead of one that only
+  stands when both records are read together.
 - Every displayed skill maps to verified claim IDs and exists in the identity record.
 - Education matches the identity record exactly.
 - Projects, certifications, and awards are a catalog: render any subset that
@@ -112,7 +116,10 @@ Then, per qualifier:
    "platform", "runtime", "infrastructure". Copying the title silently adopts
    the narrow reading, and that is precisely the reading hardest to defend in an
    interview. `headline_requirement_collision` names these; resolve each one
-   rather than shipping past it.
+   rather than shipping past it. The finding supplies role-only and
+   claim-backed alternatives when available. If the collision remains, copy
+   its `suggestedNote` into `notes_for_human`, replace the placeholder with the
+   chosen action, and keep the narrower posting meaning visible to the reviewer.
 3. **Never headline what the body cannot carry.** If `gaps_or_risks` records a
    requirement as uncovered, the headline may not assert it. A document that
    documents a gap and headlines it is one file arguing with itself.

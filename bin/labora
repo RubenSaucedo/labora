@@ -76,6 +76,54 @@ function dependencyFreeTools() {
   );
 }
 
+function isWithin(candidate, parent) {
+  const relative = path.relative(parent, candidate);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function workspaceShadowAdvisories(cwd = process.cwd()) {
+  const workspaceRoot = path.resolve(cwd);
+  if (workspaceRoot === pluginRoot) return [];
+
+  const advisories = [];
+  for (const name of ["agents", "skills"]) {
+    const candidate = path.join(workspaceRoot, name);
+    let entry;
+    try {
+      entry = fs.lstatSync(candidate);
+    } catch (error) {
+      if (error?.code === "ENOENT") continue;
+      advisories.push(`${name}/ could not be inspected (${error?.code || "unknown error"}).`);
+      continue;
+    }
+
+    if (entry.isSymbolicLink()) {
+      try {
+        const target = fs.realpathSync(candidate);
+        advisories.push(
+          isWithin(target, pluginRoot)
+            ? `${name}/ is an inert link into the loaded plugin (old workaround).`
+            : `${name}/ is a link outside the loaded plugin and may target another install.`
+        );
+      } catch (error) {
+        advisories.push(
+          error?.code === "ENOENT"
+            ? `${name}/ is a dangling link.`
+            : `${name}/ is a link whose target could not be inspected (${error?.code || "unknown error"}).`
+        );
+      }
+      continue;
+    }
+
+    if (entry.isDirectory()) {
+      advisories.push(
+        `${name}/ is a real directory; if it copied the old workaround, it is frozen and inert.`
+      );
+    }
+  }
+  return advisories;
+}
+
 // pdf-parse requires a Node with a working `File` global. On an older runtime it
 // fails deep inside a dependency with a message that says nothing about Node, so
 // check the one constraint that actually matters and say so plainly.
@@ -299,6 +347,7 @@ function runDoctor() {
 // that passed. It is strictly read-only: installing is the operator's call.
 function announce() {
   const missing = missingDependencies();
+  const shadowAdvisories = workspaceShadowAdvisories();
   const lines = [
     `labora plugin ${pluginVersion()} is installed at ${pluginRoot}.`,
     ``,
@@ -307,6 +356,16 @@ function announce() {
     `  ${binPath} <tool> [args]`,
     `Run "${binPath} list" for the ${availableTools().length} available tools.`,
   ];
+  if (shadowAdvisories.length) {
+    lines.push(
+      ``,
+      `WORKSPACE ADVISORY: root-level agents/ or skills/ entries were found:`,
+      ...shadowAdvisories.map((advisory) => `  - ${advisory}`),
+      `Labora never reads these paths; prompts resolve from ${pluginRoot}.`,
+      `Do not delete unrelated workspace content. If these entries came from the`,
+      `retired cwd-resolution workaround, remove them after confirming their origin.`
+    );
+  }
   if (missing.length) {
     const runnable = dependencyFreeTools();
     lines.push(

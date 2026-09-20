@@ -1,6 +1,49 @@
 import { significantRequirementTokens } from "./job-requirements.js";
 import { canonicalSkillsInText } from "./skill-aliases.js";
 import { clearanceMatched } from "./eligibility.js";
+import { renderAuthorization } from "./disclosure.js";
+
+const normalize = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9+#.\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+function renderableHeadlineFact(claim) {
+  const authorization = renderAuthorization(claim);
+  if (authorization === "withheld_confidential" || authorization === "withheld_unclassified") {
+    return null;
+  }
+  if (authorization === "requires_generalization" && !claim?.externalFact) return null;
+  return String(claim?.externalFact || claim?.fact || "");
+}
+
+function claimsSupportHeadlineTerm(claims, term) {
+  const facts = claims.map(renderableHeadlineFact).filter(Boolean);
+  const termSkills = canonicalSkillsInText(term).map((match) => match.canonicalId);
+  if (termSkills.length) {
+    const factSkills = new Set(
+      facts.flatMap((fact) => canonicalSkillsInText(fact).map((match) => match.canonicalId))
+    );
+    return termSkills.every((skill) => factSkills.has(skill));
+  }
+  const tokens = significantRequirementTokens(term);
+  const normalizedFacts = normalize(facts.join(" "));
+  if (!tokens.length) return normalizedFacts.includes(normalize(term));
+  return tokens.filter((token) => normalizedFacts.includes(token)).length / tokens.length >= 0.6;
+}
+
+function headlineTermMatchesRequirement(term, requirement) {
+  const termSkills = new Set(canonicalSkillsInText(term).map((match) => match.canonicalId));
+  const requirementSkills = new Set(
+    canonicalSkillsInText(requirement?.text || "").map((match) => match.canonicalId)
+  );
+  if ([...termSkills].some((skill) => requirementSkills.has(skill))) return true;
+  const termTokens = significantRequirementTokens(term);
+  const requirementTokens = new Set(significantRequirementTokens(requirement?.text || ""));
+  return termTokens.length > 0 && termTokens.every((token) => requirementTokens.has(token));
+}
 
 function claimSupportsRequirement(claim, requirement) {
   const fact = String(claim?.fact || "");
@@ -131,6 +174,92 @@ export function validateApplicationStrategy({ strategy, jobSpec, claimLedger, ba
   }
   for (const id of strategy?.firstPagePlan?.leadClaimIds || []) {
     checkClaim(id, "firstPagePlan.leadClaimIds");
+  }
+
+  const headlinePlan = strategy?.firstPagePlan?.headlinePlan;
+  if (!headlinePlan) {
+    issues.push({
+      code: "missing_headline_plan",
+      location: "firstPagePlan.headlinePlan",
+      message:
+        "The headline needs a structured plan separating role positioning from claim-backed qualifiers.",
+    });
+  } else {
+    const headlineQualifiers = headlinePlan.qualifiers || [];
+    const positioning = normalize(headlinePlan.positioning);
+    const targetRole = normalize(strategy?.targetRole);
+    if (
+      targetRole &&
+      !positioning.includes(targetRole) &&
+      !targetRole.includes(positioning)
+    ) {
+      issues.push({
+        code: "headline_positioning_mismatch",
+        location: "firstPagePlan.headlinePlan.positioning",
+        message: "Headline positioning must stay anchored to the strategy target role.",
+      });
+    }
+    const plannedHeadline = [
+      headlinePlan.positioning,
+      ...headlineQualifiers.map((qualifier) => qualifier.term),
+    ].join(" | ");
+    if (normalize(plannedHeadline) !== normalize(strategy?.firstPagePlan?.headline)) {
+      issues.push({
+        code: "headline_plan_mismatch",
+        location: "firstPagePlan.headline",
+        message:
+          "The planned positioning and qualifiers must reproduce firstPagePlan.headline in order.",
+      });
+    }
+
+    const seenQualifiers = new Set();
+    const unresolvedConcerns = (strategy?.likelyConcerns || []).filter((concern) =>
+      ["unsupported", "uncertain"].includes(concern.evidenceStatus)
+    );
+    for (const [index, qualifier] of headlineQualifiers.entries()) {
+      const location = `firstPagePlan.headlinePlan.qualifiers[${index}]`;
+      const term = normalize(qualifier.term);
+      if (seenQualifiers.has(term)) {
+        issues.push({
+          code: "duplicate_headline_qualifier",
+          location,
+          message: `Headline qualifier "${qualifier.term}" is repeated.`,
+        });
+      }
+      seenQualifiers.add(term);
+      qualifier.claimIds.forEach((claimId) => checkClaim(claimId, `${location}.claimIds`));
+      const mappedClaims = qualifier.claimIds
+        .map((claimId) => verifiedClaims.get(claimId))
+        .filter(Boolean);
+      const supported = claimsSupportHeadlineTerm(mappedClaims, qualifier.term);
+      if (!supported) {
+        const hasWithheldEvidence = mappedClaims.some(
+          (claim) => renderableHeadlineFact(claim) == null
+        );
+        issues.push({
+          code: hasWithheldEvidence
+            ? "headline_qualifier_confidential"
+            : "headline_qualifier_unsupported",
+          severity: "warning",
+          location,
+          message: hasWithheldEvidence
+            ? `Headline qualifier "${qualifier.term}" relies on evidence that is not authorized for rendering. Choose a public qualifier or obtain explicit authorization.`
+            : `No mapped verified claim lexically supports headline qualifier "${qualifier.term}". Confirm the wording or choose a better-supported qualifier.`,
+        });
+      }
+      const matchedConcern = unresolvedConcerns.find((concern) => {
+        const requirement = requirements.get(concern.requirementId);
+        return requirement && headlineTermMatchesRequirement(qualifier.term, requirement);
+      });
+      if (matchedConcern) {
+        issues.push({
+          code: "headline_qualifier_unresolved_concern",
+          severity: "warning",
+          location,
+          message: `Headline qualifier "${qualifier.term}" overlaps unresolved requirement "${matchedConcern.requirementId}". Resolve the evidence question or choose a supported alternative.`,
+        });
+      }
+    }
   }
 
   const shortlist = strategy?.unitShortlist || [];

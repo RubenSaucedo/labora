@@ -42,7 +42,11 @@ content.
 - Red flags: missing must-haves, experience-level mismatch, obvious mismatch.
 
 Let the structured requirement evaluations and missing signals anchor you.
-Lexical coverage is diagnostic only.
+Lexical coverage is advisory diagnostic data only. Read
+`lexical_assessment.terms` to see its curated denominator and
+`excluded_semantic_review_requirement_ids` alongside
+`required_assessment.semantic_review_count`; never convert the raw percentage
+directly into a score band.
 
 **`semantic_review_required` is not a list of gaps.** It contains requirements
 the deterministic scorer *declined to adjudicate* because no deterministic
@@ -66,12 +70,12 @@ narrow measurement, not a strong result, and `checkable_match_percent` is
 
 ## Scoring rubric (anchored — apply strictly, do not round up)
 
-- **90–100**: hard eligibility and core signals explicitly matched; ≥80% of
-  named JD keywords present; no structural red flags.
-- **70–89**: hard eligibility matched; most core signals supported; 60–80% of
-  JD keywords; minor weaknesses.
-- **50–69**: one meaningful core signal missing OR <60% of keywords OR one tier
-  below the ask.
+- **90–100**: hard eligibility and core signals explicitly matched; curated
+  lexical terms are well represented; no structural red flags.
+- **70–89**: hard eligibility matched; most core signals supported; curated
+  lexical terms show minor gaps.
+- **50–69**: one meaningful core signal missing, several important curated
+  lexical terms absent, or one tier below the ask.
 - **30–49**: hard eligibility unsupported, multiple core signals missing, or a
   major level mismatch (≥2 tiers).
 - **0–29**: unparseable or no meaningful overlap.

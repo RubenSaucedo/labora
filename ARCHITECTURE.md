@@ -68,6 +68,18 @@ is JSON but human-authored, so it stays with the sources. Everything under
 `generated/` is derived from the sources, is read by every downstream stage, and
 is written by exactly one skill.
 
+Ownership per directory is declared once, machine-readably, in
+`src/lib/workspace-layout.js`; `skills/resume-conventions/SKILL.md` is its prose
+form and `labora validate-workspace <persona>` reports divergence. This section
+explains *why* the boundary exists — it is not a second declaration of *where*
+it sits.
+
+The compiled ledgers now sit at `.labora/state/profile/` for a new persona, and
+stay at `profile/generated/` for one that already has them there;
+`src/lib/profile-state.js` resolves which. The boundary this section describes is
+unchanged by that — what moved is only whether machine state is presented to the
+operator as a peer of the career history they wrote.
+
 Hand-editing `generated/` is the failure mode this prevents. Claims are anchored
 to their source by content hash and line range, so a hand-written claim either
 fails validation or, worse, passes structurally while asserting something no
@@ -441,11 +453,24 @@ fingerprint and output hashes remain unchanged.
 
 ### `release.json`
 
-The final state:
+What the gate established, and nothing more:
 
-- `blocked`: hard factual, eligibility, strategy, artifact or judge failure;
-- `human_review`: no hard failure, but core gaps or uncertainty remain;
-- `send_ready`: all configured gates pass.
+- `review_ready`: an artifact exists; every concern is a finding carrying its
+  status (`verified` / `user_attested` / `uncertain` / `unsupported`), its
+  basis, and its suggested actions;
+- `generation_failed`: the requested artifact was not produced.
+
+There is no state in which the tool refuses. `gates` is retained alongside the
+findings as evidence of which perspectives held up, but nothing may turn a
+`false` there into a refusal.
+
+### `release-approval.json`
+
+Written only by `labora approve`, only from an explicit operator act. It names
+one artifact hash and one set of acknowledged finding IDs, and it is the only
+source of `operator_approved`. Keeping it in a separate file is what makes the
+guarantee structural: the gate never opens it, so it cannot author an approval
+even by mistake.
 
 ### `outcome.json`
 
