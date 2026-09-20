@@ -51,7 +51,7 @@ test("stage dependencies on labora's own sources resolve from an unrelated cwd",
     const definitions = stageDefinitions({
       personaRoot: path.dirname(path.dirname(app)),
       applicationDir: app,
-      style: 1,
+      style: "precision-minimal",
     });
     const pluginPaths = Object.values(definitions)
       .flatMap((definition) => definition.dependencies || [])
@@ -76,7 +76,7 @@ test("judge prompt inputs come from the plugin even when the workspace shadows t
   const decoy = decoyWorkspace();
 
   const judgeDependencies = () =>
-    stageDefinitions({ personaRoot, applicationDir: app, style: 1 })
+    stageDefinitions({ personaRoot, applicationDir: app, style: "precision-minimal" })
       .judge_ats.dependencies.filter((target) => /judge-ats|resume-conventions/.test(target));
 
   const original = process.cwd();
@@ -107,9 +107,9 @@ test("a stage fingerprint is identical from the plugin root and from a decoy wor
   const original = process.cwd();
 
   process.chdir(pluginRoot);
-  const fromPlugin = stageStatus({ applicationDir: app, style: 1 }).stages.judge_ats.fingerprint;
+  const fromPlugin = stageStatus({ applicationDir: app, style: "precision-minimal" }).stages.judge_ats.fingerprint;
   process.chdir(decoyWorkspace());
-  const fromDecoy = stageStatus({ applicationDir: app, style: 1 }).stages.judge_ats.fingerprint;
+  const fromDecoy = stageStatus({ applicationDir: app, style: "precision-minimal" }).stages.judge_ats.fingerprint;
   process.chdir(original);
 
   assert.equal(fromDecoy, fromPlugin, "freshness must not change with the caller's directory");
@@ -120,7 +120,7 @@ test("a stage fingerprint is identical from the plugin root and from a decoy wor
 test("a pluginRoot without labora's sources is refused rather than hashed as MISSING", () => {
   const app = fixtureApplication();
   assert.throws(
-    () => stageStatus({ pluginRoot: os.tmpdir(), applicationDir: app, style: 1 }),
+    () => stageStatus({ pluginRoot: os.tmpdir(), applicationDir: app, style: "precision-minimal" }),
     /does not contain labora's sources/
   );
 });

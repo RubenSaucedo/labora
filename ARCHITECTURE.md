@@ -396,13 +396,39 @@ displayed skill maps to verified claims. Summary provenance is sentence- and
 clause-level, with direct claim and accomplishment-unit mappings for every
 material phrase. Contact fields remain empty.
 
-### `applications/<slug>/final-resume-style-<N>.md`
+### `applications/<slug>/final-resume-style-<style-id>.md`
 
 A deterministic, editable review companion rendered from the same contact-
 injected formatter projection as DOCX/PDF. It is tracked as a format output, so
 manual edits make the stage stale. The file is never a claim source, judge input,
 or selected delivery artifact; supported edits must be reconciled into
 `resume.json`, claim-validated, and regenerated.
+
+### Style profiles
+
+`src/lib/resume-style.js` is the single registry of named visual contracts.
+Each profile — `precision-minimal` and `editorial-technical` today — is
+semantic data: font stacks, sizes, line height, margins, spacing, colours,
+rule behaviour, contact-row grouping and pagination rules. `docxStyleTokens()`
+and `cssStyleTokens()` derive the renderer-specific forms from that one
+definition, so DOCX and HTML/PDF cannot drift into separately tuned layouts;
+where a CSS value has no exact DOCX equivalent the conversion is a documented
+rounding, not a second opinion.
+
+A profile governs presentation only. It holds no content, no contact values and
+no selection logic, so switching profiles can change how a resume looks but
+never what it says: both profiles must extract to identical text.
+
+The registry deliberately imports nothing, because `run-state` has to resolve a
+style with no npm packages installed. Schema validation lives in
+`src/schemas/resume-style.js` and runs at the render boundary; a test asserts
+every built-in satisfies that schema so the split cannot drift.
+
+Unknown IDs are refused with a non-zero exit and the accepted list. The selected
+ID names the artifacts, is written into the DOCX core properties, and is
+recorded in `validations/artifact.json` and `run.json`. Chromium's print
+pipeline accepts no custom PDF metadata, so a PDF's provenance rests on those
+records rather than on embedded keys.
 
 ### `validations/*.json`
 

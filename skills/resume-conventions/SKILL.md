@@ -50,9 +50,9 @@ we print.
    ├─ application-strategy.json
    ├─ resume.json
    ├─ ats-results.json
-   ├─ final-resume-style-<N>.md
-   ├─ final-resume-style-<N>.docx
-   ├─ final-resume-style-<N>.pdf
+   ├─ final-resume-style-<style-id>.md
+   ├─ final-resume-style-<style-id>.docx
+   ├─ final-resume-style-<style-id>.pdf
    ├─ validations/{strategy,claims,artifact}.json
    ├─ previews/page-<N>.png
    ├─ judges/{ats,engineer,hr}.json
@@ -61,6 +61,13 @@ we print.
    ├─ run.json
    └─ summary.md
 ```
+
+`<style-id>` is the named style profile the run selected — `precision-minimal`
+(default) or `editorial-technical`. The same ID names the artifacts, the
+`styleProfile` recorded in `validations/artifact.json`, and the `style` recorded
+in `run.json`, so a file and its record can never disagree about the visual
+contract it was rendered under. An unknown ID fails the command with the list of
+accepted IDs; nothing falls back to a default.
 
 ### Profile ownership
 
@@ -258,14 +265,14 @@ request. If it cannot be generalised without losing it, keep it in the workspace
 | Validate a persona's profile alone (no job, no resume) | `labora validate-profile <persona-name>` |
 | Validate every summary clause, bullet and skill against claims | `labora validate-claims <resume.json> <identity.json> <claims.json> --output <validations/claims.json>` (reads `job-spec.json` and `application-strategy.json` beside the resume) |
 | Render editable Markdown review companion | `labora format-markdown <resume.json> <out.md> --job <job.md> --contact <contact.md>` |
-| Render DOCX with deterministic contact injection | `labora format-docx <resume.json> <out.docx> --style <N> --job <job.md> --contact <contact.md>` |
-| Render text-layer PDF | `labora format-pdf <resume.json> <out.pdf> --style <N> --job <job.md> --contact <contact.md>` |
+| Render DOCX with deterministic contact injection | `labora format-docx <resume.json> <out.docx> --style <ID> --job <job.md> --contact <contact.md>` |
+| Render text-layer PDF | `labora format-pdf <resume.json> <out.pdf> --style <ID> --job <job.md> --contact <contact.md>` |
 | Render visual page previews | `labora render-artifact-preview <out.pdf> <application>/previews` |
 | Extract selected DOCX/PDF delivery text | `labora artifact-text <file.docx|file.pdf>` |
 | Validate contact source and renderer-input field recall/order | `labora validate-artifact <resume.json> <file.docx> --contact <contact.md> --job <job.md> --output <validations/artifact.json>` |
-| Check content-hash freshness | `labora run-state check <application-dir> --style <N>` |
-| Record a completed stage | `labora run-state record <application-dir> <stage> --style <N> [--model ID]` |
-| Aggregate the final release state | `labora quality-gate <application-dir> --style <N> --artifact <selected.docx|selected.pdf>` |
+| Check content-hash freshness | `labora run-state check <application-dir> --style <ID>` |
+| Record a completed stage | `labora run-state record <application-dir> <stage> --style <ID> [--model ID]` |
+| Aggregate the final release state | `labora quality-gate <application-dir> --style <ID> --artifact <selected.docx|selected.pdf>` |
 | Prepare isolated judge input | `labora prepare-judge-input <ats|engineer|hr> <application-dir> <artifact>` |
 | Record an operator-confirmed outcome | `labora application-outcome <application-dir> record <event>` |
 | Extract PDF text/OCR | `labora pdf-text <file.pdf> [out.md] [--ocr]` |

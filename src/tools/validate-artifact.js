@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { extractTextFromDocx, extractHtmlTextFromDocx } from "../utils/docx-to-text.js";
+import { readDocxStyleProfileId } from "../utils/docx-parts.js";
 import { extractTextFromPdf, extractTextFromPdfViaOcr } from "../utils/pdf-to-md.js";
 import { injectContact, loadContact } from "../lib/profile-contact.js";
 import { validateRenderedArtifact, crossParserDivergence } from "../lib/validate-artifact.js";
@@ -10,6 +11,7 @@ import { ZTailoredResume } from "../schemas/tailored-resume.js";
 import { assertSafeDocument } from "../lib/file-safety.js";
 import { agent2ResumeToFormatterJson } from "../agents/format-resume.js";
 import { loadJobFromFile } from "../lib/job-parser.js";
+import { DEFAULT_STYLE_ID, resolveStyleProfile, styleProfileIds } from "../lib/resume-style.js";
 
 function flag(name) {
   const index = process.argv.indexOf(name);
@@ -27,8 +29,20 @@ const outputPath = flag("--output");
 const jobPath = flag("--job");
 const crossParser = hasFlag("--cross-parser");
 if (!resumePath || !artifactPath || !contactPath || !jobPath) {
-  process.stderr.write("Usage: labora validate-artifact <resume.json> <resume.docx|resume.pdf> --contact <contact.md> --job <job.md> [--output <validation.json>] [--cross-parser]\n");
+  process.stderr.write(
+    "Usage: labora validate-artifact <resume.json> <resume.docx|resume.pdf> --contact <contact.md> " +
+    "--job <job.md> [--style ID] [--output <validation.json>] [--cross-parser]\n\n" +
+    `Styles: ${styleProfileIds().join(", ")}\n`
+  );
   process.exit(1);
+}
+
+// The artifact record names the visual contract the file was rendered under.
+// Taken from --style when given, otherwise from the artifact's own name, which
+// the formatter and run state both build from the same profile ID.
+function styleFromArtifactName(name) {
+  const match = /^final-resume-style-(.+)\.(docx|pdf)$/i.exec(path.basename(name));
+  return match ? match[1] : null;
 }
 try {
   let resume = ZTailoredResume.parse(JSON.parse(fs.readFileSync(resumePath, "utf8")));
@@ -40,12 +54,16 @@ try {
   const extension = path.extname(artifactPath).toLowerCase();
   let safeArtifactPath;
   let extractedText;
+  let declaredStyleId = null;
   let pageCount = null;
   let secondaryText = null;
   let secondaryParser = null;
   if (extension === ".docx") {
     safeArtifactPath = assertSafeDocument(artifactPath, "docx");
     extractedText = await extractTextFromDocx({ path: safeArtifactPath });
+    // The DOCX states its own style profile in its core properties, so the
+    // record can be checked against the artifact instead of trusting a flag.
+    declaredStyleId = readDocxStyleProfileId({ path: safeArtifactPath });
     if (crossParser) {
       secondaryText = await extractHtmlTextFromDocx({ path: safeArtifactPath });
       secondaryParser = "mammoth-html";
@@ -64,13 +82,31 @@ try {
   } else {
     throw new Error("Artifact must be DOCX or PDF.");
   }
+  const requestedStyleId = flag("--style") || styleFromArtifactName(artifactPath) || DEFAULT_STYLE_ID;
+  const styleProfile = resolveStyleProfile(declaredStyleId || requestedStyleId);
+  const styleIssues = declaredStyleId && declaredStyleId !== requestedStyleId
+    ? [{
+      severity: "warning",
+      code: "style_profile_mismatch",
+      field: "styleProfile.id",
+      detail: `The artifact was rendered with "${declaredStyleId}" but "${requestedStyleId}" was expected.`,
+    }]
+    : [];
   const result = {
     ...validateRenderedArtifact({ resume: formatterResume, extractedText }),
+    styleProfile: {
+      id: styleProfile.id,
+      displayName: styleProfile.displayName,
+      // "artifact" means the file said so; the other sources are what the
+      // caller asked for, which a PDF cannot confirm on its own.
+      source: declaredStyleId ? "artifact" : (flag("--style") ? "flag" : "artifact_name"),
+    },
     artifactPath: path.basename(safeArtifactPath),
     artifactType: extension.slice(1),
     artifactHash: crypto.createHash("sha256").update(fs.readFileSync(safeArtifactPath)).digest("hex"),
     pageCount,
   };
+  if (styleIssues.length) result.issues = [...result.issues, ...styleIssues];
   if (crossParser) {
     result.crossParser = crossParserDivergence({
       resume: formatterResume,

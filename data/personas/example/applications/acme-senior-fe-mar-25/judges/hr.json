@@ -1,10 +1,10 @@
 {
   "metadata": {
     "rubricVersion": "2026-07-28",
-    "model": "synthetic-fixture",
-    "evaluatedArtifactHash": "fff622a44d46a869f0da5184570a00c3fc85f50d5c44bc737aaa61a2af8fc7c6",
-    "promptHash": "38107fb3f833ec49d5f9b665f7aed7e720fbd78df6cb456649b477e42fe33ec3",
-    "inputHash": "459d179c8b9770e501b5829ff4a86160430085ead18a3eaec99cde76ebb93a70",
+    "model": "claude-opus-5",
+    "evaluatedArtifactHash": "af2ed7c9334f6124cb2fe57735e09d03a4bb7c9d232bf5d6ffb74e5eeb65de7b",
+    "promptHash": "cfdb72f1af9eb7c109ed4e7b13a81297bd9e54467ff8bf978f7bc8f09026c51c",
+    "inputHash": "3536477aac2957ccf4f4de924dba14948580c9dd0c4f1b1af81b989f85f7c8d8",
     "evaluatedAt": "2026-07-30T00:00:00.000Z"
   },
   "score": 68,

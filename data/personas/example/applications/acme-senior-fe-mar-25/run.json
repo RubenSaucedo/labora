@@ -1,99 +1,104 @@
 {
-  "schemaVersion": "1.0",
-  "style": 1,
+  "schemaVersion": "2.0",
+  "style": "precision-minimal",
   "stages": {
     "persona": {
-      "fingerprint": "434e05574cc335696d60c42f3a2476894572177800b2bda4ae3c66279ef4dced",
+      "fingerprint": "ca32d6f79409f72c0371bff0a9c341b40f396950325d1613cd225293674ffbca",
       "outputHashes": {
-        "data/personas/example/profile/generated/identity.json": "1a40010ff7f5f511841708c7c0254aa4762faaa694c7ed3bc76d2c2024608861",
-        "data/personas/example/profile/generated/claims.json": "c4e45df61f3ae4813890688c2694440fce8933cbeabdc34163fa33fae7316552",
-        "data/personas/example/profile/generated/accomplishments.json": "651e10a29b11c94bb72a9d10f4713cf468a459d8e19006a1ba766ac98dd32c47"
+        "persona:profile/generated/identity.json": "1a40010ff7f5f511841708c7c0254aa4762faaa694c7ed3bc76d2c2024608861",
+        "persona:profile/generated/claims.json": "b27120ef92c91ab28d3cbe1c5fb9cb5049dc53ded6fcc1e0dc1d3fe4136859b7",
+        "persona:profile/generated/accomplishments.json": "651e10a29b11c94bb72a9d10f4713cf468a459d8e19006a1ba766ac98dd32c47"
       },
       "model": "",
-      "recordedAt": "2026-08-01T15:34:25.048Z"
+      "recordedAt": "2026-09-20T05:20:51.125Z"
     },
     "job_analysis": {
-      "fingerprint": "c834b65eb7407e80f1c8999efdba9c0cee1affeb59829aa4a66823b3bebbc744",
+      "fingerprint": "3b8d99ed9994975ac6a7b66320f1ceb8b6258622791bcd69fb5c4f623939d9e6",
       "outputHashes": {
-        "data/personas/example/applications/acme-senior-fe-mar-25/job-spec.json": "2e95d1e26ad9b988d40124cc4a233a84ad5d6347bac009632ae5347f67592205"
+        "application:job-spec.json": "2e95d1e26ad9b988d40124cc4a233a84ad5d6347bac009632ae5347f67592205"
       },
       "model": "deterministic",
-      "recordedAt": "2026-07-31T04:47:10.393Z"
+      "recordedAt": "2026-09-20T05:20:51.131Z"
     },
     "tailor": {
-      "fingerprint": "195e2ce0f19c03e84590d4a7565c48192db237e25cb4166a44ff1045a5283989",
+      "fingerprint": "adfba1570730c330d206634d9a44359cc21aa7ffc15cf8296ef840ab41bdab3a",
       "outputHashes": {
-        "data/personas/example/applications/acme-senior-fe-mar-25/resume.json": "f3dd2c3296d00442c403db0b2ad0e056fafe6077c6c88d5c77f8151c6ec8a877",
-        "data/personas/example/applications/acme-senior-fe-mar-25/ats-results.json": "f22f503bbce43ea633d88808086d9228f31181b7ecf84041db2138a276c536c9"
+        "application:resume.json": "40ddcbeb65261eb97dce4a1e68e52f45af9fe50af65f26925f90039f76f2353a",
+        "application:ats-results.json": "f22f503bbce43ea633d88808086d9228f31181b7ecf84041db2138a276c536c9"
       },
       "model": "synthetic-fixture",
-      "recordedAt": "2026-07-31T04:51:16.379Z"
+      "recordedAt": "2026-09-20T05:20:51.140Z"
     },
     "format": {
-      "fingerprint": "26a59e40f8907e7e69020f7b2bcf524b602555f3b21496bacb140842cb6a728b",
+      "fingerprint": "783b1d86322a64a98908efd980fb94ca504de69c10bd9c8a992b17e75286a7ea",
       "outputHashes": {
-        "data/personas/example/applications/acme-senior-fe-mar-25/final-resume-style-1.docx": "94e256030333ea5620aa8d9bb4ff94f9d406caa2187c6f691bd2613bb7a09c4f",
-        "data/personas/example/applications/acme-senior-fe-mar-25/final-resume-style-1.pdf": "fff622a44d46a869f0da5184570a00c3fc85f50d5c44bc737aaa61a2af8fc7c6"
+        "application:final-resume-style-precision-minimal.docx": "7b6a910345141aca7f7bfb68a4f25d350525969214706e94b6186891ea6e9744",
+        "application:final-resume-style-precision-minimal.pdf": "af2ed7c9334f6124cb2fe57735e09d03a4bb7c9d232bf5d6ffb74e5eeb65de7b",
+        "application:final-resume-style-precision-minimal.md": "41ba83dda4e8e8dfdde80b3f509911115efcf6f8b2d92c3f8b919ab12ca50943"
       },
       "model": "deterministic",
-      "recordedAt": "2026-07-31T04:51:16.412Z"
+      "recordedAt": "2026-09-20T05:20:51.145Z"
     },
     "validate_claims": {
-      "fingerprint": "bbaefc6374f0b01b5890c494003ff46973bb9a522d166ef5935f285b0798e5f3",
+      "fingerprint": "4c5ca1b9826b77e63e43e79f985eb153c769ab534a8c7e4d3d95d384f8d424df",
       "outputHashes": {
-        "data/personas/example/applications/acme-senior-fe-mar-25/validations/claims.json": "86e8891ff4a38aedb40323ebc14002bcae200457494d691f8364763112692292"
+        "application:validations/claims.json": "86e8891ff4a38aedb40323ebc14002bcae200457494d691f8364763112692292"
       },
       "model": "deterministic",
-      "recordedAt": "2026-07-31T04:51:16.444Z"
+      "recordedAt": "2026-09-20T05:20:51.149Z"
     },
     "validate_artifact": {
-      "fingerprint": "9d8ead36ab71237b67fdce91b89f3d4901449ca3a0aa21e006f69e9849c00d60",
+      "fingerprint": "8334ee21e2bddd3922b9cdcee4c2dee8466250cdd11171ab9355eb7302b07328",
       "outputHashes": {
-        "data/personas/example/applications/acme-senior-fe-mar-25/validations/artifact.json": "065e82ae1e0050076ff20336628231f643b543d6d5dffe1470c8cb4b13dd5ce4"
+        "application:validations/artifact.json": "70b6280b17dfda3ac09b6ca7028ee030654a4b7a735df867249ca920010a6508"
       },
       "model": "deterministic",
-      "recordedAt": "2026-07-31T04:51:16.476Z"
+      "recordedAt": "2026-09-20T05:20:51.153Z"
     },
     "judge_ats": {
-      "fingerprint": "89efcc2635687f21cd13bfe1e385b38483c279ca1328853d2b18000d5728f6af",
+      "fingerprint": "da31cbe7e4c7c4f950ba5815732a9e46e9789edb565f4969efad8bd0982678de",
       "outputHashes": {
-        "data/personas/example/applications/acme-senior-fe-mar-25/judges/ats.json": "4638ec02a093d36e158d38c40652b8dda67f13eca28ee546d9063e30a93f7578"
+        "application:judges/ats.json": "f64d0ef64bf1a92491ec47a48092f6e0f31713f9c9b8b819ca7f139694be4eda"
       },
       "model": "synthetic-fixture",
-      "recordedAt": "2026-07-31T04:51:16.512Z"
+      "recordedAt": "2026-09-20T05:20:51.157Z"
     },
     "judge_engineer": {
-      "fingerprint": "360844dafeadd44f5169ddf76bd1e0ca0cd116c24f8f04688f7b827e74d03444",
+      "fingerprint": "abe03cd32042cf6bef631e96a98c51cebe69a99900d8c0480644d61293057420",
       "outputHashes": {
-        "data/personas/example/applications/acme-senior-fe-mar-25/judges/engineer.json": "8610de3951c4c288ee958cdf0e8e8e357dc8862013b4f4e5c2a49e9a6b365194"
+        "application:judges/engineer.json": "8021c097dd98f280d354e5d7e7e69dbea2e403ad4b4e7dae824cf5a0498700a3"
       },
       "model": "synthetic-fixture",
-      "recordedAt": "2026-07-31T04:51:16.545Z"
+      "recordedAt": "2026-09-20T05:20:51.161Z"
     },
     "judge_hr": {
-      "fingerprint": "cd1bb9c5644b0b7b3f8f78e862126915a18614df377bda0cbedd15c2e58c42b8",
+      "fingerprint": "00cfbcb1dad32d2f882ae5ca11c5e65cd257de15e8e2be04d9cb926e876a6597",
       "outputHashes": {
-        "data/personas/example/applications/acme-senior-fe-mar-25/judges/hr.json": "80b4ff929db10384caa77bc102fde146d1b4e96527c766da2ac19372ad6b4755"
+        "application:judges/hr.json": "44c2646bdac7ef9431c8c4f3ee49f8d044213b99e0c0939ca18d11f39ef3bde8"
       },
       "model": "synthetic-fixture",
-      "recordedAt": "2026-07-31T04:51:16.577Z"
+      "recordedAt": "2026-09-20T05:20:51.165Z"
     },
     "quality_gate": {
-      "fingerprint": "1e0b14f6367e49fcb86074b520b528b0269433604455dd1367834ae2d1bb6b72",
+      "fingerprint": "622a1c877b70c5486a062c88c3808ab1f323f83cf73d99852fe55d841ba68c8b",
       "outputHashes": {
-        "data/personas/example/applications/acme-senior-fe-mar-25/release.json": "46b1ea6ac281dd9dd544113ac78289b06426dc351833899c310f8dda93506983"
+        "application:release.json": "b34e46cdc8b387910e29bb374d7ac4fd0747d97ad7a1e5037a25037712e99642"
       },
       "model": "deterministic",
-      "recordedAt": "2026-07-31T04:51:16.900Z"
+      "recordedAt": "2026-09-20T05:20:51.450Z"
     },
     "application_strategy": {
-      "fingerprint": "8761e6643cb0d26e7c70c4a8c5dba35c53a811818aac6dbb731229ca3ccd03c8",
+      "fingerprint": "edc946847fcc113ea917237259e2ff3bcaa5403d9cdbf2e602966e1ff040c62e",
       "outputHashes": {
-        "data/personas/example/applications/acme-senior-fe-mar-25/application-strategy.json": "2471327368dab5cea2d5da44ef3bc7978afad459d9bf3e6ffc78d0fdf83912f5",
-        "data/personas/example/applications/acme-senior-fe-mar-25/validations/strategy.json": "6993338c946aecc13660b044b52acc81a2e561026322edff5982b1941f3f4963"
+        "application:application-strategy.json": "2c4ccbce1cd5a07d9321494f465df302d26dd894e9fcdb38bac925a641d56e0b",
+        "application:validations/strategy.json": "6993338c946aecc13660b044b52acc81a2e561026322edff5982b1941f3f4963"
       },
       "model": "synthetic-fixture",
-      "recordedAt": "2026-07-31T04:51:16.346Z"
+      "recordedAt": "2026-09-20T05:20:51.135Z"
     }
+  },
+  "styleProfile": {
+    "id": "precision-minimal",
+    "displayName": "Precision Minimal"
   }
 }

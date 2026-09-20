@@ -1,6 +1,30 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
+import {
+  BorderStyle,
+  Document,
+  ExternalHyperlink,
+  HeadingLevel,
+  Packer,
+  Paragraph,
+  TextRun,
+} from "docx";
 import fs from "fs/promises";
 import { analyzeProgression } from "../lib/progression.js";
+import {
+  DEFAULT_STYLE_ID,
+  contactRows,
+  cssStyleTokens,
+  docxStyleTokens,
+  linkHref,
+  resolveStyleProfile,
+} from "../lib/resume-style.js";
+import { parseResumeStyleProfile } from "../schemas/resume-style.js";
+
+// Every render resolves its style through here, so an invalid profile is caught
+// before a single paragraph exists rather than showing up as a wrong-looking
+// page nobody can trace.
+function renderStyle(style) {
+  return parseResumeStyleProfile(resolveStyleProfile(style ?? DEFAULT_STYLE_ID));
+}
 
 /**
  * Resume Formatter (JSON -> DOCX)
@@ -15,76 +39,10 @@ import { analyzeProgression } from "../lib/progression.js";
  * - Optional helper to save to disk.
  */
 
-// ---- Style presets (1 = Classic ATS, 2 = Clean modern, 3 = Compact, 4 = 2027) ----
-// Font sizes in half-points for docx: 11pt = 22, 12pt = 24, 22pt = 44. Margins in twips (720 = 0.5 in).
-const STYLES = {
-  1: {
-    name: "Classic ATS",
-    font: "Arial",
-    sizeName: 44,
-    sizeHeading: 24,
-    sizeBody: 22,
-    marginTwips: 720,
-    headingBorder: "1pt solid #000",
-    spacingAfterBody: 48,
-    spacingAfterBullet: 32,
-    spacingBeforeHeading: 180,
-    spacingAfterHeading: 80,
-    lineHeight: 1.25,
-    marginIn: "0.5in"
-  },
-  2: {
-    name: "Clean modern",
-    font: "Calibri",
-    sizeName: 40,
-    sizeHeading: 22,
-    sizeBody: 21,
-    marginTwips: 720,
-    headingBorder: "none",
-    spacingAfterBody: 40,
-    spacingAfterBullet: 28,
-    spacingBeforeHeading: 160,
-    spacingAfterHeading: 64,
-    lineHeight: 1.2,
-    marginIn: "0.5in"
-  },
-  3: {
-    name: "Compact",
-    font: "Arial",
-    sizeName: 36,
-    sizeHeading: 22,
-    sizeBody: 20,
-    marginTwips: 648,
-    headingBorder: "1pt solid #333",
-    spacingAfterBody: 32,
-    spacingAfterBullet: 24,
-    spacingBeforeHeading: 120,
-    spacingAfterHeading: 48,
-    lineHeight: 1.15,
-    marginIn: "0.45in"
-  },
-  // Style 4: inspired by a modern single-column resume — Calibri, 14pt name/headings, 12pt body, no border, clean spacing
-  4: {
-    name: "2027",
-    font: "Calibri",
-    sizeName: 28,
-    sizeHeading: 28,
-    sizeBody: 24,
-    marginTwips: 720,
-    headingBorder: "none",
-    spacingAfterBody: 36,
-    spacingAfterBullet: 24,
-    spacingBeforeHeading: 140,
-    spacingAfterHeading: 56,
-    lineHeight: 1.2,
-    marginIn: "0.5in"
-  }
-};
-
-function getStyle(styleId) {
-  const id = styleId === 2 || styleId === 3 || styleId === 4 ? styleId : 1;
-  return STYLES[id];
-}
+// Style comes from the named registry in src/lib/resume-style.js. The renderers
+// hold no visual constants of their own: both this DOCX writer and the HTML
+// writer below read tokens derived from the same validated profile, so a style
+// cannot mean one thing in Word and another in print.
 
 function isNonEmptyString(v) {
   return typeof v === "string" && v.trim().length > 0;
@@ -152,44 +110,138 @@ export function formatProgression(progression, role = "") {
  * }
  */
 
-function run(style, options) {
-  return new TextRun({ font: style.font, ...options });
+function bodyRun(tokens, options) {
+  return new TextRun({ font: tokens.fontBody, color: tokens.colors.body, ...options });
 }
 
-function buildHeading(style, text) {
+function displayRun(tokens, options) {
+  return new TextRun({ font: tokens.fontDisplay, color: tokens.colors.heading, ...options });
+}
+
+// A link has to survive as a link, and has to look like one without depending on
+// colour: greyscale print and colour-blind readers both lose a hue-only cue, so
+// the underline carries the affordance and the accent colour only reinforces it.
+function linkRun(tokens, { text, href, size }) {
+  const child = new TextRun({
+    text,
+    font: tokens.fontBody,
+    size,
+    color: tokens.colors.accent,
+    underline: tokens.links.underline ? {} : undefined,
+  });
+  return new ExternalHyperlink({ children: [child], link: href });
+}
+
+function buildHeading(tokens, text) {
   return new Paragraph({
-    children: [run(style, { text, bold: true, size: style.sizeHeading })],
+    children: [displayRun(tokens, { text, bold: true, size: tokens.sizes.section })],
     heading: HeadingLevel.HEADING_2,
-    spacing: { before: style.spacingBeforeHeading, after: style.spacingAfterHeading }
+    // w:keepNext. A section heading alone at the foot of a page reads to a human
+    // as a section with nothing in it.
+    keepNext: tokens.pagination.headingKeepWithNext,
+    spacing: { before: tokens.spacing.section, after: tokens.spacing.paragraph },
+    border: tokens.sectionRule.enabled
+      ? {
+        bottom: {
+          style: BorderStyle.SINGLE,
+          size: tokens.sectionRule.size,
+          color: tokens.sectionRule.color,
+          space: 2,
+        },
+      }
+      : undefined,
   });
 }
 
-function buildSubheading(style, text) {
+function buildSubheading(tokens, text) {
   return new Paragraph({
-    children: [run(style, { text, bold: true, size: style.sizeBody })],
-    spacing: { before: 60, after: 40 }
+    children: [displayRun(tokens, { text, bold: true, size: tokens.sizes.role })],
+    keepNext: tokens.pagination.roleKeepWithNext,
+    keepLines: tokens.pagination.roleBlockKeepTogether,
+    spacing: { before: tokens.spacing.role, after: 0 },
   });
 }
 
-function buildBodyLine(style, text) {
+function buildBodyLine(tokens, text, { after } = {}) {
   return new Paragraph({
-    children: [run(style, { text, size: style.sizeBody })],
-    spacing: { before: 0, after: style.spacingAfterBody }
+    children: [bodyRun(tokens, { text, size: tokens.sizes.body })],
+    spacing: { before: 0, after: after ?? tokens.spacing.paragraph },
   });
 }
 
-function buildRoleLine(style, text) {
+function buildMetadataLine(tokens, text, { keepNext = false } = {}) {
   return new Paragraph({
-    children: [run(style, { text, bold: true, size: style.sizeBody })],
-    spacing: { before: 0, after: style.spacingAfterBody }
+    children: [
+      new TextRun({
+        text,
+        font: tokens.fontBody,
+        size: tokens.sizes.metadata,
+        color: tokens.colors.muted,
+        italics: true,
+      }),
+    ],
+    keepNext,
+    spacing: { before: 0, after: tokens.spacing.paragraph },
   });
 }
 
-function buildBullet(style, text) {
+function buildRoleLine(tokens, text) {
   return new Paragraph({
-    children: [run(style, { text, size: style.sizeBody })],
+    children: [bodyRun(tokens, { text, bold: true, size: tokens.sizes.body })],
+    // Kept with the bullets beneath it: a title separated from its own
+    // accomplishments is a formatting artifact that looks like missing content.
+    keepNext: tokens.pagination.roleKeepWithNext,
+    keepLines: tokens.pagination.roleBlockKeepTogether,
+    spacing: { before: 0, after: tokens.spacing.paragraph },
+  });
+}
+
+function buildBullet(tokens, text) {
+  return new Paragraph({
+    children: [bodyRun(tokens, { text, size: tokens.sizes.body })],
     bullet: { level: 0 },
-    spacing: { before: 0, after: style.spacingAfterBullet }
+    // w:keepLines. A bullet split across a page break usually separates the work
+    // from its measured outcome.
+    keepLines: tokens.pagination.bulletKeepTogether,
+    spacing: { before: 0, after: tokens.spacing.bullet },
+  });
+}
+
+// Deterministic contact rows: grouping comes from the style profile, not from
+// wherever the measure happens to run out.
+function buildContactRows(tokens, header) {
+  const rows = contactRows(header, tokens.id);
+  return rows.map((row, rowIndex) => {
+    const children = [];
+    for (const [index, item] of row.entries()) {
+      if (index > 0) {
+        children.push(
+          new TextRun({
+            text: " | ",
+            font: tokens.fontBody,
+            size: tokens.sizes.metadata,
+            color: tokens.colors.muted,
+          })
+        );
+      }
+      children.push(
+        item.href
+          ? linkRun(tokens, { text: item.text, href: item.href, size: tokens.sizes.metadata })
+          : new TextRun({
+            text: item.text,
+            font: tokens.fontBody,
+            size: tokens.sizes.metadata,
+            color: tokens.colors.muted,
+          })
+      );
+    }
+    return new Paragraph({
+      children,
+      spacing: {
+        before: 0,
+        after: rowIndex === rows.length - 1 ? tokens.spacing.section : 0,
+      },
+    });
   });
 }
 
@@ -280,13 +332,18 @@ function escapeHtml(s) {
 /**
  * Build ATS-safe HTML from the same resume JSON used for DOCX.
  * Single column, standard font, no tables for layout.
+ *
+ * The text stays real text: no canvas, no images of words, no layout tables.
+ * That is what keeps the printed PDF selectable, searchable, and extractable by
+ * the parsers that read it before a human does.
+ *
  * @param {object} resumeJson - Formatter JSON (header, summary, skills, experience, etc.)
- * @param {number} [styleId=1] - 1 = Classic ATS, 2 = Clean modern, 3 = Compact, 4 = 2027
+ * @param {string|object} [style] - Style profile ID, or a resolved profile.
  */
-export function resumeJsonToHtml(resumeJson, styleId = 1) {
+export function resumeJsonToHtml(resumeJson, style = DEFAULT_STYLE_ID) {
   if (!resumeJson || typeof resumeJson !== "object") return "";
 
-  const style = getStyle(styleId);
+  const tokens = cssStyleTokens(renderStyle(style));
   const {
     header = {},
     summary,
@@ -301,30 +358,114 @@ export function resumeJsonToHtml(resumeJson, styleId = 1) {
   const skillLines = formatSkillsForDisplay(skills);
   const parts = [];
 
-  const bodyPt = style.sizeBody / 2;
-  const headingPt = style.sizeHeading / 2;
-  const namePt = style.sizeName / 2;
-  const sectionBorder = style.headingBorder !== "none" ? `border-bottom: ${style.headingBorder};` : "";
+  const sectionBorder = tokens.sectionRule.enabled
+    ? `border-bottom: ${tokens.sectionRule.border}; padding-bottom: 2px;`
+    : "";
+
+  const link = (text, href) => (href
+    ? `<a href="${escapeHtml(href)}">${escapeHtml(text)}</a>`
+    : escapeHtml(text));
 
   parts.push(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Resume</title>`);
+  // The style profile travels with the document it produced, so a rendered page
+  // can be traced back to the visual contract it was reviewed under.
+  parts.push(`<meta name="labora-style-profile" content="${escapeHtml(tokens.id)}">`);
   parts.push(`<style>
-body { font-family: ${style.font}, sans-serif; font-size: ${bodyPt}pt; margin: ${style.marginIn}; line-height: ${style.lineHeight}; color: #000; }
-h1 { font-size: ${namePt}pt; font-weight: bold; margin: 0 0 6pt 0; }
-.sub { font-size: ${bodyPt}pt; font-weight: bold; margin: 8pt 0 4pt 0; }
-.section { font-size: ${headingPt}pt; font-weight: bold; margin: 14pt 0 6pt 0; ${sectionBorder} }
-p, ul { margin: 0 0 6pt 0; }
-ul { padding-left: 20px; }
+:root {
+  --labora-style: "${tokens.id}";
+  --font-body: ${tokens.fontBody};
+  --font-display: ${tokens.fontDisplay};
+  --color-body: ${tokens.colors.body};
+  --color-heading: ${tokens.colors.heading};
+  --color-muted: ${tokens.colors.muted};
+  --color-accent: ${tokens.colors.accent};
+  --color-name: ${tokens.colors.name};
+  --color-rule: ${tokens.colors.rule};
+}
+@page { size: Letter; margin: ${tokens.margin}; }
+body {
+  font-family: var(--font-body);
+  font-size: ${tokens.sizes.body};
+  line-height: ${tokens.lineHeight};
+  color: var(--color-body);
+  margin: 0;
+  text-align: left;
+}
+@media screen { body { margin: ${tokens.margin}; } }
+h1 {
+  font-family: var(--font-display);
+  font-size: ${tokens.sizes.name};
+  color: var(--color-name);
+  font-weight: 700;
+  margin: 0 0 ${tokens.spacing.paragraph} 0;
+}
+.positioning {
+  font-size: ${tokens.sizes.positioning};
+  font-weight: ${tokens.positioning.weight};
+  font-style: ${tokens.positioning.style};
+  color: var(--color-heading);
+  margin: 0 0 ${tokens.spacing.paragraph} 0;
+}
+.contact {
+  font-size: ${tokens.sizes.metadata};
+  color: var(--color-muted);
+  margin: 0;
+}
+.contact + .contact { margin-top: 2px; }
+.contact:last-of-type { margin-bottom: ${tokens.spacing.section}; }
+.section {
+  font-family: var(--font-display);
+  font-size: ${tokens.sizes.section};
+  color: var(--color-heading);
+  font-weight: 700;
+  margin: ${tokens.spacing.section} 0 ${tokens.spacing.paragraph} 0;
+  ${sectionBorder}
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.role { margin: 0 0 ${tokens.spacing.role} 0; }
+.role-head {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.sub {
+  font-family: var(--font-display);
+  font-size: ${tokens.sizes.role};
+  color: var(--color-heading);
+  font-weight: 700;
+  margin: ${tokens.spacing.role} 0 0 0;
+}
+.role-title { font-weight: 700; margin: 0 0 ${tokens.spacing.paragraph} 0; }
+.meta {
+  font-size: ${tokens.sizes.metadata};
+  font-style: italic;
+  color: var(--color-muted);
+  margin: 0 0 ${tokens.spacing.paragraph} 0;
+}
+.skills { margin: 0 0 ${tokens.spacing.skill} 0; }
+p, ul { margin: 0 0 ${tokens.spacing.paragraph} 0; }
+ul { padding-left: 18px; }
+li {
+  margin: 0 0 ${tokens.spacing.bullet} 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+/* Colour alone is not a link affordance: it vanishes in greyscale print. */
+a { color: var(--color-accent); text-decoration: underline; }
 </style></head><body>`);
 
   if (isNonEmptyString(header.name)) {
     parts.push(`<h1>${escapeHtml(header.name.trim())}</h1>`);
   }
   if (isNonEmptyString(header.title)) {
-    parts.push(`<p><em>${escapeHtml(header.title.trim())}</em></p>`);
+    parts.push(`<p class="positioning">${escapeHtml(header.title.trim())}</p>`);
   }
-  const contactParts = [header.location, header.email, header.phone, header.linkedin, header.github, header.portfolio].filter(isNonEmptyString);
-  if (contactParts.length) {
-    parts.push(`<p>${escapeHtml(contactParts.join(" | "))}</p>`);
+  for (const row of contactRows(header, tokens.id)) {
+    parts.push(
+      `<p class="contact">${row.map((item) => link(item.text, item.href)).join(" | ")}</p>`
+    );
   }
 
   if (isNonEmptyString(summary)) {
@@ -336,10 +477,14 @@ ul { padding-left: 20px; }
     for (const exp of experience) {
       const role = exp?.role ?? "";
       const companyLine = experienceCompanyLine(exp);
-      if (isNonEmptyString(companyLine)) parts.push(`<p class="sub">${escapeHtml(companyLine)}</p>`);
-      if (isNonEmptyString(role)) parts.push(`<p><strong>${escapeHtml(role.trim())}</strong></p>`);
       const progressionLine = formatProgression(exp?.progression, role);
-      if (progressionLine) parts.push(`<p><em>${escapeHtml(progressionLine)}</em></p>`);
+      parts.push(`<div class="role"><div class="role-head">`);
+      if (isNonEmptyString(companyLine)) parts.push(`<p class="sub">${escapeHtml(companyLine)}</p>`);
+      if (isNonEmptyString(role)) {
+        parts.push(`<p class="role-title"><strong>${escapeHtml(role.trim())}</strong></p>`);
+      }
+      if (progressionLine) parts.push(`<p class="meta">${escapeHtml(progressionLine)}</p>`);
+      parts.push(`</div>`);
       const highlights = Array.isArray(exp?.highlights) ? exp.highlights : [];
       if (highlights.length) {
         parts.push("<ul>");
@@ -348,12 +493,13 @@ ul { padding-left: 20px; }
         }
         parts.push("</ul>");
       }
+      parts.push(`</div>`);
     }
   }
 
   if (skillLines.length) {
     parts.push(`<p class="section">Skills</p>`);
-    for (const line of skillLines) parts.push(`<p>${escapeHtml(line)}</p>`);
+    for (const line of skillLines) parts.push(`<p class="skills">${escapeHtml(line)}</p>`);
   }
 
   if (Array.isArray(education) && education.length) {
@@ -373,8 +519,11 @@ ul { padding-left: 20px; }
     for (const p of projects) {
       const name = p?.name ?? "";
       const desc = p?.description ?? "";
-      const titleLine = safeJoin([isNonEmptyString(name) ? name.trim() : "Project", p?.link], " | ");
-      parts.push(`<p class="sub">${escapeHtml(titleLine)}</p>`);
+      const label = isNonEmptyString(name) ? name.trim() : "Project";
+      const projectLink = isNonEmptyString(p?.link)
+        ? ` | ${link(p.link.trim(), linkHref(p.link))}`
+        : "";
+      parts.push(`<p class="sub">${escapeHtml(label)}${projectLink}</p>`);
       if (isNonEmptyString(desc)) parts.push(`<p>${escapeHtml(desc.trim())}</p>`);
       const highlights = Array.isArray(p?.highlights) ? p.highlights : [];
       for (const h of highlights) {
@@ -410,8 +559,12 @@ ul { padding-left: 20px; }
 /**
  * Build a readable Markdown review companion from the same formatter JSON used
  * for DOCX and PDF. This is not a delivery artifact or a source of claims.
+ *
+ * @param {object} resumeJson
+ * @param {string|object} [style] - Only the contact-row grouping is style-driven;
+ *   Markdown has no typography to carry.
  */
-export function resumeJsonToMarkdown(resumeJson) {
+export function resumeJsonToMarkdown(resumeJson, style = DEFAULT_STYLE_ID) {
   if (!resumeJson || typeof resumeJson !== "object") return "";
 
   const markdownText = (value) => String(value ?? "")
@@ -445,17 +598,14 @@ export function resumeJsonToMarkdown(resumeJson) {
     blank();
     lines.push(`*${markdownText(header.title.trim())}*`);
   }
-  const contactParts = [
-    header.location,
-    header.email,
-    header.phone,
-    header.linkedin,
-    header.github,
-    header.portfolio
-  ].filter(isNonEmptyString);
-  if (contactParts.length) {
+  const contactLines = contactRows(header, style).map((row) =>
+    row.map((item) => markdownText(item.text)).join(" | ")
+  );
+  if (contactLines.length) {
     blank();
-    lines.push(contactParts.map(markdownText).join(" | "));
+    // Two lines, not one wrapped line: the review companion shows the same
+    // grouping the delivery artifacts print.
+    lines.push(contactLines.join("  \n"));
   }
 
   if (isNonEmptyString(summary)) {
@@ -550,7 +700,8 @@ export async function formatResumeToDocxBuffer({
     throw new Error("resumeJson object is required");
   }
 
-  const style = getStyle(styleParam ?? 1);
+  const profile = renderStyle(styleParam);
+  const tokens = docxStyleTokens(profile);
   const {
     header = {},
     summary,
@@ -564,47 +715,66 @@ export async function formatResumeToDocxBuffer({
 
   const docChildren = [];
 
-  // ---- Contact block: Name, Title, Contact (FAANG order) ----
+  // ---- Header: name, positioning line, deterministic contact rows ----
   if (isNonEmptyString(header.name)) {
     docChildren.push(
       new Paragraph({
-        children: [run(style, { text: header.name.trim(), bold: true, size: style.sizeName })],
-        spacing: { after: 60 }
+        children: [
+          displayRun(tokens, {
+            text: header.name.trim(),
+            bold: true,
+            size: tokens.sizes.name,
+            color: tokens.colors.name,
+          }),
+        ],
+        keepNext: true,
+        spacing: { after: tokens.spacing.paragraph },
       })
     );
   }
   if (isNonEmptyString(header.title)) {
     docChildren.push(
       new Paragraph({
-        children: [run(style, { text: header.title.trim(), italics: true, size: style.sizeBody })],
-        spacing: { after: style.spacingAfterBody }
+        children: [
+          new TextRun({
+            text: header.title.trim(),
+            font: tokens.fontBody,
+            size: tokens.sizes.positioning,
+            color: tokens.colors.heading,
+            bold: tokens.positioning.bold,
+            italics: tokens.positioning.italics,
+          }),
+        ],
+        keepNext: true,
+        spacing: { after: tokens.spacing.paragraph },
       })
     );
   }
-  const contactParts = [header.location, header.email, header.phone, header.linkedin, header.github, header.portfolio].filter(isNonEmptyString);
-  if (contactParts.length) {
-    docChildren.push(buildBodyLine(style, contactParts.join(" | ")));
-  }
+  docChildren.push(...buildContactRows(tokens, header));
 
   // ---- Summary ----
   if (isNonEmptyString(summary)) {
-    docChildren.push(buildHeading(style, "Summary"));
-    docChildren.push(buildBodyLine(style, summary.trim()));
+    docChildren.push(buildHeading(tokens, "Summary"));
+    docChildren.push(buildBodyLine(tokens, summary.trim()));
   }
 
   // ---- Experience (employer tenure, then undated current role) ----
   if (Array.isArray(experience) && experience.length) {
-    docChildren.push(buildHeading(style, "Experience"));
+    docChildren.push(buildHeading(tokens, "Experience"));
     for (const exp of experience) {
       const role = exp?.role ?? "";
       const companyLine = experienceCompanyLine(exp);
-      if (isNonEmptyString(companyLine)) docChildren.push(buildSubheading(style, companyLine));
-      if (isNonEmptyString(role)) docChildren.push(buildRoleLine(style, role.trim()));
+      if (isNonEmptyString(companyLine)) docChildren.push(buildSubheading(tokens, companyLine));
+      if (isNonEmptyString(role)) docChildren.push(buildRoleLine(tokens, role.trim()));
       const progressionLine = formatProgression(exp?.progression, role);
-      if (progressionLine) docChildren.push(buildBodyLine(style, progressionLine));
+      if (progressionLine) {
+        docChildren.push(buildMetadataLine(tokens, progressionLine, {
+          keepNext: tokens.pagination.roleKeepWithNext,
+        }));
+      }
       const highlights = Array.isArray(exp?.highlights) ? exp.highlights : [];
       for (const h of highlights) {
-        if (isNonEmptyString(h)) docChildren.push(buildBullet(style, h.trim()));
+        if (isNonEmptyString(h)) docChildren.push(buildBullet(tokens, h.trim()));
       }
     }
   }
@@ -612,52 +782,70 @@ export async function formatResumeToDocxBuffer({
   // ---- Skills (2–3 comma-separated lines) ----
   const skillLines = formatSkillsForDisplay(skills);
   if (skillLines.length) {
-    docChildren.push(buildHeading(style, "Skills"));
+    docChildren.push(buildHeading(tokens, "Skills"));
     for (const line of skillLines) {
-      docChildren.push(buildBodyLine(style, line));
+      docChildren.push(buildBodyLine(tokens, line, { after: tokens.spacing.skill }));
     }
   }
 
   // ---- Education ----
   if (Array.isArray(education) && education.length) {
-    docChildren.push(buildHeading(style, "Education"));
+    docChildren.push(buildHeading(tokens, "Education"));
     for (const ed of education) {
       const school = ed?.school ?? "";
       const degree = ed?.degree ?? "";
       const field = ed?.field ?? "";
       const dates = safeJoin([ed?.startDate, ed?.endDate], " – ");
       const sub = safeJoin([school, safeJoin([degree, field], ", "), dates, ed?.location], " | ");
-      if (isNonEmptyString(sub)) docChildren.push(buildSubheading(style, sub));
+      if (isNonEmptyString(sub)) docChildren.push(buildSubheading(tokens, sub));
     }
   }
 
   // ---- Projects ----
   if (Array.isArray(projects) && projects.length) {
-    docChildren.push(buildHeading(style, "Projects"));
+    docChildren.push(buildHeading(tokens, "Projects"));
     for (const p of projects) {
       const name = p?.name ?? "";
       const desc = p?.description ?? "";
-      const titleLine = safeJoin([isNonEmptyString(name) ? name.trim() : "Project", p?.link], " | ");
-      docChildren.push(buildSubheading(style, titleLine));
-      if (isNonEmptyString(desc)) docChildren.push(buildBodyLine(style, desc.trim()));
+      const label = isNonEmptyString(name) ? name.trim() : "Project";
+      const projectLink = isNonEmptyString(p?.link) ? p.link.trim() : "";
+      const href = linkHref(projectLink);
+      const children = [displayRun(tokens, { text: label, bold: true, size: tokens.sizes.role })];
+      if (projectLink) {
+        children.push(
+          displayRun(tokens, { text: " | ", bold: true, size: tokens.sizes.role })
+        );
+        children.push(
+          href
+            ? linkRun(tokens, { text: projectLink, href, size: tokens.sizes.role })
+            : displayRun(tokens, { text: projectLink, bold: true, size: tokens.sizes.role })
+        );
+      }
+      docChildren.push(new Paragraph({
+        children,
+        keepNext: tokens.pagination.roleKeepWithNext,
+        keepLines: tokens.pagination.roleBlockKeepTogether,
+        spacing: { before: tokens.spacing.role, after: 0 },
+      }));
+      if (isNonEmptyString(desc)) docChildren.push(buildBodyLine(tokens, desc.trim()));
       const highlights = Array.isArray(p?.highlights) ? p.highlights : [];
       for (const h of highlights) {
-        if (isNonEmptyString(h)) docChildren.push(buildBodyLine(style, h.trim()));
+        if (isNonEmptyString(h)) docChildren.push(buildBodyLine(tokens, h.trim()));
       }
     }
   }
 
   // ---- Certifications ----
   if (Array.isArray(certifications) && certifications.length) {
-    docChildren.push(buildHeading(style, "Certifications"));
+    docChildren.push(buildHeading(tokens, "Certifications"));
     for (const c of certifications) {
-      if (isNonEmptyString(c)) docChildren.push(buildBodyLine(style, c.trim()));
+      if (isNonEmptyString(c)) docChildren.push(buildBodyLine(tokens, c.trim()));
     }
   }
 
   // ---- Awards & Contributions ----
   if (Array.isArray(awards_or_contributions) && awards_or_contributions.length) {
-    docChildren.push(buildHeading(style, "Awards & Contributions"));
+    docChildren.push(buildHeading(tokens, "Awards & Contributions"));
     for (const a of awards_or_contributions) {
       const title = (a && typeof a === "object" ? a.title : String(a)) ?? "";
       if (!isNonEmptyString(title)) continue;
@@ -665,12 +853,25 @@ export async function formatResumeToDocxBuffer({
       const year = (a && typeof a === "object" ? a.year : "") ?? "";
       const link = (a && typeof a === "object" ? a.link : "") ?? "";
       const line = [title, desc, year, link].filter(isNonEmptyString).join(" — ");
-      docChildren.push(buildBodyLine(style, line));
+      docChildren.push(buildBodyLine(tokens, line));
     }
   }
 
-  const margin = style.marginTwips;
+  const margin = tokens.margin;
   const doc = new Document({
+    // Artifact metadata: the delivered file states which reviewed visual
+    // contract produced it, so provenance does not depend on the filename.
+    title: "Resume",
+    description: `Labora resume style profile: ${profile.id} (${profile.displayName})`,
+    keywords: `labora-style:${profile.id}`,
+    styles: {
+      default: {
+        document: {
+          run: { font: tokens.fontBody, size: tokens.sizes.body, color: tokens.colors.body },
+          paragraph: { spacing: { line: tokens.line, lineRule: "auto" } },
+        },
+      },
+    },
     sections: [
       {
         properties: {
@@ -757,21 +958,26 @@ export function agent2ResumeToFormatterJson(resume, options = {}) {
 }
 
 /**
- * Render resume JSON to PDF buffer (HTML + Puppeteer). Primary deliverable for top companies.
- * @param {object} opts - resumeJson, style (1, 2, or 3; default 1)
+ * Render resume JSON to a text-layer PDF (HTML + Chromium). Primary deliverable.
+ *
+ * The page is printed from real HTML text, so the PDF carries a text layer that
+ * a human can select and an ATS parser can extract. Nothing here rasterises the
+ * resume.
+ *
+ * @param {object} opts - resumeJson, style (profile ID or resolved profile)
  */
 export async function formatResumeToPdfBuffer({ resumeJson, style: styleParam }) {
   if (!resumeJson || typeof resumeJson !== "object") {
     throw new Error("resumeJson object is required");
   }
-  const style = getStyle(styleParam ?? 1);
+  const profile = renderStyle(styleParam);
   // puppeteer-core carries no browser of its own, so the executable has to be
   // supplied. See src/lib/browser.js for why that is the right trade.
   const [{ default: puppeteer }, { requireChrome }] = await Promise.all([
     import("puppeteer-core"),
     import("../lib/browser.js"),
   ]);
-  const html = resumeJsonToHtml(resumeJson, styleParam ?? 1);
+  const html = resumeJsonToHtml(resumeJson, profile);
   const browser = await puppeteer.launch({
     headless: true,
     executablePath: requireChrome(),
@@ -780,7 +986,7 @@ export async function formatResumeToPdfBuffer({ resumeJson, style: styleParam })
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
-    const margin = style.marginIn;
+    const margin = `${profile.page.marginInches}in`;
     const pdfBuffer = await page.pdf({
       format: "Letter",
       margin: { top: margin, right: margin, bottom: margin, left: margin },

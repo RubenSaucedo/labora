@@ -9,6 +9,8 @@ import {
 import { parseContact, injectContact } from "../src/lib/profile-contact.js";
 import { validateRenderedArtifact } from "../src/lib/validate-artifact.js";
 import { extractTextFromDocx } from "../src/utils/docx-to-text.js";
+import { readDocxPart, readDocxStyleProfileId } from "../src/utils/docx-parts.js";
+import { docxStyleTokens, resolveStyleProfile } from "../src/lib/resume-style.js";
 import { ZTailoredResume } from "../src/schemas/tailored-resume.js";
 
 function tailoredResume() {
@@ -65,7 +67,7 @@ test("injects contact and preserves fields through DOCX round trip", async () =>
 - Web: https://jane.example.test`);
   const resume = injectContact(tailoredResume(), contact);
   const formatter = agent2ResumeToFormatterJson(resume);
-  const buffer = await formatResumeToDocxBuffer({ resumeJson: formatter, style: 1 });
+  const buffer = await formatResumeToDocxBuffer({ resumeJson: formatter, style: "precision-minimal" });
   const text = await extractTextFromDocx({ buffer });
   const validation = validateRenderedArtifact({ resume: formatter, extractedText: text });
 
@@ -187,11 +189,14 @@ test("renders employer tenure separately from the undated current role", async (
   }));
   const markdown = resumeJsonToMarkdown(formatter);
   const html = resumeJsonToHtml(formatter);
-  const docx = await formatResumeToDocxBuffer({ resumeJson: formatter, style: 1 });
+  const docx = await formatResumeToDocxBuffer({ resumeJson: formatter, style: "precision-minimal" });
   const docxText = await extractTextFromDocx({ buffer: docx });
 
   assert.match(markdown, /### Example Company \| 2019-Present\n\*\*Engineer II\*\*/);
-  assert.match(html, /<p class="sub">Example Company \| 2019-Present<\/p><p><strong>Engineer II<\/strong><\/p>/);
+  assert.match(
+    html,
+    /<p class="sub">Example Company \| 2019-Present<\/p><p class="role-title"><strong>Engineer II<\/strong><\/p>/
+  );
   assert.match(docxText, /Example Company \| 2019-Present\s+Engineer II/);
 
   for (const rendered of [markdown, html, docxText]) {
@@ -230,7 +235,7 @@ test("all formatter surfaces suppress generic progression unless career jumps ar
   }));
   const markdown = resumeJsonToMarkdown(formatter);
   const html = resumeJsonToHtml(formatter);
-  const docx = await formatResumeToDocxBuffer({ resumeJson: formatter, style: 1 });
+  const docx = await formatResumeToDocxBuffer({ resumeJson: formatter, style: "precision-minimal" });
   const docxText = await extractTextFromDocx({ buffer: docx });
 
   for (const rendered of [markdown, html, docxText]) {
@@ -241,4 +246,233 @@ test("all formatter surfaces suppress generic progression unless career jumps ar
   formatter.experience[0].progression[0].externalLabelKind = "scope_change";
   formatter.experience[0].progression[2].externalLabelKind = "scope_change";
   assert.match(resumeJsonToMarkdown(formatter), /Promoted twice \(2020, 2023\)/);
+});
+
+// ---------------------------------------------------------------------------
+// Named style profiles (issue #111): one registry, two renderers, no drift.
+//
+// Contact values below are synthetic. A public repository never carries a real
+// person's details, and a style profile never stores them at all.
+// ---------------------------------------------------------------------------
+
+const SYNTHETIC_CONTACT = {
+  name: "Jane Example",
+  location: "Seattle, WA",
+  email: "jane@example.test",
+  phone: "+1 555-0100",
+  linkedin: "linkedin.com/in/jane-example",
+  github: "github.com/jane-example",
+  portfolio: "jane.example",
+};
+
+const CONTACT_ROW_ONE = "Seattle, WA | jane@example.test | +1 555-0100";
+const CONTACT_ROW_TWO = "linkedin.com/in/jane-example | github.com/jane-example | jane.example";
+
+function styledFormatterJson() {
+  const resume = tailoredResume();
+  // Distinct from the positioning line, so an assertion about the role block
+  // cannot accidentally match the header.
+  resume.experience[0].role = "Platform Engineer";
+  resume.experience[0].bullets = [
+    "Built a reliable React application",
+    "Cut page load time by measuring the render path",
+  ];
+  return agent2ResumeToFormatterJson(injectContact(resume, SYNTHETIC_CONTACT));
+}
+
+// Relationship IDs for external hyperlinks are generated per render, so the
+// comparison masks them rather than pretending the bytes are stable.
+function stableDocumentXml(xml) {
+  return xml.replace(/rId[A-Za-z0-9_-]{6,}/g, "rIdLINK");
+}
+
+for (const styleId of ["precision-minimal", "editorial-technical"]) {
+  test(`${styleId} renders both contact rows verbatim in every surface`, async () => {
+    const formatter = styledFormatterJson();
+    const docxText = await extractTextFromDocx({
+      buffer: await formatResumeToDocxBuffer({ resumeJson: formatter, style: styleId }),
+    });
+    const html = resumeJsonToHtml(formatter, styleId);
+    const markdown = resumeJsonToMarkdown(formatter, styleId);
+
+    assert.match(docxText, new RegExp(`${CONTACT_ROW_ONE.replace(/[|+]/g, "\\$&")}`));
+    assert.match(docxText, new RegExp(CONTACT_ROW_TWO.replace(/[|]/g, "\\|")));
+    // Rows are separate paragraphs, so the grouping survives instead of
+    // depending on where the measure happens to run out.
+    assert.ok(
+      docxText.indexOf(CONTACT_ROW_ONE) < docxText.indexOf(CONTACT_ROW_TWO),
+      "location/email/phone precede the link row"
+    );
+    assert.match(
+      html,
+      /<p class="contact">Seattle, WA \| <a href="mailto:jane@example\.test">jane@example\.test<\/a> \| \+1 555-0100<\/p>/
+    );
+    assert.match(
+      html,
+      /<p class="contact"><a href="https:\/\/linkedin\.com\/in\/jane-example">linkedin\.com\/in\/jane-example<\/a> \| <a href="https:\/\/github\.com\/jane-example">github\.com\/jane-example<\/a> \| <a href="https:\/\/jane\.example">jane\.example<\/a><\/p>/
+    );
+    assert.ok(markdown.includes(`${CONTACT_ROW_ONE}  \n${CONTACT_ROW_TWO}`));
+  });
+
+  test(`${styleId} keeps every renderer-input field recoverable in order`, async () => {
+    const formatter = styledFormatterJson();
+    const buffer = await formatResumeToDocxBuffer({ resumeJson: formatter, style: styleId });
+    const validation = validateRenderedArtifact({
+      resume: formatter,
+      extractedText: await extractTextFromDocx({ buffer }),
+    });
+
+    assert.equal(validation.valid, true);
+    assert.equal(validation.fieldRecallPercent, 100);
+    assert.equal(validation.sectionOrderValid, true);
+    assert.deepEqual(validation.missingContact, []);
+  });
+
+  test(`${styleId} carries hyperlinks and an underline into the DOCX`, async () => {
+    const buffer = await formatResumeToDocxBuffer({
+      resumeJson: styledFormatterJson(),
+      style: styleId,
+    });
+    const relationships = readDocxPart(buffer, "word/_rels/document.xml.rels");
+    const document = readDocxPart(buffer, "word/document.xml");
+    const accent = docxStyleTokens(styleId).colors.accent;
+
+    for (const target of [
+      "mailto:jane@example.test",
+      "https://linkedin.com/in/jane-example",
+      "https://github.com/jane-example",
+      "https://jane.example",
+      "https://example.com/project",
+    ]) {
+      assert.ok(
+        relationships.includes(`Target="${target}" TargetMode="External"`),
+        `${target} must survive as a real hyperlink`
+      );
+    }
+    assert.match(document, /<w:hyperlink/);
+    // Underlined, not merely coloured: colour alone disappears in greyscale.
+    assert.match(document, /<w:u w:val="single"\/>/);
+    assert.ok(document.includes(`<w:color w:val="${accent}"/>`));
+    assert.ok(
+      !/Seattle, WA<\/w:t>[\s\S]{0,200}<w:hyperlink/.test(document),
+      "a location is not a destination and must not be linked"
+    );
+  });
+
+  test(`${styleId} keeps headings with their sections and bullets whole`, async () => {
+    const buffer = await formatResumeToDocxBuffer({
+      resumeJson: styledFormatterJson(),
+      style: styleId,
+    });
+    const document = readDocxPart(buffer, "word/document.xml");
+    const paragraphs = document.match(/<w:p>[\s\S]*?<\/w:p>/g) ?? [];
+    const withText = (text) => paragraphs.filter((paragraph) => paragraph.includes(`>${text}<`));
+
+    for (const heading of ["Summary", "Experience", "Skills", "Education"]) {
+      const [paragraph] = withText(heading);
+      assert.ok(paragraph, `${heading} heading must exist`);
+      assert.match(paragraph, /<w:keepNext\/>/, `${heading} must keep with the section it opens`);
+    }
+    const [role] = withText("Platform Engineer");
+    assert.match(role, /<w:keepNext\/>/, "a role heading must keep with its bullets");
+    assert.match(role, /<w:keepLines\/>/, "a role block must not split mid-line");
+    for (const bullet of withText("Built a reliable React application")) {
+      assert.match(bullet, /<w:keepLines\/>/, "a bullet must not split across pages");
+    }
+
+    const html = resumeJsonToHtml(styledFormatterJson(), styleId);
+    assert.match(html, /\.section \{[^}]*break-after: avoid;/);
+    assert.match(html, /\.role-head \{[^}]*break-inside: avoid;/);
+    assert.match(html, /li \{[^}]*break-inside: avoid;/);
+  });
+
+  test(`${styleId} records itself in the artifact it produced`, async () => {
+    const buffer = await formatResumeToDocxBuffer({
+      resumeJson: styledFormatterJson(),
+      style: styleId,
+    });
+    assert.equal(readDocxStyleProfileId({ buffer }), styleId);
+    assert.match(
+      readDocxPart(buffer, "docProps/core.xml"),
+      new RegExp(`Labora resume style profile: ${styleId}`)
+    );
+    assert.match(
+      resumeJsonToHtml(styledFormatterJson(), styleId),
+      new RegExp(`<meta name="labora-style-profile" content="${styleId}">`)
+    );
+  });
+
+  test(`${styleId} renders the same document twice`, async () => {
+    const formatter = styledFormatterJson();
+    const [first, second] = await Promise.all([
+      formatResumeToDocxBuffer({ resumeJson: formatter, style: styleId }),
+      formatResumeToDocxBuffer({ resumeJson: formatter, style: styleId }),
+    ]);
+
+    assert.equal(
+      stableDocumentXml(readDocxPart(first, "word/document.xml")),
+      stableDocumentXml(readDocxPart(second, "word/document.xml"))
+    );
+    assert.equal(
+      await extractTextFromDocx({ buffer: first }),
+      await extractTextFromDocx({ buffer: second })
+    );
+    assert.equal(
+      resumeJsonToHtml(formatter, styleId),
+      resumeJsonToHtml(formatter, styleId)
+    );
+    assert.equal(
+      resumeJsonToMarkdown(formatter, styleId),
+      resumeJsonToMarkdown(formatter, styleId)
+    );
+  });
+}
+
+test("the two profiles differ visually while printing identical content", async () => {
+  const formatter = styledFormatterJson();
+  const precision = await formatResumeToDocxBuffer({
+    resumeJson: formatter,
+    style: "precision-minimal",
+  });
+  const editorial = await formatResumeToDocxBuffer({
+    resumeJson: formatter,
+    style: "editorial-technical",
+  });
+
+  // A style decides how the page looks. It may never decide what it says.
+  assert.equal(
+    await extractTextFromDocx({ buffer: precision }),
+    await extractTextFromDocx({ buffer: editorial })
+  );
+  const precisionXml = readDocxPart(precision, "word/document.xml");
+  const editorialXml = readDocxPart(editorial, "word/document.xml");
+  assert.notEqual(precisionXml, editorialXml);
+  assert.ok(editorialXml.includes('w:ascii="Georgia"'), "serif display face reaches the DOCX");
+  assert.ok(!precisionXml.includes('w:ascii="Georgia"'));
+
+  assert.equal(
+    resumeJsonToMarkdown(formatter, "precision-minimal"),
+    resumeJsonToMarkdown(formatter, "editorial-technical"),
+    "the review companion has no typography to differ in"
+  );
+});
+
+test("an unknown style never renders a document", async () => {
+  const formatter = styledFormatterJson();
+  await assert.rejects(
+    () => formatResumeToDocxBuffer({ resumeJson: formatter, style: 1 }),
+    /Unknown resume style "1"\. Accepted styles: editorial-technical, precision-minimal\./
+  );
+  assert.throws(
+    () => resumeJsonToHtml(formatter, "modern"),
+    /Unknown resume style "modern"/
+  );
+});
+
+test("a malformed style profile is refused before anything is rendered", async () => {
+  const broken = { ...resolveStyleProfile("precision-minimal"), colors: undefined };
+  await assert.rejects(
+    () => formatResumeToDocxBuffer({ resumeJson: styledFormatterJson(), style: broken }),
+    /Invalid resume style profile/
+  );
 });

@@ -33,9 +33,9 @@ function buildApp() {
     [path.join(app, "application-strategy.json")]: "{}",
     [path.join(app, "resume.json")]: "{}",
     [path.join(app, "ats-results.json")]: "{}",
-    [path.join(app, "final-resume-style-1.docx")]: "docx-v1",
-    [path.join(app, "final-resume-style-1.md")]: "markdown-v1",
-    [path.join(app, "final-resume-style-1.pdf")]: "pdf-v1",
+    [path.join(app, "final-resume-style-precision-minimal.docx")]: "docx-v1",
+    [path.join(app, "final-resume-style-precision-minimal.md")]: "markdown-v1",
+    [path.join(app, "final-resume-style-precision-minimal.pdf")]: "pdf-v1",
     [path.join(app, "validations", "claims.json")]: "{}",
     [path.join(app, "validations", "strategy.json")]: "{}",
     [path.join(app, "validations", "artifact.json")]: "{}",
@@ -48,7 +48,7 @@ function buildApp() {
     "persona", "job_analysis", "application_strategy", "tailor", "format", "validate_claims",
     "validate_artifact", "judge_ats", "judge_engineer", "judge_hr", "quality_gate",
   ]) {
-    recordStage({ applicationDir: app, stage, style: 1 });
+    recordStage({ applicationDir: app, stage, style: "precision-minimal" });
   }
   return { root, app };
 }
@@ -61,7 +61,7 @@ test("judges do not depend on provenance sources (resume, claims, core, validati
   fs.writeFileSync(path.join(root, "data", "personas", "example", "profile", "generated", "identity.json"), '{"tampered":true}');
   fs.writeFileSync(path.join(app, "validations", "claims.json"), '{"tampered":true}');
 
-  const status = stageStatus({ applicationDir: app, style: 1 }).stages;
+  const status = stageStatus({ applicationDir: app, style: "precision-minimal" }).stages;
 
   // Control: the tailor stage DID consume resume.json, so it must now be stale.
   assert.equal(status.tailor.selfFresh, false, "control: tampering with provenance invalidates the generator stage");
@@ -74,8 +74,8 @@ test("judges do not depend on provenance sources (resume, claims, core, validati
 
 test("a judge stage does go stale when the rendered artifact changes", () => {
   const { root, app } = buildApp();
-  fs.writeFileSync(path.join(app, "final-resume-style-1.docx"), "docx-v2");
-  const status = stageStatus({ applicationDir: app, style: 1 }).stages;
+  fs.writeFileSync(path.join(app, "final-resume-style-precision-minimal.docx"), "docx-v2");
+  const status = stageStatus({ applicationDir: app, style: "precision-minimal" }).stages;
   for (const judge of ["judge_ats", "judge_engineer", "judge_hr"]) {
     assert.equal(status[judge].selfFresh, false, `${judge} must re-run when the delivery artifact changes`);
   }

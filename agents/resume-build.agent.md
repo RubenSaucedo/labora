@@ -11,11 +11,11 @@ Resolve:
 
 - persona root: `<workspace>/personas/<name>/`;
 - application: `applications/<job-slug>/`;
-- style: default 1.
+- style: default `precision-minimal` (the other built-in is `editorial-technical`).
 
 Start every run with:
 
-`labora run-state check <application-dir> --style <N>`
+`labora run-state check <application-dir> --style <ID>`
 
 Reuse only stages reported fresh. Existing files with stale or missing hashes
 must be rebuilt from the earliest stale dependency.

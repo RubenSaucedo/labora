@@ -18,7 +18,7 @@ test("prepares isolated ATS input without provenance", async () => {
   const result = await prepareJudgeInput({
     repoRoot,
     applicationDir,
-    artifactPath: path.join(applicationDir, "final-resume-style-1.docx"),
+    artifactPath: path.join(applicationDir, "final-resume-style-precision-minimal.docx"),
     judge: "ats",
   });
 
@@ -35,7 +35,7 @@ test("binds HR preview pages to the selected PDF artifact", async () => {
   const result = await prepareJudgeInput({
     repoRoot,
     applicationDir,
-    artifactPath: path.join(applicationDir, "final-resume-style-1.pdf"),
+    artifactPath: path.join(applicationDir, "final-resume-style-precision-minimal.pdf"),
     judge: "hr",
   });
 
@@ -48,7 +48,7 @@ test("does not expose PDF previews when the selected artifact is DOCX", async ()
   const result = await prepareJudgeInput({
     repoRoot,
     applicationDir,
-    artifactPath: path.join(applicationDir, "final-resume-style-1.docx"),
+    artifactPath: path.join(applicationDir, "final-resume-style-precision-minimal.docx"),
     judge: "hr",
   });
 

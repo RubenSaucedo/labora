@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0",
   "state": "human_review",
-  "generatedAt": "2026-07-31T04:51:16.864Z",
+  "generatedAt": "2026-09-20T05:20:51.439Z",
   "artifact": {
-    "path": "final-resume-style-1.pdf",
+    "path": "final-resume-style-precision-minimal.pdf",
     "type": "pdf",
-    "hash": "fff622a44d46a869f0da5184570a00c3fc85f50d5c44bc737aaa61a2af8fc7c6"
+    "hash": "af2ed7c9334f6124cb2fe57735e09d03a4bb7c9d232bf5d6ffb74e5eeb65de7b"
   },
   "hardBlockers": [],
   "reviewReasons": [
@@ -23,5 +23,41 @@
     "atsJudge": true,
     "engineerJudge": true,
     "hrJudge": true
+  },
+  "judgeModels": {
+    "settingsPath": "/Users/saucedo/.copilot/settings.json",
+    "status": "ok",
+    "error": null,
+    "tailor": {
+      "agent": "resume-writer-expert",
+      "model": "claude-opus-5",
+      "source": "model",
+      "label": "claude-opus-5"
+    },
+    "judges": [
+      {
+        "agent": "judge-ats",
+        "model": "claude-opus-5",
+        "source": "model",
+        "label": "claude-opus-5",
+        "differsFromTailor": false
+      },
+      {
+        "agent": "judge-engineer",
+        "model": "claude-opus-5",
+        "source": "model",
+        "label": "claude-opus-5",
+        "differsFromTailor": false
+      },
+      {
+        "agent": "judge-hr",
+        "model": "claude-opus-5",
+        "source": "model",
+        "label": "claude-opus-5",
+        "differsFromTailor": false
+      }
+    ],
+    "diverse": false,
+    "caveat": "Reflects configured models in the user settings file only. Configuration is not observation: it does not prove which model produced a verdict."
   }
 }

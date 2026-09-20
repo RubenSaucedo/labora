@@ -10,6 +10,7 @@ import {
   ZHrJudgeOutput,
 } from "../schemas/judge-output.js";
 import { stageStatus } from "../lib/run-manifest.js";
+import { DEFAULT_STYLE_ID, listStyleProfiles, resolveStyleProfile } from "../lib/resume-style.js";
 import { expectedJudgeMetadata } from "../lib/judge-input.js";
 import { judgeModelReport } from "../lib/copilot-settings.js";
 
@@ -39,13 +40,17 @@ function sha256(filePath) {
 
 const applicationArg = process.argv[2];
 if (!applicationArg) {
-  process.stderr.write("Usage: labora quality-gate <application-dir> [--style N] [--artifact <resume.docx|resume.pdf>]\n");
+  const styles = listStyleProfiles().map((profile) => profile.id).join(", ");
+  process.stderr.write(
+    "Usage: labora quality-gate <application-dir> [--style ID] [--artifact <resume.docx|resume.pdf>]\n" +
+    `\nStyles (default ${DEFAULT_STYLE_ID}): ${styles}\n`
+  );
   process.exit(1);
 }
 
 try {
   const applicationDir = path.resolve(applicationArg);
-  const style = Number(flag("--style", "1"));
+  const style = resolveStyleProfile(flag("--style", DEFAULT_STYLE_ID)).id;
   const artifactPath = path.resolve(
     flag("--artifact", path.join(applicationDir, `final-resume-style-${style}.docx`))
   );

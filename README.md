@@ -88,9 +88,9 @@ Every entry point is also a slash command, in Copilot CLI and Claude Code alike:
 | `/resume-evidence <persona>` | extract and clean newly dropped evidence PDFs |
 | `/job-search <persona>` | discover and rank real openings |
 | `/prepare-resume <persona> <job-slug>` | analyse a job and tailor against it |
-| `/resume-format <persona> <job-slug> [--style N]` | render the delivery artifacts |
-| `/judge-resume <persona> <job-slug> [--style N]` | run the three independent gates |
-| `/build-resume <persona> <job-slug> [--style N]` | all of it, through the release decision |
+| `/resume-format <persona> <job-slug> [--style ID]` | render the delivery artifacts |
+| `/judge-resume <persona> <job-slug> [--style ID]` | run the three independent gates |
+| `/build-resume <persona> <job-slug> [--style ID]` | all of it, through the release decision |
 | `/career-issue <persona>` | turn a named gap route into an issue on a repo the persona owns |
 
 Those nine are the whole public surface. The remaining skills are internal
@@ -137,9 +137,9 @@ plugin without carrying anyone's history.
     ├── application-strategy.json
     ├── resume.json
     ├── ats-results.json
-    ├── final-resume-style-<N>.md
-    ├── final-resume-style-<N>.docx
-    ├── final-resume-style-<N>.pdf
+    ├── final-resume-style-<style-id>.md
+    ├── final-resume-style-<style-id>.docx
+    ├── final-resume-style-<style-id>.pdf
     ├── validations/{strategy,claims,artifact}.json
     ├── previews/{manifest.json,page-<N>.png}
     ├── judges/{ats,engineer,hr}.json
@@ -322,12 +322,12 @@ labora rank-accomplishments <accomplishments.json> <job-spec.json> [--limit <n>]
 labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>
 labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>] [--job-spec <job-spec.json>]
 labora format-markdown <resume.json> <out.md> --job <job.md> --contact <contact.md>
-labora format-docx <resume.json> <out.docx> --job <job.md> --contact <contact.md>
-labora format-pdf <resume.json> <out.pdf> --job <job.md> --contact <contact.md>
+labora format-docx <resume.json> <out.docx> --job <job.md> --contact <contact.md> [--style precision-minimal|editorial-technical]
+labora format-pdf <resume.json> <out.pdf> --job <job.md> --contact <contact.md> [--style precision-minimal|editorial-technical]
 labora render-artifact-preview <out.pdf> <application-dir>/previews
 labora validate-artifact <resume.json> <out.docx|out.pdf> --contact <contact.md> --job <job.md> [--cross-parser]
 labora prepare-judge-input <ats|engineer|hr> <application-dir> <artifact>
-labora run-state check <application-dir> --style 1
+labora run-state check <application-dir> --style precision-minimal
 labora quality-gate <application-dir> --artifact <selected.docx|selected.pdf>
 labora check-judge-models [--json] [--settings <path>]
 labora merge-candidates <run-dir> --prefs <search-preferences.json> --claims <claims.json> [--fit-floor 60] [--seen <seen.json>] [--suppress-seen]
@@ -336,6 +336,16 @@ labora application-outcome <application-dir> show|record <event>
 labora career-issue draft <persona> --kind <polish|legibility|gap|growth> --repo <owner/repo> --title <text> --problem <text> --route <text> --done-when <text>
 labora career-issue check <persona> <body-file>
 ```
+
+`--style` selects a named style profile: `precision-minimal` (default —
+restrained, direct, technical) or `editorial-technical` (mature, deliberate,
+readable, with a serif display face over the same Arial body). Both come from
+one registry, so DOCX and HTML/PDF render from identical semantic tokens rather
+than two hand-tuned layouts. A profile decides how the page looks and nothing
+about what it says; the two profiles extract to the same text. An unrecognised
+ID exits non-zero with the accepted list instead of falling back, and the
+selected ID names the artifacts and is recorded in `validations/artifact.json`
+and `run.json`.
 
 `format-markdown` creates an editable review companion from the same formatter
 projection as DOCX/PDF. Manual edits are feedback only: they make the format
