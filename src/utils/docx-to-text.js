@@ -43,3 +43,25 @@ export async function extractHtmlTextFromDocx({ path: filePath, buffer }) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/**
+ * List the external hyperlink targets a Word-compatible reader would find in a
+ * .docx. Used to tell a link that renders as clickable from one that was
+ * flattened to text — a distinction no plain-text extraction can make.
+ *
+ * @param {{ path?: string, buffer?: Buffer }} input
+ * @returns {Promise<string[]>} Unique absolute URLs, in document order
+ */
+export async function extractLinkTargetsFromDocx({ path: filePath, buffer }) {
+  const input = filePath ? { path: filePath } : (buffer && Buffer.isBuffer(buffer) ? { buffer } : null);
+  if (!input) throw new Error("extractLinkTargetsFromDocx requires path or buffer");
+  const result = await mammoth.convertToHtml(input);
+  const targets = [];
+  for (const match of (result.value || "").matchAll(/<a\s+href="([^"]*)"/g)) {
+    const href = match[1].replace(/&amp;/g, "&").trim();
+    // mailto: and tel: are contact rendering, already covered by field recall.
+    if (!/^https?:\/\//i.test(href)) continue;
+    if (!targets.includes(href)) targets.push(href);
+  }
+  return targets;
+}

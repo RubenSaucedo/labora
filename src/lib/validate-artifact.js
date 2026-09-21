@@ -1,4 +1,6 @@
 import { layoutFindings } from "./layout-findings.js";
+import { normalizeCertification } from "./resume-presentation.js";
+import { linkHref } from "./resume-style.js";
 
 function normalize(value) {
   return String(value || "")
@@ -13,14 +15,25 @@ function normalize(value) {
 function expectedArtifact(resume) {
   const fields = [];
   const sections = [];
+  const links = [];
   const add = (location, value) => {
     if (value != null && String(value).trim()) fields.push({ location, value: String(value) });
+  };
+  // A URL a renderer prints as text but never turns into a relationship reads
+  // as present to every text check and is dead to the person holding the page,
+  // so expected link targets are collected separately from expected words.
+  // linkHref is the same normaliser the renderers use, so a profile written
+  // without a scheme is compared against the href they actually emitted.
+  const addLink = (location, url) => {
+    const href = linkHref(String(url ?? "").trim());
+    if (href) links.push({ location, url: href });
   };
 
   const header = resume.header || {};
   for (const key of ["name", "title", "location", "email", "phone", "linkedin", "github", "portfolio"]) {
     add(`header.${key}`, header[key]);
   }
+  for (const key of ["linkedin", "github", "portfolio"]) addLink(`header.${key}`, header[key]);
 
   if (resume.summary) {
     sections.push("Summary");
@@ -60,6 +73,7 @@ function expectedArtifact(resume) {
     sections.push("Projects");
     for (const [index, project] of resume.projects.entries()) {
       for (const key of ["name", "description", "link"]) add(`projects[${index}].${key}`, project[key]);
+      addLink(`projects[${index}].link`, project.link);
       for (const [highlightIndex, highlight] of (project.highlights || []).entries()) {
         add(`projects[${index}].highlights[${highlightIndex}]`, highlight);
       }
@@ -69,7 +83,11 @@ function expectedArtifact(resume) {
   if ((resume.certifications || []).length) {
     sections.push("Certifications");
     for (const [index, certification] of resume.certifications.entries()) {
-      add(`certifications[${index}]`, certification);
+      // Certifications carry a credential URL now, so the displayed text is a
+      // field on the entry rather than the entry itself.
+      const cert = normalizeCertification(certification);
+      add(`certifications[${index}]`, cert.text);
+      addLink(`certifications[${index}].credentialUrl`, cert.credentialUrl);
     }
   }
 
@@ -79,10 +97,11 @@ function expectedArtifact(resume) {
       for (const key of ["title", "description", "year", "link"]) {
         add(`awards_or_contributions[${index}].${key}`, award?.[key]);
       }
+      addLink(`awards_or_contributions[${index}].link`, award?.link);
     }
   }
 
-  return { fields, sections };
+  return { fields, sections, links };
 }
 
 function countOccurrences(text, value) {
@@ -120,7 +139,13 @@ function missingFieldLocations(expectedFields, normalizedText) {
   return missing;
 }
 
-export function validateRenderedArtifact({ resume, extractedText, layout = null, profile = null }) {
+export function validateRenderedArtifact({
+  resume,
+  extractedText,
+  layout = null,
+  profile = null,
+  linkTargets = null,
+}) {
   const normalizedText = normalize(extractedText);
   const expected = expectedArtifact(resume);
   const missingFields = missingFieldLocations(expected.fields, normalizedText);
@@ -149,6 +174,20 @@ export function validateRenderedArtifact({ resume, extractedText, layout = null,
   for (const field of missingContact) issues.push({ severity: "error", code: "missing_contact", field: `header.${field}` });
   if (!sectionOrderValid) issues.push({ severity: "error", code: "section_order", field: "document" });
 
+  // `null` means the caller could not read relationships out of this format,
+  // which is not the same as the format having none. Only an actual list can
+  // establish that a link is missing.
+  let missingLinkTargets = [];
+  if (Array.isArray(linkTargets)) {
+    const present = new Set(linkTargets.map((url) => String(url ?? "").trim().replace(/\/+$/, "")));
+    missingLinkTargets = expected.links
+      .filter((entry) => !present.has(entry.url.replace(/\/+$/, "")))
+      .map((entry) => entry.location);
+    for (const field of missingLinkTargets) {
+      issues.push({ severity: "error", code: "missing_link_target", field });
+    }
+  }
+
   // Layout findings are advisory by construction. `valid` is computed from
   // errors only, so a warning here can never overturn the recall verdict —
   // the same separation crossParserDivergence already relies on.
@@ -167,6 +206,7 @@ export function validateRenderedArtifact({ resume, extractedText, layout = null,
     missingFields,
     missingSections,
     missingContact,
+    missingLinkTargets,
     layout: layoutReport,
     issues,
   };
