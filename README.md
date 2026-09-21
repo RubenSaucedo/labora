@@ -407,6 +407,17 @@ that renders as text but not as a link is reported, which plain-text recall
 cannot see. That check runs for DOCX, where relationships can be read back;
 for PDF it is skipped rather than guessed.
 
+PDF rendering also records measured layout beside the artifact. The page count
+comes from the generated PDF, not from the browser's continuous-column
+measurement of the DOM: Chromium drops trailing whitespace at a break and
+honours the profile's keep-together rules, so a resume sitting a hair over a
+boundary measured as an extra page the file does not contain, and the underfill
+finding pointed at a page nobody could open. Fill is still measured from the
+DOM, because nothing else measures it, but it is reported against the real
+final page — and where the measurement cannot describe that page, no figure is
+reported rather than an invented one. Every layout figure is advisory: Labora
+reports the page break and leaves cutting or expanding content to you.
+
 `format-markdown` creates an editable review companion from the same formatter
 projection as DOCX/PDF. Manual edits are feedback only: they make the format
 stage stale and must be reconciled into `resume.json` and claim-validated before

@@ -141,6 +141,37 @@ function expectedArtifact(
 }
 
 /**
+ * Where a group's label is printed *as a label*.
+ *
+ * A bare substring search is not enough: group labels are ordinary words, and
+ * "Platform" or "Data" also occur inside experience bullets. Matching one of
+ * those made the label look like it appeared before the skills section, which
+ * failed the order check on a perfectly correct render.
+ *
+ * Every renderer prints a group as "Label: first, second", which normalises to
+ * "label first second". Requiring the first approved skill to follow the label
+ * anchors the match to the skills row and to nothing else.
+ *
+ * A group whose first item is missing therefore reports as a missing label
+ * rather than a missing item. Both are failures, and recall names the absent
+ * skill separately, so the diagnosis stays findable.
+ */
+function skillGroupLabelPosition(normalizedText, label, items) {
+  const needle = normalize(label);
+  if (!needle) return -1;
+  const firstItem = items.map((item) => normalize(item)).find(Boolean);
+  if (!firstItem) return normalizedText.indexOf(needle);
+
+  for (let from = 0; from <= normalizedText.length;) {
+    const at = normalizedText.indexOf(needle, from);
+    if (at < 0) return -1;
+    if (normalizedText.startsWith(`${needle} ${firstItem}`, at)) return at;
+    from = at + 1;
+  }
+  return -1;
+}
+
+/**
  * Check that an approved skill grouping survived into the rendered text.
  *
  * Field recall alone cannot see this. If a renderer flattens three approved
@@ -155,10 +186,11 @@ function skillGroupIssues(resume, normalizedText) {
   if (!groups || !groups.length) return [];
 
   const issues = [];
-  const positions = groups.map((group) => {
-    const label = String(group?.label ?? "").trim();
-    return label ? normalizedText.indexOf(normalize(label)) : -1;
-  });
+  const positions = groups.map((group) => skillGroupLabelPosition(
+    normalizedText,
+    String(group?.label ?? "").trim(),
+    Array.isArray(group?.items) ? group.items : []
+  ));
 
   for (const [index, at] of positions.entries()) {
     if (at < 0) {
@@ -178,11 +210,15 @@ function skillGroupIssues(resume, normalizedText) {
     issues.push({ severity: "error", code: "skill_group_order", field: "skillGroups" });
   }
 
-  for (const [rank, entry] of present.entries()) {
+  // Spans are measured between labels in printed order. Taking them in declared
+  // order would make a single reordered group produce a backwards span and
+  // report every one of its skills as misplaced.
+  const printed = [...present].sort((a, b) => a.at - b.at);
+  for (const [rank, entry] of printed.entries()) {
     const start = entry.at;
-    // The group's span ends where the next surviving label begins; the last
-    // group runs to the end of the document.
-    const end = rank + 1 < present.length ? present[rank + 1].at : normalizedText.length;
+    // The group's span ends where the next printed label begins; the last group
+    // runs to the end of the document.
+    const end = rank + 1 < printed.length ? printed[rank + 1].at : normalizedText.length;
     for (const [itemIndex, item] of (groups[entry.index]?.items ?? []).entries()) {
       const needle = normalize(item);
       if (!needle) continue;
