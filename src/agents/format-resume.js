@@ -1090,7 +1090,17 @@ export async function formatResumeToPdfWithLayout({ resumeJson, style: stylePara
       width: Math.round((8.5 - profile.page.marginInches * 2) * CSS_PIXELS_PER_INCH),
       height: Math.round(usableHeightPx),
     });
-    const contentHeightPx = await page.evaluate(() => document.documentElement.scrollHeight);
+    // scrollHeight is not the content height: it never reports less than the
+    // viewport, so every resume shorter than one page measured as exactly
+    // full. Taking the bottom of the last laid-out block measures the content
+    // itself, which is the number the underfill finding claims to be about.
+    const contentHeightPx = await page.evaluate(() => {
+      let bottom = 0;
+      for (const element of document.body.children) {
+        bottom = Math.max(bottom, element.getBoundingClientRect().bottom + window.scrollY);
+      }
+      return bottom;
+    });
 
     const pageCount = Math.max(1, Math.ceil(contentHeightPx / usableHeightPx));
     const finalPageHeightPx = contentHeightPx - (pageCount - 1) * usableHeightPx;
