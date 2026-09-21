@@ -145,6 +145,13 @@ test("the PDF render reports deterministic page fill", async (t) => {
     first.layout.finalPageFillPercent > 0 && first.layout.finalPageFillPercent <= 100,
     `fill out of range: ${first.layout.finalPageFillPercent}`
   );
+  // A near-empty resume must not report a full page. scrollHeight floors at
+  // the viewport, so measuring it reported 100% for every one-page render and
+  // made the underfill finding unable to fire on the case it exists for.
+  assert.ok(
+    first.layout.finalPageFillPercent < 50,
+    `a four-line resume cannot fill half a page: ${first.layout.finalPageFillPercent}%`
+  );
   assert.ok(Buffer.isBuffer(first.buffer));
 });
 
