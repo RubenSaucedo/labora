@@ -9,6 +9,7 @@ import {
 } from "docx";
 import fs from "fs/promises";
 import { analyzeProgression } from "../lib/progression.js";
+import { balanceSkillLines } from "../lib/skill-layout.js";
 import {
   DEFAULT_STYLE_ID,
   contactRows,
@@ -278,15 +279,16 @@ function normalizeSkills(skills) {
   return [];
 }
 
-/** Chunk skills into 2–3 comma-separated lines for readability (avoid 15+ single-word lines). */
+/**
+ * Group skills into balanced comma-separated lines.
+ *
+ * Partitioning lives in src/lib/skill-layout.js so the DOCX, HTML and Markdown
+ * paths cannot drift: all three call this, and this calls one shared function.
+ * Chunking by item count is what produced the reported 7 / 7 / 1 layout, where
+ * the fifteenth skill rendered alone on its own line.
+ */
 function formatSkillsForDisplay(skills, maxPerLine = 7) {
-  const arr = normalizeSkills(skills);
-  if (arr.length === 0) return [];
-  const lines = [];
-  for (let i = 0; i < arr.length; i += maxPerLine) {
-    lines.push(arr.slice(i, i + maxPerLine).join(", "));
-  }
-  return lines;
+  return balanceSkillLines(normalizeSkills(skills), { maxPerLine });
 }
 
 /** Tokenize text to lowercase alphanumeric tokens. */

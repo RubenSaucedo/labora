@@ -506,3 +506,48 @@ test("a malformed style profile is refused before anything is rendered", async (
     /Invalid resume style profile/
   );
 });
+
+// Regression for the reported 7 / 7 / 1 skills layout. The three renderers used
+// to chunk skills independently by item count, so a fifteenth skill was
+// stranded on its own line in every format at once.
+const FIFTEEN_SKILL_RESUME = {
+  header: { name: "Example Person", title: "Engineer", email: "person@example.test", phone: "555-0100" },
+  summary: "Example summary.",
+  skills: [
+    "TypeScript", "Concurrency", "Graceful Degradation", "Observability",
+    "Agent Orchestration", "Agent Evaluation", "Asynchronous Workflows",
+    "JavaScript", "Node.js", "AI Agents", "Model Context Protocol", "React",
+    "Next.js", "Angular", "Fastify",
+  ],
+  experience: [], education: [], projects: [], certifications: [],
+};
+
+test("HTML and Markdown agree on skill grouping, and neither orphans a skill", () => {
+  const html = resumeJsonToHtml(FIFTEEN_SKILL_RESUME);
+  const htmlLines = [...html.matchAll(/<p class="skills">([^<]*)<\/p>/g)].map((match) => match[1]);
+  assert.equal(htmlLines.length, 3);
+  assert.ok(
+    Math.min(...htmlLines.map((line) => line.split(", ").length)) >= 2,
+    `HTML produced ${htmlLines.map((l) => l.split(", ").length).join("/")}`
+  );
+  assert.ok(!htmlLines.includes("Fastify"), "the fifteenth skill must not be stranded alone");
+
+  const markdown = resumeJsonToMarkdown(FIFTEEN_SKILL_RESUME);
+  for (const line of htmlLines) {
+    assert.ok(markdown.includes(line), `Markdown must group skills identically to HTML: ${line}`);
+  }
+});
+
+test("the DOCX groups skills identically to HTML, which is what renderer parity means", async () => {
+  const buffer = await formatResumeToDocxBuffer({ resumeJson: FIFTEEN_SKILL_RESUME });
+  const text = await extractTextFromDocx({ buffer });
+  const htmlLines = [...resumeJsonToHtml(FIFTEEN_SKILL_RESUME).matchAll(/<p class="skills">([^<]*)<\/p>/g)]
+    .map((match) => match[1]);
+  for (const line of htmlLines) {
+    assert.ok(text.includes(line), `DOCX must carry the same skill line: ${line}`);
+  }
+});
+
+test("skill grouping is identical across repeated renders", () => {
+  assert.equal(resumeJsonToHtml(FIFTEEN_SKILL_RESUME), resumeJsonToHtml(FIFTEEN_SKILL_RESUME));
+});
