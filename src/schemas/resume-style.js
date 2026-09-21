@@ -115,6 +115,16 @@ export const ZResumeStyleProfile = z.object({
     // and for readers who cannot distinguish the hue.
     underline: z.boolean(),
   }).strict(),
+
+  // Thresholds, not wording. `minFinalPageFillPercent` says how full the last
+  // page must be before the distribution reads as deliberate rather than
+  // accidental; `maxSkillsPerLine` caps a skill row. Neither can reach content,
+  // and neither refuses: both only produce findings, because v7 returned the
+  // send decision to the operator.
+  layout: z.object({
+    minFinalPageFillPercent: z.number().min(0).max(100),
+    maxSkillsPerLine: z.number().int().min(3).max(12),
+  }).strict(),
 }).strict();
 
 /**

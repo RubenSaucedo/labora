@@ -82,6 +82,7 @@ const PROFILE_SOURCES = [
       roleBlockKeepTogether: true,
     },
     links: { underline: true },
+    layout: { minFinalPageFillPercent: 55, maxSkillsPerLine: 7 },
   },
   {
     id: "editorial-technical",
@@ -131,6 +132,7 @@ const PROFILE_SOURCES = [
       roleBlockKeepTogether: true,
     },
     links: { underline: true },
+    layout: { minFinalPageFillPercent: 55, maxSkillsPerLine: 7 },
   },
 ];
 

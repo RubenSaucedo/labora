@@ -1,3 +1,5 @@
+import { layoutFindings } from "./layout-findings.js";
+
 function normalize(value) {
   return String(value || "")
     .toLowerCase()
@@ -118,7 +120,7 @@ function missingFieldLocations(expectedFields, normalizedText) {
   return missing;
 }
 
-export function validateRenderedArtifact({ resume, extractedText }) {
+export function validateRenderedArtifact({ resume, extractedText, layout = null, profile = null }) {
   const normalizedText = normalize(extractedText);
   const expected = expectedArtifact(resume);
   const missingFields = missingFieldLocations(expected.fields, normalizedText);
@@ -147,14 +149,25 @@ export function validateRenderedArtifact({ resume, extractedText }) {
   for (const field of missingContact) issues.push({ severity: "error", code: "missing_contact", field: `header.${field}` });
   if (!sectionOrderValid) issues.push({ severity: "error", code: "section_order", field: "document" });
 
+  // Layout findings are advisory by construction. `valid` is computed from
+  // errors only, so a warning here can never overturn the recall verdict —
+  // the same separation crossParserDivergence already relies on.
+  let layoutReport = null;
+  if (layout) {
+    const findings = layoutFindings({ layout, skills: resume.skills, profile });
+    layoutReport = findings.layout;
+    issues.push(...findings.issues);
+  }
+
   return {
-    valid: issues.length === 0,
+    valid: issues.every((issue) => issue.severity !== "error"),
     fieldRecallPercent: recall,
     fieldRecallScope: "renderer_input",
     sectionOrderValid,
     missingFields,
     missingSections,
     missingContact,
+    layout: layoutReport,
     issues,
   };
 }

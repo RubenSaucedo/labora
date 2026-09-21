@@ -5,6 +5,17 @@ import crypto from "node:crypto";
 import { PDFParse } from "pdf-parse";
 import { assertSafeDocument, assertNotAFlag } from "../lib/file-safety.js";
 
+/** Read the measured page fill format-pdf wrote next to the artifact, if any. */
+function loadLayoutSidecar(artifactPath) {
+  const sidecar = `${artifactPath}.layout.json`;
+  if (!fs.existsSync(sidecar)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(sidecar, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 const pdfPath = process.argv[2];
 const outputDir = process.argv[3];
 
@@ -67,6 +78,9 @@ try {
     sourceArtifact: path.basename(safePath),
     sourceArtifactHash,
     pageCount,
+    // Measured at render time by format-pdf, not re-derived here: a page image
+    // shows how full a page looks, but only the layout pass knows by how much.
+    layout: loadLayoutSidecar(safePath),
     pages,
   };
   fs.writeFileSync(

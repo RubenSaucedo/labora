@@ -44,6 +44,19 @@ function styleFromArtifactName(name) {
   const match = /^final-resume-style-(.+)\.(docx|pdf)$/i.exec(path.basename(name));
   return match ? match[1] : null;
 }
+
+/** Read the measured page fill format-pdf wrote next to the artifact, if any. */
+function loadLayoutSidecar(artifactPath) {
+  const sidecar = `${artifactPath}.layout.json`;
+  if (!fs.existsSync(sidecar)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(sidecar, "utf8"));
+  } catch {
+    // A corrupt sidecar must not fail a render that is otherwise valid; the
+    // layout checks simply do not run.
+    return null;
+  }
+}
 try {
   let resume = ZTailoredResume.parse(JSON.parse(fs.readFileSync(resumePath, "utf8")));
   resume = injectContact(resume, loadContact(contactPath));
@@ -93,7 +106,16 @@ try {
     }]
     : [];
   const result = {
-    ...validateRenderedArtifact({ resume: formatterResume, extractedText }),
+    ...validateRenderedArtifact({
+      resume: formatterResume,
+      extractedText,
+      // Written beside the PDF by format-pdf. Absent for a DOCX, and absent for
+      // a PDF rendered before this existed — in both cases the layout checks
+      // are skipped rather than guessed, because Word repaginates a DOCX on
+      // open and a measurement we did not take is not a measurement.
+      layout: loadLayoutSidecar(safeArtifactPath),
+      profile: styleProfile,
+    }),
     styleProfile: {
       id: styleProfile.id,
       displayName: styleProfile.displayName,
