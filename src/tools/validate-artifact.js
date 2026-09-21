@@ -2,7 +2,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { extractTextFromDocx, extractHtmlTextFromDocx } from "../utils/docx-to-text.js";
+import { extractTextFromDocx, extractHtmlTextFromDocx, extractLinkTargetsFromDocx } from "../utils/docx-to-text.js";
 import { readDocxStyleProfileId } from "../utils/docx-parts.js";
 import { extractTextFromPdf, extractTextFromPdfViaOcr } from "../utils/pdf-to-md.js";
 import { injectContact, loadContact } from "../lib/profile-contact.js";
@@ -71,9 +71,13 @@ try {
   let pageCount = null;
   let secondaryText = null;
   let secondaryParser = null;
+  // Stays null for a PDF: pdf-parse does not expose link annotations, and an
+  // empty list would report every link as dropped.
+  let linkTargets = null;
   if (extension === ".docx") {
     safeArtifactPath = assertSafeDocument(artifactPath, "docx");
     extractedText = await extractTextFromDocx({ path: safeArtifactPath });
+    linkTargets = await extractLinkTargetsFromDocx({ path: safeArtifactPath });
     // The DOCX states its own style profile in its core properties, so the
     // record can be checked against the artifact instead of trusting a flag.
     declaredStyleId = readDocxStyleProfileId({ path: safeArtifactPath });
@@ -115,6 +119,7 @@ try {
       // open and a measurement we did not take is not a measurement.
       layout: loadLayoutSidecar(safeArtifactPath),
       profile: styleProfile,
+      linkTargets,
     }),
     styleProfile: {
       id: styleProfile.id,

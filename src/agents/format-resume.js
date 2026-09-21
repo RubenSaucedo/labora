@@ -10,6 +10,7 @@ import {
 import fs from "fs/promises";
 import { analyzeProgression } from "../lib/progression.js";
 import { balanceSkillLines } from "../lib/skill-layout.js";
+import { normalizeCertification } from "../lib/resume-presentation.js";
 import {
   DEFAULT_STYLE_ID,
   contactRows,
@@ -537,7 +538,11 @@ a { color: var(--color-accent); text-decoration: underline; }
   if (Array.isArray(certifications) && certifications.length) {
     parts.push(`<p class="section">Certifications</p>`);
     for (const c of certifications) {
-      if (isNonEmptyString(c)) parts.push(`<p>${escapeHtml(c.trim())}</p>`);
+      const cert = normalizeCertification(c);
+      if (!isNonEmptyString(cert.text)) continue;
+      // A credential the reader cannot open is a claim they cannot check, so
+      // the URL is a real anchor rather than text appended to the name.
+      parts.push(`<p>${link(cert.text, linkHref(cert.credentialUrl ?? ""))}</p>`);
     }
   }
 
@@ -655,11 +660,12 @@ export function resumeJsonToMarkdown(resumeJson, style = DEFAULT_STYLE_ID) {
   if (Array.isArray(projects) && projects.length) {
     section("Projects");
     for (const project of projects) {
-      const heading = safeJoin([
-        isNonEmptyString(project?.name) ? project.name.trim() : "Project",
-        project?.link
-      ], " | ");
-      lines.push(`### ${markdownText(heading)}`);
+      const name = isNonEmptyString(project?.name) ? project.name.trim() : "Project";
+      const href = linkHref(project?.link ?? "");
+      const heading = href
+        ? `${markdownText(name)} | [${markdownText(project.link.trim())}](${href})`
+        : markdownText(safeJoin([name, project?.link], " | "));
+      lines.push(`### ${heading}`);
       if (isNonEmptyString(project?.description)) lines.push(markdownText(project.description.trim()));
       const highlights = Array.isArray(project?.highlights) ? project.highlights : [];
       for (const highlight of highlights) {
@@ -672,7 +678,12 @@ export function resumeJsonToMarkdown(resumeJson, style = DEFAULT_STYLE_ID) {
   if (Array.isArray(certifications) && certifications.length) {
     section("Certifications");
     for (const certification of certifications) {
-      if (isNonEmptyString(certification)) lines.push(`- ${markdownText(certification.trim())}`);
+      const cert = normalizeCertification(certification);
+      if (!isNonEmptyString(cert.text)) continue;
+      const href = linkHref(cert.credentialUrl ?? "");
+      lines.push(href
+        ? `- [${markdownText(cert.text)}](${href})`
+        : `- ${markdownText(cert.text)}`);
     }
   }
 
@@ -841,7 +852,19 @@ export async function formatResumeToDocxBuffer({
   if (Array.isArray(certifications) && certifications.length) {
     docChildren.push(buildHeading(tokens, "Certifications"));
     for (const c of certifications) {
-      if (isNonEmptyString(c)) docChildren.push(buildBodyLine(tokens, c.trim()));
+      const cert = normalizeCertification(c);
+      if (!isNonEmptyString(cert.text)) continue;
+      const href = linkHref(cert.credentialUrl ?? "");
+      if (!href) {
+        docChildren.push(buildBodyLine(tokens, cert.text));
+        continue;
+      }
+      // linkRun makes the docx package write an external relationship, which
+      // is what keeps the credential clickable once the file leaves here.
+      docChildren.push(new Paragraph({
+        children: [linkRun(tokens, { text: cert.text, href, size: tokens.sizes.body })],
+        spacing: { before: 0, after: tokens.spacing.paragraph },
+      }));
     }
   }
 
@@ -925,9 +948,7 @@ export function agent2ResumeToFormatterJson(resume, options = {}) {
     highlights: Array.isArray(p.highlights) ? p.highlights : [],
     link: p.link ?? "",
   }));
-  const certs = (resume.certifications || []).map((c) =>
-    typeof c === "string" ? c : (c && c.name ? [c.name, c.issuer, c.year].filter(Boolean).join(", ") : String(c))
-  );
+  const certs = (resume.certifications || []).map(normalizeCertification);
   const awards = (resume.awards_or_contributions || []).map((a) =>
     typeof a === "string"
       ? { title: a, description: "", year: "", link: "" }
