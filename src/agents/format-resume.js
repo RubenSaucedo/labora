@@ -12,6 +12,8 @@ import { analyzeProgression } from "../lib/progression.js";
 import { balanceSkillLines } from "../lib/skill-layout.js";
 import {
   normalizeCertification,
+  approvedSkillGroups,
+  flattenSkillGroups,
   DEFAULT_SECTION_ORDER,
   DEFAULT_SECTION_LABELS,
 } from "../lib/resume-presentation.js";
@@ -191,8 +193,25 @@ function buildBodyLine(tokens, text, { after } = {}) {
   });
 }
 
-function buildMetadataLine(tokens, text, { keepNext = false } = {}) {
+/**
+ * One approved skill group: a bold label, then its skills in approved order.
+ *
+ * Two runs rather than one so the label reads as a heading to a human, while
+ * text extraction still yields "Label: a, b, c" — the same string the Markdown
+ * and HTML paths produce, which is what lets one validation check cover all
+ * three formats.
+ */
+function buildLabelledSkillLine(tokens, row) {
   return new Paragraph({
+    children: [
+      displayRun(tokens, { text: `${row.label}: `, bold: true, size: tokens.sizes.body }),
+      bodyRun(tokens, { text: row.items.join(", "), size: tokens.sizes.body }),
+    ],
+    spacing: { before: 0, after: tokens.spacing.skill },
+  });
+}
+
+function buildMetadataLine(tokens, text, { keepNext = false } = {}) {  return new Paragraph({
     children: [
       new TextRun({
         text,
@@ -312,6 +331,29 @@ function formatSkillsForDisplay(skills, maxPerLine = 7) {
   return balanceSkillLines(normalizeSkills(skills), { maxPerLine });
 }
 
+/**
+ * The skill rows to print, as `{ label, items, text }`.
+ *
+ * One helper for all three renderers, so an approved grouping cannot render in
+ * Markdown and be flattened in DOCX. An approved group keeps its label, its
+ * membership and its order and is never re-partitioned; without one the rows
+ * are the automatic width-balanced lines and carry no label.
+ */
+function skillRowsForDisplay(resumeJson, maxPerLine = 7) {
+  const groups = Array.isArray(resumeJson?.skillGroups) ? resumeJson.skillGroups : null;
+  if (groups && groups.length) {
+    return groups
+      .map((group) => ({
+        label: String(group?.label ?? "").trim(),
+        items: (Array.isArray(group?.items) ? group.items : []).map((item) => String(item).trim()),
+      }))
+      .filter((group) => group.label && group.items.length)
+      .map((group) => ({ ...group, text: `${group.label}: ${group.items.join(", ")}` }));
+  }
+  return formatSkillsForDisplay(resumeJson?.skills, maxPerLine)
+    .map((line) => ({ label: "", items: [], text: line }));
+}
+
 /** Tokenize text to lowercase alphanumeric tokens. */
 function tokenize(text) {
   if (typeof text !== "string") return [];
@@ -380,7 +422,7 @@ export function resumeJsonToHtml(resumeJson, style = DEFAULT_STYLE_ID) {
     awards_or_contributions = []
   } = resumeJson;
 
-  const skillLines = formatSkillsForDisplay(skills);
+  const skillRows = skillRowsForDisplay(resumeJson, profile.layout.maxSkillsPerLine);
   const parts = [];
 
   const sectionBorder = tokens.sectionRule.enabled
@@ -527,9 +569,13 @@ a { color: var(--color-accent); text-decoration: underline; }
       }
     },
     skills: () => {
-      if (!skillLines.length) return;
+      if (!skillRows.length) return;
       parts.push(`<p class="section">${escapeHtml(labelFor("skills"))}</p>`);
-      for (const line of skillLines) parts.push(`<p class="skills">${escapeHtml(line)}</p>`);
+      for (const row of skillRows) {
+        parts.push(row.label
+          ? `<p class="skills"><strong>${escapeHtml(row.label)}</strong>: ${escapeHtml(row.items.join(", "))}</p>`
+          : `<p class="skills">${escapeHtml(row.text)}</p>`);
+      }
     },
     education: () => {
       if (!Array.isArray(education) || !education.length) return;
@@ -603,7 +649,8 @@ a { color: var(--color-accent); text-decoration: underline; }
 export function resumeJsonToMarkdown(resumeJson, style = DEFAULT_STYLE_ID) {
   if (!resumeJson || typeof resumeJson !== "object") return "";
 
-  const { order: sectionOrder, labelFor } = sectionPlan(renderStyle(style), resumeJson);
+  const markdownProfile = renderStyle(style);
+  const { order: sectionOrder, labelFor } = sectionPlan(markdownProfile, resumeJson);
   const markdownText = (value) => String(value ?? "")
     .replace(/([\\`*_[\]<>&])/g, "\\$1")
     .replace(/^(\s*)([#>+-]|\d+\.)\s/gm, "$1\\$2 ");
@@ -645,7 +692,7 @@ export function resumeJsonToMarkdown(resumeJson, style = DEFAULT_STYLE_ID) {
     lines.push(contactLines.join("  \n"));
   }
 
-  const skillLines = formatSkillsForDisplay(skills);
+  const skillRows = skillRowsForDisplay(resumeJson, markdownProfile.layout.maxSkillsPerLine);
   const emitters = {
     summary: () => {
       if (!isNonEmptyString(summary)) return;
@@ -670,9 +717,13 @@ export function resumeJsonToMarkdown(resumeJson, style = DEFAULT_STYLE_ID) {
       }
     },
     skills: () => {
-      if (!skillLines.length) return;
+      if (!skillRows.length) return;
       section(labelFor("skills"));
-      lines.push(...skillLines.map(markdownText));
+      for (const row of skillRows) {
+        lines.push(row.label
+          ? `**${markdownText(row.label)}**: ${markdownText(row.items.join(", "))}`
+          : markdownText(row.text));
+      }
     },
     education: () => {
       if (!Array.isArray(education) || !education.length) return;
@@ -831,11 +882,13 @@ export async function formatResumeToDocxBuffer({
       }
     },
     skills: () => {
-      const skillLines = formatSkillsForDisplay(skills);
-      if (skillLines.length) {
+      const skillRows = skillRowsForDisplay(resumeJson, profile.layout.maxSkillsPerLine);
+      if (skillRows.length) {
         docChildren.push(buildHeading(tokens, labelFor("skills")));
-        for (const line of skillLines) {
-          docChildren.push(buildBodyLine(tokens, line, { after: tokens.spacing.skill }));
+        for (const row of skillRows) {
+          docChildren.push(row.label
+            ? buildLabelledSkillLine(tokens, row)
+            : buildBodyLine(tokens, row.text, { after: tokens.spacing.skill }));
         }
       }
     },
@@ -998,7 +1051,18 @@ export function agent2ResumeToFormatterJson(resume, options = {}) {
   let skills = [...(resume.skills_primary || []), ...(resume.skills_secondary || [])];
   const job = options.job && typeof options.job === "object" ? options.job : null;
   const maxSkills = options.maxSkills;
-  if (job && typeof maxSkills === "number" && maxSkills > 0) {
+  // The approved grouping is resolved from the same helper buildPresentation
+  // uses, so the formatter boundary and the model cannot disagree about
+  // whether a resume has one.
+  const skillGroups = approvedSkillGroups(resume);
+  if (skillGroups) {
+    // Ranking and capping are how an *automatic* skill list is chosen. An
+    // operator already chose these, so reordering them by job relevance would
+    // overrule the decision, and dropping the sixteenth would silently delete
+    // an approved skill. The flat list becomes the approved membership so
+    // recall and ATS extraction see exactly what is printed.
+    skills = flattenSkillGroups(skillGroups);
+  } else if (job && typeof maxSkills === "number" && maxSkills > 0) {
     skills = topSkillsByRelevance(skills, job.description, maxSkills);
   }
   return {
@@ -1014,6 +1078,10 @@ export function agent2ResumeToFormatterJson(resume, options = {}) {
     },
     summary: resume.summary ?? "",
     skills,
+    // Null when no operator-approved grouping exists, which leaves the flat
+    // ranked list above as the only skills input and preserves the automatic
+    // behaviour every existing application relies on.
+    skillGroups,
     experience,
     education,
     projects,

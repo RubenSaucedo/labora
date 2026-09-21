@@ -71,8 +71,15 @@ test("a missing project link is null rather than an empty-labelled link", () => 
 });
 
 test("the default section order is used when the profile declares none", () => {
-  const model = buildPresentation(RESUME, { profile });
+  const { sectionOrder, ...silentProfile } = profile;
+  const model = buildPresentation(RESUME, { profile: silentProfile });
   assert.deepEqual(model.sectionOrder, DEFAULT_SECTION_ORDER);
+});
+
+test("a declared profile order overrides the default", () => {
+  const model = buildPresentation(RESUME, { profile });
+  assert.deepEqual(model.sectionOrder, profile.sectionOrder);
+  assert.notDeepEqual(model.sectionOrder, DEFAULT_SECTION_ORDER);
 });
 
 test("an empty resume projects without throwing", () => {
@@ -83,11 +90,19 @@ test("an empty resume projects without throwing", () => {
 });
 
 test("a profile declares section order and carries no wording", () => {
-  for (const id of ["precision-minimal", "editorial-technical"]) {
-    const styleProfile = resolveStyleProfile(id);
-    assert.deepEqual(styleProfile.sectionOrder, [
+  const expected = {
+    // Projects carry the strongest recent evidence for this profile's readers,
+    // so they precede education.
+    "precision-minimal": [
+      "summary", "experience", "skills", "projects", "education", "certifications", "awards",
+    ],
+    "editorial-technical": [
       "summary", "experience", "skills", "education", "projects", "certifications", "awards",
-    ]);
+    ],
+  };
+  for (const [id, sectionOrder] of Object.entries(expected)) {
+    const styleProfile = resolveStyleProfile(id);
+    assert.deepEqual(styleProfile.sectionOrder, sectionOrder);
     assert.equal(styleProfile.sectionLabels, undefined, "labels are words and must not live in a style");
   }
 });

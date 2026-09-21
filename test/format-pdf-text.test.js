@@ -5,6 +5,7 @@ import { formatResumeToPdfBuffer } from "../src/agents/format-resume.js";
 import { findChrome } from "../src/lib/browser.js";
 import { extractTextFromPdf, isNegligibleText } from "../src/utils/pdf-to-md.js";
 import { validateRenderedArtifact } from "../src/lib/validate-artifact.js";
+import { resolveStyleProfile } from "../src/lib/resume-style.js";
 
 // The PDF renderer needs a real browser. Where there is none the suite says so
 // rather than passing quietly, because a skipped check is not a met one.
@@ -81,7 +82,11 @@ for (const styleId of ["precision-minimal", "editorial-technical"]) {
     { skip: needsBrowser },
     async () => {
       const { text } = await pdfText(styleId);
-      const validation = validateRenderedArtifact({ resume: RESUME, extractedText: text });
+      const validation = validateRenderedArtifact({
+        resume: RESUME,
+        extractedText: text,
+        sectionOrder: resolveStyleProfile(styleId).sectionOrder,
+      });
 
       assert.equal(validation.fieldRecallPercent, 100);
       assert.equal(validation.sectionOrderValid, true);
@@ -97,12 +102,15 @@ for (const styleId of ["precision-minimal", "editorial-technical"]) {
   });
 }
 
-test("both profiles print identical words in identical order", { skip: needsBrowser }, async () => {
+test("both profiles print identical words", { skip: needsBrowser }, async () => {
   const precision = await pdfText("precision-minimal");
   const editorial = await pdfText("editorial-technical");
 
-  const words = (text) => text.replace(/\s+/g, " ").trim();
-  assert.equal(words(precision.text), words(editorial.text));
+  // The profiles arrange their approved sections differently, so the guarantee
+  // is that neither adds, drops or rewrites a word — not that both print the
+  // same page in the same order.
+  const words = (text) => text.replace(/\s+/g, " ").trim().split(" ").sort();
+  assert.deepEqual(words(precision.text), words(editorial.text));
   assert.notEqual(
     precision.buffer.length,
     editorial.buffer.length,
