@@ -84,7 +84,7 @@ const PROFILE_SOURCES = [
     links: { underline: true },
     layout: { minFinalPageFillPercent: 55, maxSkillsPerLine: 7 },
     sectionOrder: [
-      "summary", "experience", "skills", "education", "projects", "certifications", "awards",
+      "summary", "experience", "skills", "projects", "education", "certifications", "awards",
     ],
   },
   {

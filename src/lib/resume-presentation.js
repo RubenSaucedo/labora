@@ -25,6 +25,39 @@ export const DEFAULT_SECTION_LABELS = {
 
 const CONTACT_LINK_KEYS = ["linkedin", "github", "portfolio"];
 
+/**
+ * The skill groups an operator approved, or null when there are none.
+ *
+ * This is the single decision point for whether a resume has an approved
+ * grouping. The formatter projection and `buildPresentation` both call it, so
+ * a group cannot survive into one and be dropped by the other — which is
+ * exactly what happened when the two derived it independently.
+ *
+ * Approval is required because a group label is words on the page and a
+ * grouping is an editorial claim about what a skill *is*. Anything an agent
+ * proposed without a human confirming it is ignored here, and the caller falls
+ * back to the automatic flat ranking.
+ */
+export function approvedSkillGroups(resume) {
+  if (resume?.presentation?.approvedBy !== "operator") return null;
+  const groups = resume.presentation.skillGroups;
+  if (!Array.isArray(groups) || groups.length === 0) return null;
+  const usable = groups
+    .map((group) => ({
+      label: String(group?.label ?? "").trim(),
+      items: (Array.isArray(group?.items) ? group.items : [])
+        .map((item) => String(item ?? "").trim())
+        .filter(Boolean),
+    }))
+    .filter((group) => group.label && group.items.length);
+  return usable.length ? usable : null;
+}
+
+/** Every approved skill, in group order then item order, with no cap applied. */
+export function flattenSkillGroups(groups) {
+  return (groups ?? []).flatMap((group) => group.items);
+}
+
 function toLink(label, url) {
   const trimmed = String(url ?? "").trim();
   if (!trimmed) return null;
@@ -61,12 +94,11 @@ export function buildPresentation(resume, { profile, presentation = null } = {})
   const contact = resume?.contact && typeof resume.contact === "object" ? resume.contact : {};
   const maxPerLine = profile?.layout?.maxSkillsPerLine ?? 7;
 
-  const groups = Array.isArray(presentation?.skillGroups) && presentation.skillGroups.length
-    ? presentation.skillGroups
-    : [{
-      label: null,
-      items: [...(resume?.skills_primary ?? []), ...(resume?.skills_secondary ?? [])],
-    }];
+  const approved = approvedSkillGroups({ presentation });
+  const groups = approved ?? [{
+    label: null,
+    items: [...(resume?.skills_primary ?? []), ...(resume?.skills_secondary ?? [])],
+  }];
 
   return {
     header: {
@@ -81,7 +113,13 @@ export function buildPresentation(resume, { profile, presentation = null } = {})
     skillGroups: groups.map((group) => ({
       label: group.label ?? null,
       items: group.items ?? [],
-      lines: balanceSkillLines(group.items ?? [], { maxPerLine }),
+      // An approved group is rendered as the operator wrote it: one labelled
+      // run, in their order. Width balancing exists to stop an automatic flat
+      // list orphaning its last item, and re-partitioning an approved group
+      // would move a skill out from under the label it was approved beneath.
+      lines: approved
+        ? [(group.items ?? []).join(", ")]
+        : balanceSkillLines(group.items ?? [], { maxPerLine }),
     })),
     experience: resume?.experience ?? [],
     education: resume?.education ?? [],
@@ -94,6 +132,11 @@ export function buildPresentation(resume, { profile, presentation = null } = {})
     certifications: (resume?.certifications ?? []).map(normalizeCertification),
     awards: resume?.awards_or_contributions ?? [],
     sectionOrder: profile?.sectionOrder ?? DEFAULT_SECTION_ORDER,
-    sectionLabels: { ...DEFAULT_SECTION_LABELS, ...(presentation?.sectionLabels ?? {}) },
+    sectionLabels: {
+      ...DEFAULT_SECTION_LABELS,
+      // Labels are words, so the same operator approval that gates a grouping
+      // gates a heading. Without it the shipped headings stand.
+      ...(presentation?.approvedBy === "operator" ? (presentation.sectionLabels ?? {}) : {}),
+    },
   };
 }

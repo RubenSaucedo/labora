@@ -10,8 +10,28 @@ import { parseContact, injectContact } from "../src/lib/profile-contact.js";
 import { validateRenderedArtifact } from "../src/lib/validate-artifact.js";
 import { extractTextFromDocx } from "../src/utils/docx-to-text.js";
 import { readDocxPart, readDocxStyleProfileId } from "../src/utils/docx-parts.js";
-import { docxStyleTokens, resolveStyleProfile } from "../src/lib/resume-style.js";
+import { DEFAULT_STYLE_ID, docxStyleTokens, resolveStyleProfile } from "../src/lib/resume-style.js";
 import { ZTailoredResume } from "../src/schemas/tailored-resume.js";
+
+// Production reads the expected section order from the style profile that
+// rendered the artifact. Tests must do the same, or they assert against an
+// order no renderer ever produces.
+function validateRendered({ styleId = DEFAULT_STYLE_ID, ...options }) {
+  return validateRenderedArtifact({
+    sectionOrder: resolveStyleProfile(styleId).sectionOrder,
+    ...options,
+  });
+}
+
+// The words a document prints, independent of the order its sections appear
+// in. Comparing these catches a style that adds, drops or rewrites content.
+function contentLines(text) {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .sort();
+}
 
 function tailoredResume() {
   return {
@@ -69,7 +89,7 @@ test("injects contact and preserves fields through DOCX round trip", async () =>
   const formatter = agent2ResumeToFormatterJson(resume);
   const buffer = await formatResumeToDocxBuffer({ resumeJson: formatter, style: "precision-minimal" });
   const text = await extractTextFromDocx({ buffer });
-  const validation = validateRenderedArtifact({ resume: formatter, extractedText: text });
+  const validation = validateRendered({ resume: formatter, extractedText: text });
 
   assert.equal(validation.valid, true);
   assert.match(text, /Jane Example/);
@@ -80,7 +100,7 @@ test("injects contact and preserves fields through DOCX round trip", async () =>
   assert.doesNotMatch(text, /secret-keyword/);
   assert.equal(validation.fieldRecallScope, "renderer_input");
 
-  const withoutPortfolio = validateRenderedArtifact({
+  const withoutPortfolio = validateRendered({
     resume: formatter,
     extractedText: text.replace("https://jane.example.test", ""),
   });
@@ -98,7 +118,7 @@ test("renders a deterministic Markdown review companion without internal metadat
   const formatter = agent2ResumeToFormatterJson(injectContact(tailoredResume(), contact));
   const first = resumeJsonToMarkdown(formatter);
   const second = resumeJsonToMarkdown(formatter);
-  const validation = validateRenderedArtifact({ resume: formatter, extractedText: first });
+  const validation = validateRendered({ resume: formatter, extractedText: first });
 
   assert.equal(first, second);
   assert.equal(validation.valid, true);
@@ -121,7 +141,7 @@ test("escapes active Markdown and HTML from dynamic resume text", () => {
     phone: "+1 555-123-4567",
   }));
   const markdown = resumeJsonToMarkdown(formatter);
-  const validation = validateRenderedArtifact({ resume: formatter, extractedText: markdown });
+  const validation = validateRendered({ resume: formatter, extractedText: markdown });
 
   assert.equal(validation.valid, true);
   assert.doesNotMatch(markdown, /!\[remote\]/);
@@ -136,7 +156,7 @@ test("fails when a rendered project, skill, or certification is missing", () => 
     email: "jane@example.com",
     phone: "+1 555-123-4567",
   }));
-  const result = validateRenderedArtifact({
+  const result = validateRendered({
     resume: formatter,
     extractedText: "Jane Example Engineer Summary Engineer with a record of shipping reliable systems. Experience Example Engineer 2022 - Present Built a reliable React application Education Example University BS Computer Science",
   });
@@ -178,10 +198,10 @@ test("experience location survives schema, adapter, and every formatter", async 
     assert.match(rendered, /Example \| 2022 - Present \| Austin, TX/);
   }
   assert.equal(
-    validateRenderedArtifact({ resume: formatter, extractedText: markdown }).valid,
+    validateRendered({ resume: formatter, extractedText: markdown }).valid,
     true
   );
-  const withoutLocation = validateRenderedArtifact({
+  const withoutLocation = validateRendered({
     resume: formatter,
     extractedText: markdown.replace("Austin, TX", ""),
   });
@@ -196,7 +216,7 @@ test("requires every duplicate rendered field occurrence", () => {
     phone: "+1 555-123-4567",
   }));
   formatter.experience[0].highlights.push("Built a reliable React application");
-  const result = validateRenderedArtifact({
+  const result = validateRendered({
     resume: formatter,
     extractedText: "Jane Example jane@example.com +1 555-123-4567 Engineer Summary Engineer with a record of shipping reliable systems. Experience Example Engineer 2022 - Present Built a reliable React application Skills React Education Example University BS Computer Science 2014 2018 Seattle WA Projects Project One A useful project https://example.com/project Certifications Cloud Certificate Example 2025",
   });
@@ -347,7 +367,8 @@ for (const styleId of ["precision-minimal", "editorial-technical"]) {
   test(`${styleId} keeps every renderer-input field recoverable in order`, async () => {
     const formatter = styledFormatterJson();
     const buffer = await formatResumeToDocxBuffer({ resumeJson: formatter, style: styleId });
-    const validation = validateRenderedArtifact({
+    const validation = validateRendered({
+      styleId,
       resume: formatter,
       extractedText: await extractTextFromDocx({ buffer }),
     });
@@ -469,10 +490,12 @@ test("the two profiles differ visually while printing identical content", async 
     style: "editorial-technical",
   });
 
-  // A style decides how the page looks. It may never decide what it says.
-  assert.equal(
-    await extractTextFromDocx({ buffer: precision }),
-    await extractTextFromDocx({ buffer: editorial })
+  // A style decides how the page looks and the order its approved sections
+  // appear in. It may never decide what it says, so the two profiles must
+  // print the same lines even when they arrange them differently.
+  assert.deepEqual(
+    contentLines(await extractTextFromDocx({ buffer: precision })),
+    contentLines(await extractTextFromDocx({ buffer: editorial }))
   );
   const precisionXml = readDocxPart(precision, "word/document.xml");
   const editorialXml = readDocxPart(editorial, "word/document.xml");
@@ -480,9 +503,9 @@ test("the two profiles differ visually while printing identical content", async 
   assert.ok(editorialXml.includes('w:ascii="Georgia"'), "serif display face reaches the DOCX");
   assert.ok(!precisionXml.includes('w:ascii="Georgia"'));
 
-  assert.equal(
-    resumeJsonToMarkdown(formatter, "precision-minimal"),
-    resumeJsonToMarkdown(formatter, "editorial-technical"),
+  assert.deepEqual(
+    contentLines(resumeJsonToMarkdown(formatter, "precision-minimal")),
+    contentLines(resumeJsonToMarkdown(formatter, "editorial-technical")),
     "the review companion has no typography to differ in"
   );
 });

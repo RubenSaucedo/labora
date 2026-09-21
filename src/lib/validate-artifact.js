@@ -66,6 +66,19 @@ function expectedArtifact(
       return true;
     },
     skills: () => {
+      // An approved grouping is part of what the artifact must show. Expecting
+      // only the bare skills would let a renderer flatten the groups away and
+      // still report 100% recall, because every individual word still appears.
+      const groups = Array.isArray(resume.skillGroups) ? resume.skillGroups : null;
+      if (groups && groups.length) {
+        for (const [index, group] of groups.entries()) {
+          add(`skillGroups[${index}].label`, group?.label);
+          for (const [itemIndex, item] of (group?.items ?? []).entries()) {
+            add(`skillGroups[${index}].items[${itemIndex}]`, item);
+          }
+        }
+        return true;
+      }
       const skills = Array.isArray(resume.skills)
         ? resume.skills
         : (typeof resume.skills === "string"
@@ -125,6 +138,66 @@ function expectedArtifact(
   }
 
   return { fields, sections, links };
+}
+
+/**
+ * Check that an approved skill grouping survived into the rendered text.
+ *
+ * Field recall alone cannot see this. If a renderer flattens three approved
+ * groups into one ranked list, every skill word is still present and recall
+ * still reads 100%, while the structure the operator approved is gone. So the
+ * grouping is checked positionally: labels must appear in the approved order,
+ * and each group's skills must appear inside that group's span rather than
+ * merely somewhere on the page.
+ */
+function skillGroupIssues(resume, normalizedText) {
+  const groups = Array.isArray(resume?.skillGroups) ? resume.skillGroups : null;
+  if (!groups || !groups.length) return [];
+
+  const issues = [];
+  const positions = groups.map((group) => {
+    const label = String(group?.label ?? "").trim();
+    return label ? normalizedText.indexOf(normalize(label)) : -1;
+  });
+
+  for (const [index, at] of positions.entries()) {
+    if (at < 0) {
+      issues.push({
+        severity: "error",
+        code: "missing_skill_group_label",
+        field: `skillGroups[${index}].label`,
+      });
+    }
+  }
+
+  const present = positions
+    .map((at, index) => ({ at, index }))
+    .filter((entry) => entry.at >= 0);
+  const outOfOrder = present.some((entry, rank) => rank > 0 && entry.at <= present[rank - 1].at);
+  if (outOfOrder) {
+    issues.push({ severity: "error", code: "skill_group_order", field: "skillGroups" });
+  }
+
+  for (const [rank, entry] of present.entries()) {
+    const start = entry.at;
+    // The group's span ends where the next surviving label begins; the last
+    // group runs to the end of the document.
+    const end = rank + 1 < present.length ? present[rank + 1].at : normalizedText.length;
+    for (const [itemIndex, item] of (groups[entry.index]?.items ?? []).entries()) {
+      const needle = normalize(item);
+      if (!needle) continue;
+      const found = normalizedText.indexOf(needle, start);
+      if (found < 0 || found >= end) {
+        issues.push({
+          severity: "error",
+          code: "skill_outside_approved_group",
+          field: `skillGroups[${entry.index}].items[${itemIndex}]`,
+        });
+      }
+    }
+  }
+
+  return issues;
 }
 
 function countOccurrences(text, value) {
@@ -205,6 +278,8 @@ export function validateRenderedArtifact({
   for (const section of missingSections) issues.push({ severity: "error", code: "missing_section", field: section });
   for (const field of missingContact) issues.push({ severity: "error", code: "missing_contact", field: `header.${field}` });
   if (!sectionOrderValid) issues.push({ severity: "error", code: "section_order", field: "document" });
+
+  issues.push(...skillGroupIssues(resume, normalizedText));
 
   // `null` means the caller could not read relationships out of this format,
   // which is not the same as the format having none. Only an actual list can

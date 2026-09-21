@@ -27,6 +27,7 @@ export function analyzeProgression(progression, role = "") {
   const findings = [];
   const candidates = [];
   let unresolvedSuppression = false;
+  let headingDuplicates = 0;
 
   for (const [index, step] of progression.entries()) {
     if (!step) continue;
@@ -65,6 +66,7 @@ export function analyzeProgression(progression, role = "") {
 
     if (normalized && normalized === normalizeLabel(role)) {
       unresolvedSuppression = true;
+      headingDuplicates += 1;
       findings.push({
         code: "progression_duplicates_heading",
         stepIndex: index,
@@ -122,8 +124,14 @@ export function analyzeProgression(progression, role = "") {
   }
 
   nodes.sort((a, b) => a.index - b.index);
-  const representedEvents = nodes.reduce((total, node) => total + node.eventCount, 0);
-  if (nodes.length < 2 && representedEvents < 2) {
+  // A step dropped for duplicating the role heading is not missing information:
+  // the heading itself already shows that point in the progression. Counting it
+  // as zero suppressed every two-role career, because removing the current
+  // title left a single node and the whole line was dropped.
+  const headingEvent = headingDuplicates > 0 ? 1 : 0;
+  const representedEvents =
+    nodes.reduce((total, node) => total + node.eventCount, 0) + headingEvent;
+  if (nodes.length + headingEvent < 2 && representedEvents < 2) {
     if (candidates.length || unresolvedSuppression) {
       findings.push({ code: "progression_low_information" });
     }
