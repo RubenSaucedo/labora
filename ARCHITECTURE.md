@@ -29,7 +29,7 @@ Node tools own:
 - claim provenance validation;
 - contact source validation and injection;
 - Markdown review-companion and DOCX/PDF rendering;
-- renderer-input field recall and section order;
+- renderer-input field recall, declared section order, and hyperlink targets;
 - content-hash freshness;
 - final release-state aggregation.
 

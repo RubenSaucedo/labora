@@ -1,5 +1,9 @@
 import { layoutFindings } from "./layout-findings.js";
-import { normalizeCertification } from "./resume-presentation.js";
+import {
+  normalizeCertification,
+  DEFAULT_SECTION_ORDER,
+  DEFAULT_SECTION_LABELS,
+} from "./resume-presentation.js";
 import { linkHref } from "./resume-style.js";
 
 function normalize(value) {
@@ -12,7 +16,11 @@ function normalize(value) {
     .trim();
 }
 
-function expectedArtifact(resume) {
+function expectedArtifact(
+  resume,
+  sectionOrder = DEFAULT_SECTION_ORDER,
+  sectionLabels = DEFAULT_SECTION_LABELS,
+) {
   const fields = [];
   const sections = [];
   const links = [];
@@ -35,70 +43,85 @@ function expectedArtifact(resume) {
   }
   for (const key of ["linkedin", "github", "portfolio"]) addLink(`header.${key}`, header[key]);
 
-  if (resume.summary) {
-    sections.push("Summary");
-    add("summary", resume.summary);
-  }
-
-  if ((resume.experience || []).length) {
-    sections.push("Experience");
-    for (const [index, entry] of resume.experience.entries()) {
-      for (const key of ["company", "role", "startDate", "endDate", "location"]) {
-        add(`experience[${index}].${key}`, entry[key]);
+  // Section collection mirrors the renderers: one collector per section, run in
+  // the declared order. The previous fixed sequence asserted a literal heading
+  // list, so a document that legitimately reordered or relabelled a section
+  // failed the gate that exists to catch a section going missing.
+  const collectors = {
+    summary: () => {
+      if (!resume.summary) return false;
+      add("summary", resume.summary);
+      return true;
+    },
+    experience: () => {
+      if (!(resume.experience || []).length) return false;
+      for (const [index, entry] of resume.experience.entries()) {
+        for (const key of ["company", "role", "startDate", "endDate", "location"]) {
+          add(`experience[${index}].${key}`, entry[key]);
+        }
+        for (const [bulletIndex, bullet] of (entry.highlights || []).entries()) {
+          add(`experience[${index}].highlights[${bulletIndex}]`, bullet);
+        }
       }
-      for (const [bulletIndex, bullet] of (entry.highlights || []).entries()) {
-        add(`experience[${index}].highlights[${bulletIndex}]`, bullet);
+      return true;
+    },
+    skills: () => {
+      const skills = Array.isArray(resume.skills)
+        ? resume.skills
+        : (typeof resume.skills === "string"
+          ? [resume.skills]
+          : Object.values(resume.skills || {}).flat());
+      if (!skills.length) return false;
+      for (const [index, skill] of skills.entries()) add(`skills[${index}]`, skill);
+      return true;
+    },
+    education: () => {
+      if (!(resume.education || []).length) return false;
+      for (const [index, education] of resume.education.entries()) {
+        for (const key of ["school", "degree", "field", "startDate", "endDate", "location"]) {
+          add(`education[${index}].${key}`, education[key]);
+        }
       }
-    }
-  }
-
-  const skills = Array.isArray(resume.skills)
-    ? resume.skills
-    : (typeof resume.skills === "string" ? [resume.skills] : Object.values(resume.skills || {}).flat());
-  if (skills.length) {
-    sections.push("Skills");
-    for (const [index, skill] of skills.entries()) add(`skills[${index}]`, skill);
-  }
-
-  if ((resume.education || []).length) {
-    sections.push("Education");
-    for (const [index, education] of resume.education.entries()) {
-      for (const key of ["school", "degree", "field", "startDate", "endDate", "location"]) {
-        add(`education[${index}].${key}`, education[key]);
+      return true;
+    },
+    projects: () => {
+      if (!(resume.projects || []).length) return false;
+      for (const [index, project] of resume.projects.entries()) {
+        for (const key of ["name", "description", "link"]) add(`projects[${index}].${key}`, project[key]);
+        addLink(`projects[${index}].link`, project.link);
+        for (const [highlightIndex, highlight] of (project.highlights || []).entries()) {
+          add(`projects[${index}].highlights[${highlightIndex}]`, highlight);
+        }
       }
-    }
-  }
-
-  if ((resume.projects || []).length) {
-    sections.push("Projects");
-    for (const [index, project] of resume.projects.entries()) {
-      for (const key of ["name", "description", "link"]) add(`projects[${index}].${key}`, project[key]);
-      addLink(`projects[${index}].link`, project.link);
-      for (const [highlightIndex, highlight] of (project.highlights || []).entries()) {
-        add(`projects[${index}].highlights[${highlightIndex}]`, highlight);
+      return true;
+    },
+    certifications: () => {
+      if (!(resume.certifications || []).length) return false;
+      for (const [index, certification] of resume.certifications.entries()) {
+        // Certifications carry a credential URL now, so the displayed text is a
+        // field on the entry rather than the entry itself.
+        const cert = normalizeCertification(certification);
+        add(`certifications[${index}]`, cert.text);
+        addLink(`certifications[${index}].credentialUrl`, cert.credentialUrl);
       }
-    }
-  }
-
-  if ((resume.certifications || []).length) {
-    sections.push("Certifications");
-    for (const [index, certification] of resume.certifications.entries()) {
-      // Certifications carry a credential URL now, so the displayed text is a
-      // field on the entry rather than the entry itself.
-      const cert = normalizeCertification(certification);
-      add(`certifications[${index}]`, cert.text);
-      addLink(`certifications[${index}].credentialUrl`, cert.credentialUrl);
-    }
-  }
-
-  if ((resume.awards_or_contributions || []).length) {
-    sections.push("Awards & Contributions");
-    for (const [index, award] of resume.awards_or_contributions.entries()) {
-      for (const key of ["title", "description", "year", "link"]) {
-        add(`awards_or_contributions[${index}].${key}`, award?.[key]);
+      return true;
+    },
+    awards: () => {
+      if (!(resume.awards_or_contributions || []).length) return false;
+      for (const [index, award] of resume.awards_or_contributions.entries()) {
+        for (const key of ["title", "description", "year", "link"]) {
+          add(`awards_or_contributions[${index}].${key}`, award?.[key]);
+        }
+        addLink(`awards_or_contributions[${index}].link`, award?.link);
       }
-      addLink(`awards_or_contributions[${index}].link`, award?.link);
-    }
+      return true;
+    },
+  };
+
+  for (const key of sectionOrder) {
+    const collect = collectors[key];
+    if (!collect) continue;
+    if (collect()) sections.push(sectionLabels[key] ?? DEFAULT_SECTION_LABELS[key] ?? key);
   }
 
   return { fields, sections, links };
@@ -145,9 +168,18 @@ export function validateRenderedArtifact({
   layout = null,
   profile = null,
   linkTargets = null,
+  sectionOrder = null,
+  sectionLabels = null,
 }) {
   const normalizedText = normalize(extractedText);
-  const expected = expectedArtifact(resume);
+  const expected = expectedArtifact(
+    resume,
+    // A caller may declare the order directly, or leave it to the style profile
+    // that produced the artifact. Only the shipped default remains if neither
+    // says anything, which is what every existing application relies on.
+    sectionOrder ?? profile?.sectionOrder ?? DEFAULT_SECTION_ORDER,
+    { ...DEFAULT_SECTION_LABELS, ...(sectionLabels ?? {}) },
+  );
   const missingFields = missingFieldLocations(expected.fields, normalizedText);
 
   const sectionPositions = expected.sections.map((section) => ({

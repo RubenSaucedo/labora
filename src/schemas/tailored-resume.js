@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ZBlankContact, ZEducation, ZProject, ZCertification, ZAward, ZProgressionStep } from "./identity.js";
 import { ZResumeProvenance } from "./provenance.js";
+import { ZPresentation } from "./resume-presentation.js";
 
 export const ZTailoredExperience = z.object({
   id: z.string().default(""),
@@ -40,6 +41,9 @@ export const ZTailoredResume = z.object({
   projects: z.array(ZProject).default([]),
   certifications: z.array(ZCertification).default([]),
   awards_or_contributions: z.array(ZAward).default([]),
+  // Null unless an operator approved section labels or skill groupings. The
+  // default keeps every resume written before this rendering exactly as it did.
+  presentation: ZPresentation.nullable().default(null),
   keywords_mapped: z.array(ZKeywordMapping).default([]),
   gaps_or_risks: z.array(z.string()).default([]),
   notes_for_human: z.array(z.string()).default([]),

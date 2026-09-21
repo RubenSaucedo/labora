@@ -81,3 +81,81 @@ test("an empty resume projects without throwing", () => {
   assert.deepEqual(model.links, []);
   assert.deepEqual(model.certifications, []);
 });
+
+test("a profile declares section order and carries no wording", () => {
+  for (const id of ["precision-minimal", "editorial-technical"]) {
+    const styleProfile = resolveStyleProfile(id);
+    assert.deepEqual(styleProfile.sectionOrder, [
+      "summary", "experience", "skills", "education", "projects", "certifications", "awards",
+    ]);
+    assert.equal(styleProfile.sectionLabels, undefined, "labels are words and must not live in a style");
+  }
+});
+
+test("labels rename sections and may not introduce entities", async () => {
+  const { parsePresentation } = await import("../src/schemas/resume-presentation.js");
+
+  const ok = parsePresentation(
+    { sectionLabels: { certifications: "Professional Development" }, approvedBy: "operator" },
+    RESUME
+  );
+  assert.equal(ok.sectionLabels.certifications, "Professional Development");
+
+  assert.throws(
+    () => parsePresentation(
+      { skillGroups: [{ label: "Cloud", items: ["Kubernetes"] }], approvedBy: "operator" },
+      RESUME
+    ),
+    /is not present in the resume/,
+    "a skill group may regroup existing skills, never add one"
+  );
+
+  assert.throws(
+    () => parsePresentation({ sectionLabels: { certifications: "X" } }, RESUME),
+    /approvedBy/,
+    "an agent-authored label must not render unreviewed"
+  );
+});
+
+test("a skill may not be printed under two groups", async () => {
+  const { parsePresentation } = await import("../src/schemas/resume-presentation.js");
+  assert.throws(
+    () => parsePresentation({
+      approvedBy: "operator",
+      skillGroups: [
+        { label: "Languages", items: ["Go", "Rust"] },
+        { label: "Favourites", items: ["Go"] },
+      ],
+    }, RESUME),
+    /more than one presentation group/
+  );
+});
+
+test("an approved grouping of real skills passes", async () => {
+  const { parsePresentation } = await import("../src/schemas/resume-presentation.js");
+  const parsed = parsePresentation({
+    approvedBy: "operator",
+    skillGroups: [
+      { label: "Languages", items: ["Go", "Rust"] },
+      { label: "Frontend", items: ["React", "Node.js"] },
+    ],
+  }, RESUME);
+  assert.equal(parsed.skillGroups.length, 2);
+  assert.deepEqual(parsed.sectionLabels, {});
+});
+
+test("an approved presentation drives grouping and labels through the model", () => {
+  const presentation = {
+    approvedBy: "operator",
+    sectionLabels: { certifications: "Professional Development" },
+    skillGroups: [
+      { label: "Languages", items: ["Go", "Rust"] },
+      { label: "Frontend", items: ["React", "Node.js"] },
+    ],
+  };
+  const model = buildPresentation(RESUME, { profile, presentation });
+  assert.equal(model.skillGroups.length, 2);
+  assert.equal(model.skillGroups[0].label, "Languages");
+  assert.equal(model.sectionLabels.certifications, "Professional Development");
+  assert.equal(model.sectionLabels.summary, "Summary", "unnamed sections keep their default label");
+});
