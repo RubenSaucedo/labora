@@ -969,7 +969,31 @@ export function agent2ResumeToFormatterJson(resume, options = {}) {
  *
  * @param {object} opts - resumeJson, style (profile ID or resolved profile)
  */
-export async function formatResumeToPdfBuffer({ resumeJson, style: styleParam }) {
+export async function formatResumeToPdfBuffer(opts) {
+  const { buffer } = await formatResumeToPdfWithLayout(opts);
+  return buffer;
+}
+
+const LETTER_HEIGHT_INCHES = 11;
+const CSS_PIXELS_PER_INCH = 96;
+
+/**
+ * Render the PDF and measure how much of each page the content actually fills.
+ *
+ * Measurement runs inside the Chromium instance this path already launches, so
+ * it costs no extra dependency and no second render. It is deliberately done
+ * for the PDF only: Word repaginates a DOCX when it opens the file and Node
+ * cannot observe that, so a DOCX fill figure would be fiction. Parity between
+ * the two renderers is parity of *grouping* decisions, not of page breaks.
+ *
+ * The measurement is reported, never acted on. Reflowing sections to fill a
+ * page means deciding what to cut or expand, which is a content decision that
+ * belongs to the operator.
+ *
+ * @param {object} opts - resumeJson, style (profile ID or resolved profile)
+ * @returns {Promise<{ buffer: Buffer, layout: { pageCount: number, pageFillPercent: number[], finalPageFillPercent: number } }>}
+ */
+export async function formatResumeToPdfWithLayout({ resumeJson, style: styleParam }) {
   if (!resumeJson || typeof resumeJson !== "object") {
     throw new Error("resumeJson object is required");
   }
@@ -989,13 +1013,39 @@ export async function formatResumeToPdfBuffer({ resumeJson, style: styleParam })
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
+
+    // The print box, not the viewport: page.pdf() applies these margins to a
+    // Letter sheet, so the usable height is what the content is paginated into.
+    const usableHeightPx =
+      (LETTER_HEIGHT_INCHES - profile.page.marginInches * 2) * CSS_PIXELS_PER_INCH;
+    await page.setViewport({
+      width: Math.round((8.5 - profile.page.marginInches * 2) * CSS_PIXELS_PER_INCH),
+      height: Math.round(usableHeightPx),
+    });
+    const contentHeightPx = await page.evaluate(() => document.documentElement.scrollHeight);
+
+    const pageCount = Math.max(1, Math.ceil(contentHeightPx / usableHeightPx));
+    const finalPageHeightPx = contentHeightPx - (pageCount - 1) * usableHeightPx;
+    const pageFillPercent = Array.from({ length: pageCount }, (_, index) =>
+      index === pageCount - 1
+        ? Math.min(100, Math.max(1, Math.round((finalPageHeightPx / usableHeightPx) * 100)))
+        : 100
+    );
+
     const margin = `${profile.page.marginInches}in`;
     const pdfBuffer = await page.pdf({
       format: "Letter",
       margin: { top: margin, right: margin, bottom: margin, left: margin },
       printBackground: true,
     });
-    return Buffer.from(pdfBuffer);
+    return {
+      buffer: Buffer.from(pdfBuffer),
+      layout: {
+        pageCount,
+        pageFillPercent,
+        finalPageFillPercent: pageFillPercent[pageFillPercent.length - 1],
+      },
+    };
   } finally {
     await browser.close();
   }

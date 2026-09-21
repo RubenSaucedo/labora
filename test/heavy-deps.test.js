@@ -124,3 +124,54 @@ test("the run-time cache is ignored, not the symptom", () => {
     "ignoring the file here hid the bug instead of fixing where it was written",
   );
 });
+
+test("the PDF render reports deterministic page fill", async (t) => {
+  if (!findChrome()) return t.skip("no Chrome on this machine");
+  const { formatResumeToPdfWithLayout } = await import("../src/agents/format-resume.js");
+
+  const resume = {
+    header: { name: "Example Person", title: "Engineer", email: "person@example.test", phone: "555-0100" },
+    summary: "Example summary.",
+    skills: ["Go", "Rust", "Node.js", "React"],
+    experience: [], education: [], projects: [], certifications: [],
+  };
+
+  const first = await formatResumeToPdfWithLayout({ resumeJson: resume });
+  const second = await formatResumeToPdfWithLayout({ resumeJson: resume });
+
+  assert.equal(first.layout.pageCount, 1, "a short resume is one page");
+  assert.deepEqual(first.layout, second.layout, "repeated renders must measure identically");
+  assert.ok(
+    first.layout.finalPageFillPercent > 0 && first.layout.finalPageFillPercent <= 100,
+    `fill out of range: ${first.layout.finalPageFillPercent}`
+  );
+  assert.ok(Buffer.isBuffer(first.buffer));
+});
+
+test("a long resume paginates and reports a lower final-page fill", async (t) => {
+  if (!findChrome()) return t.skip("no Chrome on this machine");
+  const { formatResumeToPdfWithLayout } = await import("../src/agents/format-resume.js");
+
+  // One long role plus two short ones, the shape the reported defect used.
+  const resume = {
+    header: { name: "Example Person", title: "Engineer", email: "person@example.test", phone: "555-0100" },
+    summary: "Example summary that runs to a reasonable length for a senior profile.",
+    skills: ["Go", "Rust", "Node.js", "React", "Kubernetes", "Terraform"],
+    experience: [
+      {
+        company: "Example Systems", role: "Engineer", startDate: "2020", endDate: "2025", location: "Remote",
+        highlights: Array.from({ length: 7 }, (_, i) =>
+          `Delivered example workstream ${i} across several teams, measured against agreed service objectives and reported quarterly.`),
+      },
+    ],
+    education: [{ school: "Example University", degree: "BSc", field: "Computer Science", endDate: "2015" }],
+    projects: [], certifications: [],
+  };
+
+  const { layout } = await formatResumeToPdfWithLayout({ resumeJson: resume });
+  assert.ok(layout.pageCount >= 1);
+  assert.equal(layout.pageFillPercent.length, layout.pageCount);
+  for (const fill of layout.pageFillPercent.slice(0, -1)) {
+    assert.equal(fill, 100, "every page before the last is full by definition");
+  }
+});

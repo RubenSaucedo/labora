@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import {
   agent2ResumeToFormatterJson,
-  formatResumeToPdfBuffer,
+  formatResumeToPdfWithLayout,
 } from "../agents/format-resume.js";
 import { loadJobFromFile } from "../lib/job-parser.js";
 import { injectContact, loadContact } from "../lib/profile-contact.js";
@@ -46,8 +46,12 @@ try {
   // Unknown styles fail here with the accepted list; there is no fallback.
   const style = resolveStyleProfile(flag("--style", DEFAULT_STYLE_ID)).id;
   const formatterJson = agent2ResumeToFormatterJson(resume, { job, maxSkills: 15 });
-  const buffer = await formatResumeToPdfBuffer({ resumeJson: formatterJson, style });
-  fs.writeFileSync(outputPath, buffer);
+  const buffer = await formatResumeToPdfWithLayout({ resumeJson: formatterJson, style });
+  fs.writeFileSync(outputPath, buffer.buffer);
+  // Page fill can only be measured while the page is still laid out in
+  // Chromium. Recording it beside the artifact lets validate-artifact report
+  // the distribution without re-rendering.
+  fs.writeFileSync(`${outputPath}.layout.json`, JSON.stringify(buffer.layout, null, 2) + "\n");
   process.stdout.write(`${outputPath}\n`);
 } catch (error) {
   process.stderr.write(`format-pdf error: ${error.message}\n`);
