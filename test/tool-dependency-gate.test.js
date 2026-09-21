@@ -48,7 +48,12 @@ test("the walk follows internal imports transitively, not just direct ones", () 
 });
 
 test("rendering and validation still require their packages", () => {
-  assert.deepEqual(depsFor("format-docx"), ["docx", "puppeteer-core", "zod"]);
+  // format-docx renders no PDF, but it shares src/agents/format-resume.js with
+  // the PDF path, so the walk reaches puppeteer-core and pdf-parse through it.
+  // The gate is deliberately conservative here: all three ship in the same
+  // install, and refusing a tool whose module graph is incomplete is safer than
+  // failing inside a library halfway through a render.
+  assert.deepEqual(depsFor("format-docx"), ["docx", "pdf-parse", "puppeteer-core", "zod"]);
   assert.ok(depsFor("validate-claims").includes("zod"));
   assert.ok(depsFor("artifact-text").includes("pdf-parse"));
 });

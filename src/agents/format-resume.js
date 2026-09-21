@@ -1170,29 +1170,53 @@ export async function formatResumeToPdfWithLayout({ resumeJson, style: stylePara
       return bottom;
     });
 
-    const pageCount = Math.max(1, Math.ceil(contentHeightPx / usableHeightPx));
-    const finalPageHeightPx = contentHeightPx - (pageCount - 1) * usableHeightPx;
-    const pageFillPercent = Array.from({ length: pageCount }, (_, index) =>
-      index === pageCount - 1
-        ? Math.min(100, Math.max(1, Math.round((finalPageHeightPx / usableHeightPx) * 100)))
-        : 100
-    );
-
     const margin = `${profile.page.marginInches}in`;
     const pdfBuffer = await page.pdf({
       format: "Letter",
       margin: { top: margin, right: margin, bottom: margin, left: margin },
       printBackground: true,
     });
+    const buffer = Buffer.from(pdfBuffer);
+
+    // The DOM measurement models content as one continuous column, which is
+    // not how Chromium paginates: it drops trailing whitespace at a break and
+    // honours the profile's keep-together rules. A resume a hair over the
+    // boundary therefore measured as an extra page that the PDF does not
+    // contain, and the underfill finding pointed at a page nobody could open.
+    // The artifact is the only authority on how many pages it has.
+    const pageCount = await pdfPageCount(buffer);
+
+    // Fill still comes from the DOM, because nothing else measures it, but it
+    // is now expressed against the real final page. Where the continuous model
+    // overshot, that page is simply full. Where it undershot, the model says
+    // nothing about the real final page, so no figure is reported rather than
+    // a fabricated one.
+    const finalPageHeightPx = contentHeightPx - (pageCount - 1) * usableHeightPx;
+    const finalPageRatio = finalPageHeightPx / usableHeightPx;
+    const finalPageFillPercent = finalPageRatio <= 0
+      ? null
+      : Math.min(100, Math.max(1, Math.round(finalPageRatio * 100)));
+    const pageFillPercent = Array.from({ length: pageCount }, (_, index) =>
+      index === pageCount - 1 ? finalPageFillPercent : 100
+    );
+
     return {
-      buffer: Buffer.from(pdfBuffer),
-      layout: {
-        pageCount,
-        pageFillPercent,
-        finalPageFillPercent: pageFillPercent[pageFillPercent.length - 1],
-      },
+      buffer,
+      layout: { pageCount, pageFillPercent, finalPageFillPercent },
     };
   } finally {
     await browser.close();
+  }
+}
+
+/** The page count the artifact itself reports, read without extracting text. */
+async function pdfPageCount(buffer) {
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const { total } = await parser.getInfo();
+    return Math.max(1, Number(total) || 1);
+  } finally {
+    await parser.destroy();
   }
 }
