@@ -373,10 +373,26 @@ restrained, direct, technical) or `editorial-technical` (mature, deliberate,
 readable, with a serif display face over the same Arial body). Both come from
 one registry, so DOCX and HTML/PDF render from identical semantic tokens rather
 than two hand-tuned layouts. A profile decides how the page looks and nothing
-about what it says; the two profiles extract to the same text. An unrecognised
+about what it says; the two profiles extract to the same text. A profile also
+declares `sectionOrder`, because rearranging sections invents no words — but it
+carries no headings, since a heading *is* words. An unrecognised
 ID exits non-zero with the accepted list instead of falling back, and the
 selected ID names the artifacts and is recorded in `validations/artifact.json`
 and `run.json`.
+
+Section headings and skill groupings live in an optional `presentation` block
+on `resume.json`, not in a style. Both put words on the page, so both require
+`approvedBy: "operator"`; a block an agent wrote and nobody confirmed is
+ignored at render time rather than rejected, and the shipped headings stand. A
+skill group may only regroup skills the resume already claims, and may not
+print one twice.
+
+Artifact validation derives the headings it expects from those same two inputs
+rather than a fixed list, so a reordered or relabelled resume is checked
+against what it declared. It also checks hyperlink targets: a credential URL
+that renders as text but not as a link is reported, which plain-text recall
+cannot see. That check runs for DOCX, where relationships can be read back;
+for PDF it is skipped rather than guessed.
 
 `format-markdown` creates an editable review companion from the same formatter
 projection as DOCX/PDF. Manual edits are feedback only: they make the format

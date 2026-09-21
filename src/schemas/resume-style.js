@@ -7,8 +7,14 @@ import { z } from "zod";
 // renderer that the other never learns about.
 //
 // Nothing in this schema can reach resume *content*: there is no field for
-// section order, wording, ranking, or inclusion. A style may change how a
-// sentence looks and may not change which sentences exist.
+// wording, ranking, or inclusion. A style may change how a sentence looks and
+// may not change which sentences exist.
+//
+// Section *order* is the one arrangement decision that lives here, and it is
+// not an exception to that rule. Reordering sections invents no words, removes
+// none, and changes no claim; it decides what a reader meets first. Section
+// *labels* are words, so they live in the operator-approved presentation block
+// instead — the line is drawn at whether a field can introduce text.
 
 const ZHexColor = z.string().regex(
   /^#[0-9a-f]{6}$/i,
@@ -125,6 +131,12 @@ export const ZResumeStyleProfile = z.object({
     minFinalPageFillPercent: z.number().min(0).max(100),
     maxSkillsPerLine: z.number().int().min(3).max(12),
   }).strict(),
+  // Arrangement, not wording. The enum is closed so a profile cannot name a
+  // section no renderer knows how to emit, which would otherwise drop content
+  // silently. A section absent from the resume is skipped, not empty-rendered.
+  sectionOrder: z.array(z.enum([
+    "summary", "experience", "skills", "education", "projects", "certifications", "awards",
+  ])).min(1),
 }).strict();
 
 /**

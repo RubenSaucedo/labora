@@ -120,6 +120,11 @@ try {
       layout: loadLayoutSidecar(safeArtifactPath),
       profile: styleProfile,
       linkTargets,
+      // The artifact was rendered under this profile's order and the
+      // document's labels, so validation reads the same two inputs the
+      // renderer did rather than a list of literals it hopes still matches.
+      sectionOrder: styleProfile.sectionOrder ?? null,
+      sectionLabels: formatterResume.sectionLabels ?? null,
     }),
     styleProfile: {
       id: styleProfile.id,
