@@ -167,10 +167,13 @@ Every change reaches `main` the same way, including one-line fixes:
    broken and how you know, not just what changed; a reader who disagrees with
    the diff should be able to tell whether they disagree with the diagnosis or
    the remedy. Name what you deliberately did *not* do, and why.
-3. **Bump the version** in `.claude-plugin/plugin.json` **and** `package.json`, which must
-   always match — the plugin manifest and the npm package describe the same
+3. **Bump the version** in `.claude-plugin/plugin.json`, `package.json` **and**
+   `.claude-plugin/marketplace.json`, which must all three match — the plugin
+   manifest, the npm package and the marketplace entry describe the same
    artifact, and a consumer that trusts the wrong one installs a version that
-   does not exist. Semver is judged from the **installed** surface: user-invocable
+   does not exist. `test/plugin-packaging.test.js` enforces the agreement, so
+   missing the third file fails CI rather than shipping a mismatch.
+   Semver is judged from the **installed** surface: user-invocable
    skills, agent names, and tool CLIs are public; internal stages are not.
    Renaming or hiding a shipped `user-invocable` skill is breaking.
 4. **`npm test` passes**, and the three required checks
