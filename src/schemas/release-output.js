@@ -23,6 +23,25 @@ export const ZFinding = z.object({
 }).strict();
 
 /**
+ * What an operator's approval was *of*, beyond the rendered file.
+ *
+ * The artifact hash alone was enough while generation was the only path.
+ * Editing changes that: an operator now approves a set of proposed changes to
+ * wording they had already reviewed, and two documents can render to different
+ * bytes from the same proposal, or to the same bytes from different ones. So
+ * the approval also binds to the baseline it started from, the editorial plan
+ * that was on screen, and the exact revised content that plan produced.
+ *
+ * Every field is nullable. A run with no baseline records nulls and behaves
+ * exactly as it did before this existed.
+ */
+export const ZEditorialBinding = z.object({
+  baselineHash: z.string().regex(/^[a-f0-9]{64}$/i).nullable().default(null),
+  editorialPlanHash: z.string().regex(/^[a-f0-9]{64}$/i).nullable().default(null),
+  revisedContentHash: z.string().regex(/^[a-f0-9]{64}$/i).nullable().default(null),
+}).strict();
+
+/**
  * The gate may write only these two states. `operator_approved` is absent on
  * purpose: it is recorded in a separate file by an explicit operator action, so
  * this schema cannot express a tool-authored approval even by mistake.
@@ -61,6 +80,9 @@ export const ZReleaseOutput = z.object({
     diverse: z.boolean().nullable(),
     caveat: z.string(),
   }).strict().nullable().default(null),
+  // Null for a run with no approved baseline, which is every run that predates
+  // the editorial path.
+  editorial: ZEditorialBinding.nullable().default(null),
 }).strict();
 
 /**
@@ -78,4 +100,8 @@ export const ZReleaseApproval = z.object({
   acceptedFindingIds: z.array(z.string().regex(/^f-[a-f0-9]{12}$/)),
   decidedAt: z.string(),
   note: z.string().nullable().default(null),
+  // Copied from the release record at the moment of approval. Defaulted to null
+  // so an approval written before this field existed still parses and still
+  // applies -- it approved a document that had no editorial state to bind to.
+  editorial: ZEditorialBinding.nullable().default(null),
 }).strict();

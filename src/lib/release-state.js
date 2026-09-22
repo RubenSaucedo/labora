@@ -39,6 +39,31 @@ export function approvalStatus(release, approval) {
       reason: "the artifact changed after it was approved; review and approve the new document",
     };
   }
+
+  // Editorial staleness.
+  //
+  // An artifact hash answers "is this the same file". It does not answer "is
+  // this the same proposal": the same DOCX can be reached from a different
+  // baseline or a different set of editorial operations, and the operator
+  // approved the proposal as much as the file. Each field is compared only when
+  // both sides carry it, so an approval recorded before this existed is not
+  // retroactively invalidated by a release that now records editorial state.
+  const before = approval.editorial || null;
+  const now = release.editorial || null;
+  if (before && now) {
+    const drifted = [
+      ["baselineHash", "the approved baseline changed"],
+      ["editorialPlanHash", "the proposed edits changed"],
+      ["revisedContentHash", "the accepted wording changed"],
+    ].filter(([field]) => before[field] && now[field] && before[field] !== now[field]);
+    if (drifted.length) {
+      return {
+        approved: false,
+        reason: `${drifted.map(([, text]) => text).join("; ")} after this was approved; review and approve again`,
+      };
+    }
+  }
+
   const accepted = new Set(approval.acceptedFindingIds);
   const current = release.findings.map((finding) => finding.id);
   const unacknowledged = current.filter((id) => !accepted.has(id));

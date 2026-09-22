@@ -102,6 +102,9 @@ function main() {
     acceptedFindingIds: accepted,
     decidedAt: new Date().toISOString(),
     note: flag("--note"),
+    // Copied, not recomputed. The approval has to record what was on screen,
+    // and recomputing here would bind it to whatever the files say now.
+    editorial: release.editorial ?? null,
   });
   fs.writeFileSync(approvalPath, `${JSON.stringify(approval, null, 2)}\n`, "utf8");
   process.stdout.write(

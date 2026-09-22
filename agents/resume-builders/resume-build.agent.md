@@ -45,6 +45,13 @@ must be rebuilt from the earliest stale dependency.
    close. Pass it only the persona root and application directory. It must return
    with claim validation passing.
 
+   When `application-strategy.json` names a `baselineResume`, tell it so: it
+   loads `resume-editorial`, writes `editorial-plan.json` before mutating prose,
+   and returns `validations/editorial.json` alongside claim validation. Check
+   `labora baseline <application-dir> --check` yourself first — a baseline whose
+   bytes changed carries no approval, and starting the writer against one
+   produces preservation guarantees that are not true.
+
    If `validate-claims` exits `3`, stop the pipeline here but do **not** report
    the run as a factual failure. Every remaining error is a
    `stale_derived_record`: a human-authored source moved ahead of
@@ -55,7 +62,12 @@ must be rebuilt from the earliest stale dependency.
    marked `UNVALIDATED / PROFILE REBUILD REQUIRED`. Exit `2` is different: the
    resume asserts something the evidence does not support, and only the content
    can change.
-6. `resume-format`, including artifact validation.
+6. `resume-format`, including artifact validation. Before rendering, run
+   `labora audit-document` over the drafted resume. It reports what no
+   single-sentence check can see — repeated openings and clause shapes, noun
+   stacks, duplicate bullet purposes, keyword placement regressions, voice
+   drift, and compression that removed the evidence of level. Every one of those
+   is advisory; it exits 0 with findings, and none of them is yours to enforce.
 7. Launch `judge-ats`, `judge-engineer`, and `judge-hr` as **separate
    sub-agents**, each in its own fresh context — not as skills loaded into this
    conductor context. Pass each only the `<job-slug>`, persona root, and the
@@ -72,10 +84,22 @@ must be rebuilt from the earliest stale dependency.
    actually produced a verdict. Pass each judge only the application directory
    and selected artifact path; each judge obtains its complete isolated input
    through `prepare-judge-input.js`.
-8. `resume-quality-gate`.
-9. If the gate identifies a fix supported by existing verified claims, permit
-   one bounded remediation cycle from tailoring. Never invent around a blocker.
-10. Write `summary.md`.
+8. Launch **`resume-cold-reader`** as a **separate sub-agent** whose entire
+   world is built by `labora prepare-reader-input`: the rendered text, the
+   posting, and an audience label. It is isolated for the same structural
+   reason the judges are, and a stronger one — a reviewer who has seen the
+   evidence understands sentences a recruiter will not, and will report them
+   clear. Never hand it claims, accomplishments, the strategy, the editorial
+   plan, or an explanation of what the writer intended. Return its findings to
+   the writer, which repairs them against the evidence; the cold reader names
+   the ambiguity and never invents the missing fact.
+9. `resume-quality-gate`.
+10. If the gate identifies a fix supported by existing verified claims, permit
+    one bounded remediation cycle from tailoring. Never invent around a blocker.
+    With a baseline present, that cycle updates `editorial-plan.json` too: a fix
+    that changes approved wording without recording the operation is exactly the
+    silent replacement the plan exists to prevent.
+11. Write `summary.md`.
 
 ## Completion contract
 

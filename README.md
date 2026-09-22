@@ -283,6 +283,7 @@ stable at runtime, so callers still dispatch `labora:<agent-name>`.
 | Curate | `profile-builder` | evidence + sources, **no job** | `profile/generated/` (sole owner) |
 | Advocate | `resume-writer-expert` | claims, bank, job spec — **never raw evidence** | `resume.json` |
 | Adjudicate | `judge-ats`, `judge-engineer`, `judge-hr` | rendered artifact + job only | `judges/*.json` |
+| Read cold | `resume-cold-reader` | rendered text + posting + audience label only | `reader-review.json` |
 | Conduct | `resume-build`, `job-explorer` | orchestration state | summaries, reconciliation |
 
 | Agent | Role |
@@ -296,6 +297,7 @@ stable at runtime, so callers still dispatch `labora:<agent-name>`.
 | `judge-ats` | Isolated ATS-gate judge (fresh context) |
 | `judge-engineer` | Isolated technical hiring-manager judge (fresh context) |
 | `judge-hr` | Isolated recruiter / HR screening judge (fresh context) |
+| `resume-cold-reader` | Isolated external reader — sees only the rendered text, the posting and an audience label, and reports what each phrase appears to mean |
 | `job-explorer` | Job-discovery conductor: collects postings, launches three independent scoring scouts, and reconciles them |
 | `scout-discovery` | Read-only collector — verifies and deduplicates current postings without scoring |
 | `scout-fit` | Isolated scout — skills/domain/seniority match vs. verified claims |
@@ -332,6 +334,7 @@ See `ARCHITECTURE.md` for the discovery layout and consensus rule.
 | `resume-job-analysis` | Classify required, preferred and responsibility constraints |
 | `resume-application-strategy` | Build the private positioning brief and targeted evidence questions |
 | `resume-tailor` | Tailor only from verified claims and map provenance; executed by `resume-writer-expert` |
+| `resume-editorial` | Edit against an operator-approved baseline: plan keep/move/combine/split/make-specific/delete/rewrite per span, then audit the whole document |
 | `resume-format` | Inject contact, render Markdown review + DOCX/PDF, validate delivery-artifact recall |
 | `judge-ats` | ATS rubric/procedure — executed by the `judge-ats` agent |
 | `judge-engineer` | Engineering-depth rubric — executed by the `judge-engineer` agent |
@@ -349,6 +352,12 @@ rubric; the matching agents provide the isolated context that runs them.
 labora analyze-job <job.md> [job-spec.json]
 labora validate-evidence-cleaning <extracted.md> <cleaned.md> --metadata <extracted.json>
 labora validate-application-strategy <strategy.json> <job-spec.json> <claims.json> [--accomplishments <accomplishments.json>]
+labora baseline <application-dir> --record <resume-approved.json> [--approved-by-operator]
+labora baseline <application-dir> --check
+labora validate-editorial-plan <editorial-plan.json> <resume.json> <claims.json> --application <application-dir> [--accomplishments <accomplishments.json>]
+labora validate-section-plans <resume.json> [--claims <claims.json>] [--experience-plan <f>] [--skills-plan <f>] [--projects-plan <f>]
+labora audit-document <resume.json> [--job-spec <job-spec.json>] [--claims <claims.json>] [--application <application-dir>] [--editorial-plan <f>]
+labora prepare-reader-input <artifact-text.txt> [--job <job.md>] [--audience recruiter|engineering_manager|technical_screener]
 labora rank-accomplishments <accomplishments.json> <job-spec.json> [--limit <n>]
 labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>
 labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>] [--job-spec <job-spec.json>]
