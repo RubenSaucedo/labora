@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import {
@@ -110,30 +112,24 @@ test("an unknown style fails with the accepted values instead of falling back", 
   }
 });
 
-test("a renderer CLI refuses an unknown style with a non-zero exit", () => {
+test("grouped renderer CLIs refuse an unknown style with a non-zero exit", () => {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "labora-style-"));
+  const resume = path.join(pluginRoot, "data/personas/example/applications/acme-senior-fe-mar-25/resume.json");
+  const contact = path.join(pluginRoot, "data/personas/example/profile/contact.md");
+  const job = path.join(pluginRoot, "data/personas/example/applications/acme-senior-fe-mar-25/job.md");
   const cases = [
-    { tool: "format-docx", args: ["resume.json", "out.docx"] },
-    {
-      tool: "format-pdf",
-      args: [
-        path.join(pluginRoot, "data/personas/example/applications/acme-senior-fe-mar-25/resume.json"),
-        "out.pdf",
-        "--contact", path.join(pluginRoot, "data/personas/example/profile/contact.md"),
-        "--job", path.join(pluginRoot, "data/personas/example/applications/acme-senior-fe-mar-25/job.md"),
-      ],
-    },
-    { tool: "run-state", args: ["check", "."] },
+    { command: ["render", "resume", resume, "--out", out, "--contact", contact, "--job", job] },
   ];
-  for (const { tool, args } of cases) {
+  for (const { command } of cases) {
     const result = spawnSync(
       process.execPath,
-      [path.join(pluginRoot, "src", "tools", `${tool}.js`), ...args, "--style", "2"],
+      [path.join(pluginRoot, "bin", "labora"), ...command, "--style", "2"],
       { cwd: pluginRoot, encoding: "utf8" }
     );
-    assert.notEqual(result.status, 0, `${tool} must exit non-zero`);
-    assert.match(result.stderr, /Unknown resume style "2"/, tool);
+    assert.notEqual(result.status, 0, `${command.slice(0, 2).join(" ")} must exit non-zero`);
+    assert.match(result.stderr, /Unknown resume style "2"/, command.join(" "));
     for (const id of BUILT_IN_IDS) {
-      assert.ok(result.stderr.includes(id), `${tool} must list ${id}`);
+      assert.ok(result.stderr.includes(id), `${command.join(" ")} must list ${id}`);
     }
   }
 });

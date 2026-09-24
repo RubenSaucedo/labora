@@ -112,66 +112,6 @@ export function validateDiscoveryReport(
   return true;
 }
 
-function preferenceEvidence(preferences) {
-  return [
-    ...(preferences.targetTitles || []),
-    ...(preferences.targetLevels || []),
-    ...(preferences.targetCompanies || []),
-    ...(preferences.locations || []),
-    ...(preferences.mustHaves || []),
-    ...(preferences.goals || []),
-    preferences.remotePreference,
-    ...(preferences.minCompensation == null ? [] : ["minCompensation"]),
-  ].filter(Boolean).map((value) => String(value).trim().toLowerCase());
-}
-
-export function validateFitReportGrounding(
-  scoutReports,
-  claimLedger,
-  preferences,
-  { fitFloor = 60 } = {}
-) {
-  const fitReport = scoutReports.find((report) => report.angle === "fit");
-  if (!fitReport) throw new Error("Fit grounding validation requires a fit scout report.");
-
-  const verifiedClaims = new Set(
-    (claimLedger.claims || [])
-      .filter((claim) => claim.status === "verified")
-      .map((claim) => claim.id)
-  );
-  const validPreferences = new Set(preferenceEvidence(preferences));
-
-  for (const report of scoutReports) {
-    for (const candidate of report.candidates) {
-      const unknownClaims = candidate.matchedClaims.filter((id) => !verifiedClaims.has(id));
-      if (unknownClaims.length) {
-        throw new Error(
-          `${report.angle} scout "${candidate.jobId}" cites unverified or unknown claims: ${unknownClaims.join(", ")}.`
-        );
-      }
-      const unknownPreferences = candidate.matchedPreferences.filter(
-        (value) => !validPreferences.has(String(value).trim().toLowerCase())
-      );
-      if (unknownPreferences.length) {
-        throw new Error(
-          `${report.angle} scout "${candidate.jobId}" cites unknown preferences: ${unknownPreferences.join(", ")}.`
-        );
-      }
-    }
-  }
-  for (const candidate of fitReport.candidates) {
-    if (
-      candidate.score >= fitFloor &&
-      (!candidate.matchedClaims.length || !candidate.matchedPreferences.length)
-    ) {
-      throw new Error(
-        `Fit scout "${candidate.jobId}" scored ${candidate.score} but lacks both verified claim and preference grounding.`
-      );
-    }
-  }
-  return true;
-}
-
 function isAvoided(candidate, avoid) {
   if (!avoid || avoid.length === 0) return false;
   const haystack = `${candidate.company} ${candidate.title}`.toLowerCase();
@@ -667,7 +607,7 @@ function renderCard(lines, entry, rank, deduped) {
     const fitText = (entry.rationale || []).find((r) => r.angle === "fit");
     if (fitText) lines.push(`- ${fitText.text}`);
     if (entry.matchedClaims?.length) {
-      lines.push(`- Backed by ${entry.matchedClaims.length} verified claims: \`${entry.matchedClaims.join("`, `")}\``);
+      lines.push(`- Matches ${entry.matchedClaims.length} thing(s) in the profile: ${entry.matchedClaims.join(", ")}`);
     }
   }
   lines.push("");

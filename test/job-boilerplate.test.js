@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { extractJobRequirements } from "../src/lib/job-requirements.js";
 import { boilerplateReason, classifyNonRequirement, isEeoBoilerplate, looksLikeRequirement, splitSentences } from "../src/lib/job-boilerplate.js";
-import { scoreAts } from "../src/lib/score-resume-ats.js";
 import { ZJobSpec } from "../src/schemas/job-spec.js";
 
 // A real scraped posting: no markdown headings, so whatever section heading came
@@ -482,21 +481,13 @@ test("a licence gate and a licence benefit on one line are judged separately", (
 // The jurisdiction must come from the sentence stating the gate. Read across
 // the whole line, a legal footer naming a different country matched a resume
 // authorized somewhere else entirely.
-test("work authorization is matched against the jurisdiction the gate names", () => {
-  const jobSpec = analyze(
+test("work authorization gates are extracted from the sentence that states them", () => {
+  const spec = analyze(
     "Requirements\n\nCandidates must be authorized to work in Canada. Acme is an equal opportunity employer headquartered in the United States."
   );
-  const score = (summary) => scoreAts({
-    jobSpec,
-    resume: { summary, experience: [], skills: [], education: [] },
-  }).hard_eligibility_missing;
-
-  assert.equal(score("Authorized to work in Canada").length, 0, "the Canadian gate must accept a Canadian authorization");
-  assert.equal(
-    score("Authorized to work in the United States").length,
-    1,
-    "a US authorization must not satisfy a Canadian gate"
-  );
+  const gates = spec.requirements.filter((r) => r.kind === "authorization" && r.severity === "hard_eligibility");
+  assert.equal(gates.length, 1);
+  assert.match(gates[0].text, /Canada/);
 });
 
 // A stated duty outranks a pay-disclosure cue naming the same factors.
@@ -554,17 +545,13 @@ test("a duty naming the employer's team is still the candidate's duty", () => {
 
 // Jurisdiction comes from the sentence classified as the gate, not from any
 // sentence that merely mentions the subject.
-test("an unrelated sponsorship offer does not set the gate's jurisdiction", () => {
-  const jobSpec = analyze(
+test("an unrelated sponsorship offer does not rewrite the stated authorization gate", () => {
+  const spec = analyze(
     "Requirements\n\nCandidates must be authorized to work in Canada. Visa sponsorship is available for positions in the United States."
   );
-  const score = (summary) => scoreAts({
-    jobSpec,
-    resume: { summary, experience: [], skills: [], education: [] },
-  }).hard_eligibility_missing;
-
-  assert.equal(score("Authorized to work in Canada").length, 0);
-  assert.equal(score("Authorized to work in the United States").length, 1);
+  const gates = spec.requirements.filter((r) => r.kind === "authorization" && r.severity === "hard_eligibility");
+  assert.equal(gates.length, 1);
+  assert.match(gates[0].text, /Canada/);
 });
 
 // A disclaimer names the very gate it disclaims, so it must govern only the
@@ -621,12 +608,11 @@ test("a bare credential bullet is still a license gate", () => {
 // A bounded wildcard let a disclaimer reach across a contrast and protect the
 // demand on the other side of it.
 test("a disclaimer does not reach across a contrast into a real demand", () => {
-  const jobSpec = analyze("Requirements\n\nWe do not require a degree, but require U.S. citizenship.");
-  const missing = scoreAts({
-    jobSpec,
-    resume: { summary: "Bachelor of Science in Computer Science", experience: [], skills: [], education: [] },
-  }).hard_eligibility_missing;
-  assert.equal(missing.length, 1);
+  const spec = analyze("Requirements\n\nWe do not require a degree, but require U.S. citizenship.");
+  assert.ok(
+    spec.requirements.some((r) => r.kind === "authorization" && r.severity === "hard_eligibility"),
+    JSON.stringify(spec.requirements)
+  );
 });
 
 // Employer vocabulary inside a duty does not make the duty employer prose. The

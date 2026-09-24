@@ -11,7 +11,7 @@ import { validateRenderedArtifact } from "../src/lib/validate-artifact.js";
 import { extractTextFromDocx } from "../src/utils/docx-to-text.js";
 import { readDocxPart, readDocxStyleProfileId } from "../src/utils/docx-parts.js";
 import { DEFAULT_STYLE_ID, docxStyleTokens, resolveStyleProfile } from "../src/lib/resume-style.js";
-import { ZTailoredResume } from "../src/schemas/tailored-resume.js";
+import { ZResume, readResume } from "../src/schemas/resume.js";
 
 // Production reads the expected section order from the style profile that
 // rendered the artifact. Tests must do the same, or they assert against an
@@ -71,10 +71,7 @@ function tailoredResume() {
     }],
     certifications: [{ name: "Cloud Certificate", issuer: "Example", year: "2025" }],
     awards_or_contributions: [],
-    keywords_mapped: [{
-      keyword: "secret-keyword",
-      evidence: "internal-only",
-    }],
+    notes: ["secret reviewer note"],
   };
 }
 
@@ -82,7 +79,7 @@ test("injects contact and preserves fields through DOCX round trip", async () =>
   const contact = parseContact(`## Engineer data
 - Name: Jane Example
 - Phone: +1 555-123-4567
-- Email: jane@example.com
+- Email: jane@example.invalid
 - Address: Seattle, WA
 - Web: https://jane.example.test`);
   const resume = injectContact(tailoredResume(), contact);
@@ -97,7 +94,7 @@ test("injects contact and preserves fields through DOCX round trip", async () =>
   assert.match(text, /https:\/\/jane\.example\.test/);
   assert.match(text, /https:\/\/example.com\/project/);
   assert.match(text, /Cloud Certificate, Example, 2025/);
-  assert.doesNotMatch(text, /secret-keyword/);
+  assert.doesNotMatch(text, /secret reviewer note/);
   assert.equal(validation.fieldRecallScope, "renderer_input");
 
   const withoutPortfolio = validateRendered({
@@ -112,7 +109,7 @@ test("renders a deterministic Markdown review companion without internal metadat
   const contact = parseContact(`## Engineer data
 - Name: Jane Example
 - Phone: +1 555-123-4567
-- Email: jane@example.com
+- Email: jane@example.invalid
 - Address: Seattle, WA
 - Web: https://jane.example.test`);
   const formatter = agent2ResumeToFormatterJson(injectContact(tailoredResume(), contact));
@@ -123,12 +120,12 @@ test("renders a deterministic Markdown review companion without internal metadat
   assert.equal(first, second);
   assert.equal(validation.valid, true);
   assert.equal(validation.fieldRecallPercent, 100);
-  assert.match(first, /^<!-- Labora review companion\./);
+  assert.match(first, /^<!-- Labora review copy\./);
   assert.match(first, /# Jane Example/);
   assert.match(first, /https:\/\/jane\.example\.test/);
   assert.match(first, /- Built a reliable React application/);
-  assert.doesNotMatch(first, /secret-keyword/);
-  assert.doesNotMatch(first, /keywords_mapped/);
+  assert.doesNotMatch(first, /secret reviewer note/);
+  assert.doesNotMatch(first, /notes/);
 });
 
 test("escapes active Markdown and HTML from dynamic resume text", () => {
@@ -137,7 +134,7 @@ test("escapes active Markdown and HTML from dynamic resume text", () => {
   resume.experience[0].bullets = ["![remote](https://example.invalid/pixel)"];
   const formatter = agent2ResumeToFormatterJson(injectContact(resume, {
     name: "Jane Example",
-    email: "jane@example.com",
+    email: "jane@example.invalid",
     phone: "+1 555-123-4567",
   }));
   const markdown = resumeJsonToMarkdown(formatter);
@@ -153,7 +150,7 @@ test("escapes active Markdown and HTML from dynamic resume text", () => {
 test("fails when a rendered project, skill, or certification is missing", () => {
   const formatter = agent2ResumeToFormatterJson(injectContact(tailoredResume(), {
     name: "Jane Example",
-    email: "jane@example.com",
+    email: "jane@example.invalid",
     phone: "+1 555-123-4567",
   }));
   const result = validateRendered({
@@ -166,26 +163,30 @@ test("fails when a rendered project, skill, or certification is missing", () => 
   assert.equal(result.missingSections.includes("Certifications"), true);
 });
 
-test("contact injection requires complete private context", () => {
+test("contact injection requires the one field the header cannot render without", () => {
+  assert.deepEqual(
+    injectContact(tailoredResume(), { name: "Jane" }).contact,
+    { name: "Jane", email: "", phone: "", location: "", linkedin: "", github: "", portfolio: "" }
+  );
   assert.throws(
-    () => injectContact(tailoredResume(), { name: "Jane", email: "jane@example.com" }),
-    /missing required contact fields/
+    () => injectContact(tailoredResume(), { email: "jane@example.invalid" }),
+    /needs at least a name/
   );
 });
 
 test("persisted tailored resumes cannot contain contact data", () => {
   const resume = tailoredResume();
   resume.contact.email = "persisted@example.com";
-  assert.equal(ZTailoredResume.safeParse(resume).success, false);
+  assert.equal(ZResume.safeParse(resume).success, false);
 });
 
 test("experience location survives schema, adapter, and every formatter", async () => {
   const resume = tailoredResume();
   resume.experience[0].location = "Austin, TX";
-  const parsed = ZTailoredResume.parse(resume);
+  const parsed = ZResume.parse(resume);
   const formatter = agent2ResumeToFormatterJson(injectContact(parsed, {
     name: "Jane Example",
-    email: "jane@example.com",
+    email: "jane@example.invalid",
     phone: "+1 555-123-4567",
   }));
   const markdown = resumeJsonToMarkdown(formatter);
@@ -212,13 +213,13 @@ test("experience location survives schema, adapter, and every formatter", async 
 test("requires every duplicate rendered field occurrence", () => {
   const formatter = agent2ResumeToFormatterJson(injectContact(tailoredResume(), {
     name: "Jane Example",
-    email: "jane@example.com",
+    email: "jane@example.invalid",
     phone: "+1 555-123-4567",
   }));
   formatter.experience[0].highlights.push("Built a reliable React application");
   const result = validateRendered({
     resume: formatter,
-    extractedText: "Jane Example jane@example.com +1 555-123-4567 Engineer Summary Engineer with a record of shipping reliable systems. Experience Example Engineer 2022 - Present Built a reliable React application Skills React Education Example University BS Computer Science 2014 2018 Seattle WA Projects Project One A useful project https://example.com/project Certifications Cloud Certificate Example 2025",
+    extractedText: "Jane Example jane@example.invalid +1 555-123-4567 Engineer Summary Engineer with a record of shipping reliable systems. Experience Example Engineer 2022 - Present Built a reliable React application Skills React Education Example University BS Computer Science 2014 2018 Seattle WA Projects Project One A useful project https://example.com/project Certifications Cloud Certificate Example 2025",
   });
   assert.equal(result.valid, false);
   assert.equal(result.missingFields.some((field) => field.includes("highlights[1]")), true);
@@ -234,7 +235,7 @@ test("renders employer tenure separately from the undated current role", async (
   };
   const formatter = agent2ResumeToFormatterJson(injectContact(resume, {
     name: "Jane Example",
-    email: "jane@example.com",
+    email: "jane@example.invalid",
     phone: "+1 555-123-4567",
   }));
   const markdown = resumeJsonToMarkdown(formatter);
@@ -255,32 +256,21 @@ test("renders employer tenure separately from the undated current role", async (
   }
 });
 
-test("all formatter surfaces suppress generic progression unless career jumps are explicit", async () => {
-  const resume = tailoredResume();
-  resume.experience[0].role = "Senior Engineer";
-  resume.experience[0].progression = [
-    {
-      label: "Internal A",
-      externalLabel: "Promoted",
-      date: "2020",
-      disclosure: "internal_generalizable",
-    },
-    {
-      label: "Internal B",
-      externalLabel: "Senior Engineer",
-      date: "2022",
-      disclosure: "internal_generalizable",
-    },
-    {
-      label: "Internal C",
-      externalLabel: "Promoted",
-      date: "2023",
-      disclosure: "internal_generalizable",
-    },
+test("claim-era progression is dropped on read and never rendered", async () => {
+  const legacy = tailoredResume();
+  legacy.schema_version = "3.0";
+  legacy.experience[0].role = "Senior Engineer";
+  legacy.experience[0].progression = [
+    { label: "Engineer", externalLabel: "Engineer", date: "2020" },
+    { label: "Senior Engineer", externalLabel: "Senior Engineer", date: "2022" },
   ];
-  const formatter = agent2ResumeToFormatterJson(injectContact(resume, {
+
+  const parsed = readResume(legacy);
+  assert.equal("progression" in parsed.experience[0], false);
+
+  const formatter = agent2ResumeToFormatterJson(injectContact(parsed, {
     name: "Jane Example",
-    email: "jane@example.com",
+    email: "jane@example.invalid",
     phone: "+1 555-123-4567",
   }));
   const markdown = resumeJsonToMarkdown(formatter);
@@ -289,13 +279,9 @@ test("all formatter surfaces suppress generic progression unless career jumps ar
   const docxText = await extractTextFromDocx({ buffer: docx });
 
   for (const rendered of [markdown, html, docxText]) {
-    assert.doesNotMatch(rendered, /Promoted 2020/);
-    assert.doesNotMatch(rendered, /Senior Engineer, 2022/);
+    assert.doesNotMatch(rendered, /Engineer, 2020/);
+    assert.doesNotMatch(rendered, /Promoted/);
   }
-
-  formatter.experience[0].progression[0].externalLabelKind = "scope_change";
-  formatter.experience[0].progression[2].externalLabelKind = "scope_change";
-  assert.match(resumeJsonToMarkdown(formatter), /Promoted twice \(2020, 2023\)/);
 });
 
 // ---------------------------------------------------------------------------

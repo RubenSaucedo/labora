@@ -1,7 +1,7 @@
 {
   "name": "labora",
-  "description": "Evidence-grounded resume pipeline with structured job analysis, claim provenance, deterministic artifact gates, independent ATS/engineer/HR judges, and a final release decision.",
-  "version": "7.6.0",
+  "description": "Conversational résumé partner: interviews you about your work, drafts and tailors the document, renders DOCX/PDF, and reads it back the way a recruiter would.",
+  "version": "8.0.0",
   "author": {
     "name": "RubenSaucedo",
     "url": "https://github.com/RubenSaucedo"
@@ -20,7 +20,6 @@
     "workflow-automation"
   ],
   "agents": [
-    "agents/judges/",
     "agents/job-scouts/",
     "agents/profile-builders/",
     "agents/resume-builders/"

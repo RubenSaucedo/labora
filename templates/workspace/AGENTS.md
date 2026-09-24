@@ -1,6 +1,6 @@
 # Agent instructions for this workspace
 
-This workspace holds **personal career data**: evidence, claims, resumes and
+This workspace holds **personal career data**: material you have gathered, résumés and
 live job applications. Read this before publishing anything anywhere.
 
 ## Nothing personal leaves this workspace
@@ -24,8 +24,8 @@ screenshot:
   ticket IDs.**
 - **Paths containing a username, persona slug or application slug** — including
   inside a stack trace, log excerpt or filename.
-- **Verbatim excerpts** from evidence, reviews, resume bullets, claims or judge
-  feedback. A quoted bullet identifies a person as surely as a name.
+- **Verbatim excerpts** from source material, reviews or résumé bullets. A
+  quoted bullet identifies a person as surely as a name.
 
 Instead, describe the **class** of problem: the *shape* of the input, never the
 input. Reproduce with the synthetic `example` persona that ships with labora —

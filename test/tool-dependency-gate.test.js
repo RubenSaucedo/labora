@@ -11,17 +11,31 @@ const toolsDir = path.join(pluginRoot, "src", "tools");
 const declared = Object.keys(
   JSON.parse(fs.readFileSync(path.join(pluginRoot, "package.json"), "utf8")).dependencies || {}
 );
-const tools = fs
-  .readdirSync(toolsDir)
-  .filter((entry) => entry.endsWith(".js"))
-  .map((entry) => entry.slice(0, -3));
 
-const depsFor = (tool) => requiredDependencies(path.join(toolsDir, `${tool}.js`), declared);
+function toolFiles() {
+  const found = [];
+  for (const group of fs.readdirSync(toolsDir, { withFileTypes: true })) {
+    if (!group.isDirectory()) continue;
+    const groupDir = path.join(toolsDir, group.name);
+    for (const entry of fs.readdirSync(groupDir)) {
+      if (!entry.endsWith(".js")) continue;
+      found.push({ command: `${group.name} ${entry.slice(0, -3)}`, file: path.join(groupDir, entry) });
+    }
+  }
+  return found.sort((a, b) => a.command.localeCompare(b.command));
+}
+
+const tools = toolFiles();
+const depsFor = (command) => {
+  const tool = tools.find((entry) => entry.command === command);
+  assert.ok(tool, `missing tool ${command}`);
+  return requiredDependencies(tool.file, declared);
+};
 
 test("a tool never requires a package the plugin does not declare", () => {
   for (const tool of tools) {
-    for (const name of depsFor(tool)) {
-      assert.ok(declared.includes(name), `${tool} requires undeclared ${name}`);
+    for (const name of requiredDependencies(tool.file, declared)) {
+      assert.ok(declared.includes(name), `${tool.command} requires undeclared ${name}`);
     }
   }
 });
@@ -31,31 +45,25 @@ test("a tool never requires a package the plugin does not declare", () => {
 // tools importing nothing beyond Node were refused, so the pipeline looked
 // entirely dead when a third of it was fine.
 test("tools that import no dependency require none", () => {
-  for (const tool of ["run-state", "triage-gaps", "parse-job", "resume-text"]) {
+  for (const tool of ["job parse", "inspect resume", "workspace lint", "workspace migrate"]) {
     assert.deepEqual(depsFor(tool), [], `${tool} must run with no dependency installed`);
   }
 });
 
 test("the walk follows internal imports transitively, not just direct ones", () => {
-  // quality-gate.js imports no package directly; it reaches mammoth and
-  // pdf-parse only through src/lib. A direct-import check would clear it and
-  // then fail at runtime inside a library.
-  const source = fs.readFileSync(path.join(toolsDir, "quality-gate.js"), "utf8");
+  // verify artifact reaches mammoth and pdf-parse through shared libraries. A
+  // direct-import check would clear it and then fail at runtime inside a reader.
+  const source = fs.readFileSync(path.join(toolsDir, "verify", "artifact.js"), "utf8");
   for (const name of ["mammoth", "pdf-parse"]) {
     assert.ok(!source.includes(`"${name}"`), `${name} is expected to be an indirect import`);
-    assert.ok(depsFor("quality-gate").includes(name), `quality-gate must require ${name}`);
+    assert.ok(depsFor("verify artifact").includes(name), `verify artifact must require ${name}`);
   }
 });
 
-test("rendering and validation still require their packages", () => {
-  // format-docx renders no PDF, but it shares src/agents/format-resume.js with
-  // the PDF path, so the walk reaches puppeteer-core and pdf-parse through it.
-  // The gate is deliberately conservative here: all three ship in the same
-  // install, and refusing a tool whose module graph is incomplete is safer than
-  // failing inside a library halfway through a render.
-  assert.deepEqual(depsFor("format-docx"), ["docx", "pdf-parse", "puppeteer-core", "zod"]);
-  assert.ok(depsFor("validate-claims").includes("zod"));
-  assert.ok(depsFor("artifact-text").includes("pdf-parse"));
+test("rendering and artifact inspection still require their packages", () => {
+  assert.deepEqual(depsFor("render resume"), ["docx", "pdf-parse", "puppeteer-core", "zod"]);
+  assert.ok(depsFor("verify artifact").includes("zod"));
+  assert.ok(depsFor("inspect artifact").includes("pdf-parse"));
 });
 
 test("an optional dependency never gates a tool", () => {
@@ -66,7 +74,7 @@ test("an optional dependency never gates a tool", () => {
   assert.ok(optional.length > 0, "expected at least one optional dependency to guard");
   for (const tool of tools) {
     for (const name of optional) {
-      assert.ok(!depsFor(tool).includes(name), `${tool} must not be gated on optional ${name}`);
+      assert.ok(!requiredDependencies(tool.file, declared).includes(name), `${tool.command} must not be gated on optional ${name}`);
     }
   }
 });
@@ -98,7 +106,7 @@ test("a dependency-free tool is dispatched rather than refused when node_modules
   // it was dispatched, the refusal means the gate stopped it.
   const result = spawnSync(
     process.execPath,
-    [path.join(pluginRoot, "bin", "labora"), "run-state", "--help"],
+    [path.join(pluginRoot, "bin", "labora"), "job", "parse"],
     { encoding: "utf8" }
   );
   const output = `${result.stdout}${result.stderr}`;
@@ -106,17 +114,17 @@ test("a dependency-free tool is dispatched rather than refused when node_modules
     !/not installed/.test(output),
     `a dependency-free tool must not be refused by the dependency gate, got: ${output}`
   );
-  assert.match(output, /Usage: labora run-state/, "expected the tool's own usage");
+  assert.match(output, /Usage: labora job parse/, "expected the tool's own usage");
 });
 
 test("a tool that needs a package is still refused, and the message names only that package", () => {
   const result = spawnSync(
     process.execPath,
-    [path.join(pluginRoot, "bin", "labora"), "format-docx"],
+    [path.join(pluginRoot, "bin", "labora"), "render", "resume"],
     { encoding: "utf8" }
   );
   if (!/not installed/.test(result.stderr)) return; // dependencies are installed here
-  assert.match(result.stderr, /format-docx needs/, "the refusal must name the tool");
+  assert.match(result.stderr, /render resume needs/, "the refusal must name the tool");
   assert.ok(
     !/mammoth/.test(result.stderr.split("These")[0]),
     "the refusal must not name a package this tool does not use"

@@ -5,7 +5,6 @@ import {
   canonicalJobId,
   postingHash,
   validateDiscoveryReport,
-  validateFitReportGrounding,
   validateScoutReportsAgainstDiscovery,
 } from "../src/lib/job-search.js";
 import { ZCompanyCoverage, ZAdjacentCompany } from "../src/schemas/job-search.js";
@@ -337,88 +336,6 @@ test("scout reports must be generated during the dated discovery run", () => {
   );
 });
 
-test("fit scores at the promotion floor require verified claim and preference grounding", () => {
-  const reports = [
-    report("fit", [cand({
-      jobId: "job-1",
-      score: 80,
-      matchedClaims: ["claim-react"],
-      matchedPreferences: ["React"],
-    })]),
-  ];
-  const claims = {
-    claims: [{ id: "claim-react", status: "verified" }],
-  };
-  const preferences = {
-    targetTitles: [],
-    targetLevels: [],
-    locations: [],
-    mustHaves: ["React"],
-    goals: [],
-    remotePreference: "any",
-  };
-  assert.equal(
-    validateFitReportGrounding(reports, claims, preferences, { fitFloor: 60 }),
-    true
-  );
-  assert.throws(
-    () => validateFitReportGrounding(
-      [report("fit", [cand({
-        jobId: "job-1",
-        score: 80,
-        matchedClaims: ["invented"],
-        matchedPreferences: ["React"],
-      })])],
-      claims,
-      preferences,
-      { fitFloor: 60 }
-    ),
-    /unverified or unknown claims/
-  );
-  assert.throws(
-    () => validateFitReportGrounding(
-      [report("fit", [cand({ jobId: "job-1", score: 80 })])],
-      claims,
-      preferences,
-      { fitFloor: 60 }
-    ),
-    /lacks both verified claim and preference grounding/
-  );
-});
-
-test("all scouts must use verified claims and configured preferences", () => {
-  const reports = [
-    report("fit", [cand({
-      jobId: "job-1",
-      score: 80,
-      matchedClaims: ["claim-react"],
-      matchedPreferences: ["React"],
-    })]),
-    report("growth", [cand({
-      jobId: "job-1",
-      matchedClaims: ["invented"],
-      matchedPreferences: ["React"],
-    })]),
-  ];
-  assert.throws(
-    () => validateFitReportGrounding(
-      reports,
-      { claims: [{ id: "claim-react", status: "verified" }] },
-      {
-        targetTitles: [],
-        targetLevels: [],
-        locations: [],
-        mustHaves: ["React"],
-        goals: [],
-        remotePreference: "any",
-        minCompensation: null,
-      },
-      { fitFloor: 60 }
-    ),
-    /growth scout.*unverified or unknown claims/
-  );
-});
-
 test("a rejected posting keeps the reasoning that explains the rejection", () => {
   const j = { jobId: "job-1", url: "https://x.co/1" };
   const { excluded } = reconcileCandidates([
@@ -463,27 +380,6 @@ test("clearing fit but missing the threshold is blocked, and names the weak angl
   assert.equal(excluded[0].disposition, "blocked");
   assert.match(excluded[0].blocker, /growth/);
   assert.match(excluded[0].blocker, /by 7/);
-});
-
-test("target companies count as citable preference evidence", () => {
-  const prefs = {
-    targetTitles: ["Senior Frontend Engineer"],
-    targetCompanies: ["Northwind"],
-    remotePreference: "any",
-    minCompensation: null,
-  };
-  const scouts = [report("fit", [cand({
-    jobId: "job-1", url: "https://x.co/1", score: 80,
-    matchedClaims: ["claim-1"], matchedPreferences: ["Northwind"],
-  })])];
-  const ledger = { claims: [{ id: "claim-1", status: "verified" }] };
-  assert.doesNotThrow(() => validateFitReportGrounding(scouts, ledger, prefs));
-
-  // Without the company in preferences the same citation is ungrounded.
-  assert.throws(
-    () => validateFitReportGrounding(scouts, ledger, { ...prefs, targetCompanies: [] }),
-    /unknown preferences: Northwind/,
-  );
 });
 
 test("a company that found nothing cannot be recorded without saying why", () => {

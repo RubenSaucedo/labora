@@ -3,10 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import crypto from "node:crypto";
 import { personaSearchPaths, resolvePersonaRoot, primaryPersonasDir, PLUGIN_ROOT } from "../src/lib/workspace.js";
-import { validateProfile } from "../src/tools/validate-profile.js";
-import { planMigration } from "../src/tools/migrate-claim-sources.js";
 
 function tmpdir(prefix = "labora-ws-") {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -16,10 +13,6 @@ function writeFile(file, body) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, body, "utf-8");
   return file;
-}
-
-function sha256(file) {
-  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
 
 test("LABORA_WORKSPACE takes precedence and resolves personas/ under it", () => {
@@ -91,86 +84,20 @@ test("new personas are written to the workspace, not the plugin repo", () => {
     path.join(ws, "personas"));
 });
 
-test("the bundled example persona validates from a cwd outside the plugin repo", () => {
-  // The reference fixture must be portable, because as a plugin it is almost
-  // never run from its own checkout. Repo-relative claim sources resolved only
-  // when the cwd happened to be the labora repo, so `example` silently reported
-  // INVALID everywhere it actually matters.
-  const exampleRoot = resolvePersonaRoot("example", { cwd: PLUGIN_ROOT, env: {} });
+
+test("the bundled example persona resolves from a cwd outside the plugin repo", () => {
   const elsewhere = tmpdir("labora-elsewhere-");
-  const { valid, issues } = validateProfile(exampleRoot, { repoRoot: elsewhere });
-  const sourceIssues = issues.filter((i) => String(i.code).startsWith("source_"));
-  assert.deepEqual(sourceIssues, [], `example must resolve its own sources from any cwd`);
-  assert.equal(valid, true);
+  const example = resolvePersonaRoot("example", { cwd: elsewhere, env: {} });
+  assert.equal(example, path.join(PLUGIN_ROOT, "data", "personas", "example"));
+  assert.ok(fs.existsSync(path.join(example, "profile", "contact.md")));
+  assert.ok(fs.existsSync(path.join(example, "applications")));
 });
 
-test("claim source migration repoints repo-relative paths to persona-relative", () => {
+test("a new missing persona resolves under the primary workspace", () => {
   const ws = tmpdir();
-  const personaRoot = path.join(ws, "personas", "ruben");
-  const bg = writeFile(path.join(personaRoot, "profile", "background.md"), "line one\nline two\n");
-  const ledger = {
-    claims: [
-      {
-        id: "claim-a",
-        sources: [{ path: "data/personas/ruben/profile/background.md", fileHash: sha256(bg) }],
-      },
-    ],
-  };
-  const { changes, problems } = planMigration(ledger, personaRoot);
-  assert.equal(problems.length, 0);
-  assert.equal(changes.length, 1);
-  assert.equal(changes[0].to, "profile/background.md");
-});
-
-test("migration also repoints externalSources, not just sources", () => {
-  const ws = tmpdir();
-  const personaRoot = path.join(ws, "personas", "ruben");
-  const ev = writeFile(path.join(personaRoot, "evidence", "performance-reviews", "2026", "text", "x.md"), "body\n");
-  const ledger = {
-    claims: [
-      {
-        id: "claim-b",
-        sources: [],
-        externalSources: [
-          { path: "data/personas/ruben/evidence/performance-reviews/2026/text/x.md", fileHash: sha256(ev) },
-        ],
-      },
-    ],
-  };
-  const { changes, problems } = planMigration(ledger, personaRoot);
-  assert.equal(problems.length, 0);
-  assert.equal(changes.length, 1,
-    "externalSources grounds the disclosable rewrite; leaving it stale strands that variant silently");
-  assert.equal(changes[0].to, "evidence/performance-reviews/2026/text/x.md");
-});
-
-test("migration refuses a source whose content no longer matches its recorded hash", () => {
-  const ws = tmpdir();
-  const personaRoot = path.join(ws, "personas", "ruben");
-  writeFile(path.join(personaRoot, "profile", "background.md"), "content changed since verification\n");
-  const ledger = {
-    claims: [
-      {
-        id: "claim-c",
-        sources: [{ path: "data/personas/ruben/profile/background.md", fileHash: "0".repeat(64) }],
-      },
-    ],
-  };
-  const { changes, problems } = planMigration(ledger, personaRoot);
-  assert.equal(changes.length, 0);
-  assert.equal(problems.length, 1);
-  assert.equal(problems[0].reason, "hash_mismatch",
-    "repointing at different bytes would silently change what a verified claim asserts");
-});
-
-test("migration reports a source missing at the target rather than inventing one", () => {
-  const ws = tmpdir();
-  const personaRoot = path.join(ws, "personas", "ruben");
-  fs.mkdirSync(personaRoot, { recursive: true });
-  const ledger = {
-    claims: [{ id: "claim-d", sources: [{ path: "data/personas/ruben/profile/gone.md", fileHash: "x" }] }],
-  };
-  const { changes, problems } = planMigration(ledger, personaRoot);
-  assert.equal(changes.length, 0);
-  assert.equal(problems[0].reason, "missing_at_target");
+  fs.mkdirSync(path.join(ws, "personas"), { recursive: true });
+  assert.equal(
+    resolvePersonaRoot("new-person", { cwd: ws, env: { LABORA_WORKSPACE: ws } }),
+    path.join(ws, "personas", "new-person")
+  );
 });

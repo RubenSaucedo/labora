@@ -29,13 +29,41 @@ function pluginVersion() {
   return JSON.parse(fs.readFileSync(manifest, "utf8")).version || "(unknown version)";
 }
 
+// Tools live at src/tools/<group>/<name>.js and are invoked as
+// `labora <group> <name>`. They used to be 42 flat files, which meant nobody --
+// including the assistant driving them -- could tell what the plugin actually
+// did without reading every one. Grouping is the whole point: `labora list`
+// now answers "what can this thing do" in one screen.
 function availableTools() {
   if (!fs.existsSync(toolsDir)) return [];
-  return fs
-    .readdirSync(toolsDir)
-    .filter((entry) => entry.endsWith(".js"))
-    .map((entry) => entry.slice(0, -3))
-    .sort();
+  const tools = [];
+  for (const group of fs.readdirSync(toolsDir, { withFileTypes: true })) {
+    if (!group.isDirectory()) continue;
+    const groupDir = path.join(toolsDir, group.name);
+    for (const entry of fs.readdirSync(groupDir)) {
+      if (!entry.endsWith(".js")) continue;
+      tools.push({
+        group: group.name,
+        name: entry.slice(0, -3),
+        command: `${group.name} ${entry.slice(0, -3)}`,
+        file: path.join(groupDir, entry),
+      });
+    }
+  }
+  return tools.sort((a, b) => a.command.localeCompare(b.command));
+}
+
+function toolGroups() {
+  const groups = new Map();
+  for (const tool of availableTools()) {
+    if (!groups.has(tool.group)) groups.set(tool.group, []);
+    groups.get(tool.group).push(tool.name);
+  }
+  return groups;
+}
+
+function findTool(group, name) {
+  return availableTools().find((tool) => tool.group === group && tool.name === name) || null;
 }
 
 function declaredDependencies() {
@@ -65,15 +93,15 @@ function missingDependencies() {
 // machine on which nothing works, when a third of the tools import nothing.
 function missingDependenciesForTool(tool) {
   const installed = installedDependencies();
-  return requiredDependencies(path.join(toolsDir, `${tool}.js`), declaredDependencies())
+  return requiredDependencies(tool.file, declaredDependencies())
     .filter((name) => !installed.has(name));
 }
 
 function dependencyFreeTools() {
   const declared = declaredDependencies();
-  return availableTools().filter(
-    (tool) => requiredDependencies(path.join(toolsDir, `${tool}.js`), declared).length === 0
-  );
+  return availableTools()
+    .filter((tool) => requiredDependencies(tool.file, declared).length === 0)
+    .map((tool) => tool.command);
 }
 
 function isWithin(candidate, parent) {
@@ -371,11 +399,9 @@ function announce() {
     lines.push(
       ``,
       `WARNING: ${missing.length} dependencies are not installed (${missing.join(", ")}),`,
-      `so ${availableTools().length - runnable.length} of ${availableTools().length} deterministic tools will refuse to run.`,
-      `Labora is in degraded advisory mode: agents and skills remain available.`,
-      `Continue safe work that does not require a refused tool. Stop only the stage`,
-      `whose deterministic calculation or validation is unavailable, and never`,
-      `reimplement that gate in an agent.`,
+      `so ${availableTools().length - runnable.length} of ${availableTools().length} tools will refuse to run.`,
+      `Labora still works: the conversation, the skills and the agents are unaffected,`,
+      `and only the steps that build or read a document need these packages.`,
       `Diagnose npm and registry health with:`,
       `  ${binPath} doctor`,
       `If doctor reports npm and the registry ready, it will direct the operator to setup.`,
@@ -387,17 +413,23 @@ function announce() {
   process.stdout.write(JSON.stringify({ additionalContext: lines.join("\n") }) + "\n");
 }
 
+function groupedListing() {
+  return [...toolGroups()]
+    .map(([group, names]) => `  ${group}\n${names.map((name) => `    ${group} ${name}`).join("\n")}`)
+    .join("\n");
+}
+
 function usage() {
   process.stdout.write(
-    `labora — deterministic tools for the labora resume pipeline\n\n` +
+    `labora — builds and inspects résumé documents for the labora plugin\n\n` +
     `Usage:\n` +
-    `  labora <tool> [args...]   run a tool\n` +
-    `  labora list               list available tools\n` +
-    `  labora doctor             report install health\n` +
-    `  labora setup              install dependencies into the plugin\n` +
-    `  labora announce           emit session context (used by the plugin hook)\n\n` +
-    `Tools:\n` +
-    availableTools().map((tool) => `  ${tool}`).join("\n") + "\n"
+    `  labora <group> <tool> [args...]   run a tool\n` +
+    `  labora <group>                    list one group\n` +
+    `  labora list                       list every tool, grouped\n` +
+    `  labora doctor                     report install health\n` +
+    `  labora setup                      install dependencies into the plugin\n` +
+    `  labora announce                   emit session context (used by the plugin hook)\n\n` +
+    `Tools:\n${groupedListing()}\n`
   );
 }
 
@@ -408,7 +440,7 @@ if (!command || command === "help" || command === "--help" || command === "-h") 
   process.exit(0);
 }
 if (command === "list") {
-  process.stdout.write(availableTools().join("\n") + "\n");
+  process.stdout.write(`${groupedListing()}\n`);
   process.exit(0);
 }
 if (command === "doctor") {
@@ -424,14 +456,34 @@ if (command === "announce") {
   process.exit(0);
 }
 
-// Reject anything that is not a plain tool name before it reaches the
-// filesystem, so an argument can never be turned into a path.
-if (!/^[a-z0-9][a-z0-9-]*$/.test(command)) {
-  fail(`"${command}" is not a valid tool name. Run "labora list".`);
+// Both segments are validated as plain names before either reaches the
+// filesystem, so no argument can ever be turned into a path.
+const SEGMENT = /^[a-z0-9][a-z0-9-]*$/;
+if (!SEGMENT.test(command)) {
+  fail(`"${command}" is not a valid tool group. Run "labora list".`);
 }
-const toolPath = path.join(toolsDir, `${command}.js`);
-if (!availableTools().includes(command) || !fs.existsSync(toolPath)) {
-  fail(`unknown tool "${command}". Run "labora list".`);
+
+const groups = toolGroups();
+if (!groups.has(command)) {
+  fail(`unknown tool group "${command}". Run "labora list".`);
+}
+
+// `labora render` with nothing after it lists the group rather than erroring.
+// Asking what is available is the most common reason to type a bare group name.
+const [subcommand, ...toolArgs] = rest;
+if (!subcommand) {
+  process.stdout.write(
+    `${command}\n${groups.get(command).map((name) => `  ${command} ${name}`).join("\n")}\n`
+  );
+  process.exit(0);
+}
+if (!SEGMENT.test(subcommand)) {
+  fail(`"${subcommand}" is not a valid tool name. Run "labora ${command}".`);
+}
+
+const tool = findTool(command, subcommand);
+if (!tool || !fs.existsSync(tool.file)) {
+  fail(`unknown tool "${command} ${subcommand}". Run "labora ${command}".`);
 }
 
 const stale = unsupportedNode();
@@ -442,14 +494,14 @@ if (stale) {
   );
 }
 
-const missing = missingDependenciesForTool(command);
-if (missing.length) reportMissingDependencies(missing, command);
+const missing = missingDependenciesForTool(tool);
+if (missing.length) reportMissingDependencies(missing, tool.command);
 
 // Spawn rather than import: the tool reads process.argv and calls process.exit,
 // so importing it would hand it this dispatcher's arguments and let it end this
 // process. Spawning preserves its argv, its exit code, and the caller's cwd -
 // which is the persona workspace and must stay that way.
-const result = spawnSync(process.execPath, [toolPath, ...rest], { stdio: "inherit" });
-if (result.error) fail(`could not run ${command}: ${result.error.message}`);
-if (result.signal) fail(`${command} terminated with signal ${result.signal}`);
+const result = spawnSync(process.execPath, [tool.file, ...toolArgs], { stdio: "inherit" });
+if (result.error) fail(`could not run ${tool.command}: ${result.error.message}`);
+if (result.signal) fail(`${tool.command} terminated with signal ${result.signal}`);
 process.exit(result.status ?? 1);

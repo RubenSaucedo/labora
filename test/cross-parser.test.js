@@ -32,12 +32,12 @@ function formatterResume() {
     projects: [],
     certifications: [],
     awards_or_contributions: [],
-    keywords_mapped: [],
-  }, { name: "Jane Example", email: "jane@example.com", phone: "+1 555-123-4567" }));
+    notes: [],
+  }, { name: "Jane Example", email: "jane@example.invalid", phone: "+1 555-123-4567" }));
 }
 
 const FULL_TEXT =
-  "Jane Example jane@example.com +1 555-123-4567 Engineer Summary Engineer with a record of shipping reliable systems. " +
+  "Jane Example jane@example.invalid +1 555-123-4567 Engineer Summary Engineer with a record of shipping reliable systems. " +
   "Experience Example Engineer 2022 - Present Built a reliable React application Skills GraphQL " +
   "Education Example University BS Computer Science 2014 2018 Seattle WA";
 

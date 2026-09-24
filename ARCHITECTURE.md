@@ -1,766 +1,224 @@
 # Labora Architecture
 
-## Objective
+Labora is a conversational résumé partner with a small deterministic core. The conversation asks, drafts, tailors, renders, and advises; code builds files, reads files back, checks file integrity, parses job postings, reconciles job-search outputs, and maintains workspace layout.
 
-Produce truthful, job-relevant resumes with measurable confidence in:
+The boundary is one question:
 
-1. source grounding;
-2. required/preferred job coverage;
-3. rendered-document parseability;
-4. recruiter and technical-screen quality.
+> Could this ever tell someone they did not do something they did?
 
-Interview probability remains outside the system boundary.
+If yes, it belongs in conversation, where Labora asks the person. If no, and the statement is about a file, parser, posting structure, or deterministic reconciliation, it may belong in code.
 
 ## Layers
 
-### Reasoning
+### Conversation layer
 
-Copilot skills perform evidence cleaning, identity synthesis, job classification,
-application positioning, tailoring, and role-specific evaluation. External text
-is always treated as untrusted data.
+Skills and agents own human work:
 
-### Deterministic assurance
+- `/labora:start` ingests existing material and writes confirmed `profile/` files.
+- `/labora:brainstorm` asks concrete questions and enriches the profile when the person confirms wording.
+- `/labora:draft-resume` and `/labora:tailor-resume` dispatch `resume-writer` to produce or revise `resume.json`.
+- `/labora:render-resume` invokes deterministic render/inspect/verify tools.
+- `/labora:review-resume` dispatches `resume-reviewer` for an advisory cold read.
+- `/labora:job-search` dispatches `job-explorer` and the scout agents.
+- `/labora:log-application` records observed application events.
 
-Node tools own:
+The installed agents are `resume-partner`, `resume-writer`, `resume-reviewer`, `source-gatherer`, `job-explorer`, `scout-discovery`, `scout-fit`, `scout-market`, and `scout-growth`.
 
-- raw evidence extraction hashes and numeric-cleaning checks;
-- job requirement extraction;
-- lexical and structured requirement scoring;
-- claim provenance validation;
-- contact source validation and injection;
-- Markdown review-companion and DOCX/PDF rendering;
-- renderer-input field recall, declared section order, and hyperlink targets;
-- content-hash freshness;
-- final release-state aggregation.
+`resume-reviewer` remains isolated, but for a different reason than the removed judges. It sees only rendered document text, the posting, and an audience label, because a reader who knows the profile and drafting intent is no longer reading like a stranger. Its output is advice, not a decision.
 
-## Domain artifacts
+### Deterministic core
 
-### Profile layout
+Node tools own facts about files and structured inputs:
 
-The profile is split by **ownership** and **lifetime**, not by topic or file
-type. Each file has one owner, one editing cadence, and one role in grounding:
+- render a résumé into requested formats;
+- extract parser-visible text from a résumé or rendered artifact;
+- check that a produced artifact opens, parses, and contains expected fields, sections, links, and layout metadata;
+- parse a job posting into structured context;
+- reconcile job-search scout outputs into reports;
+- create, lint, and migrate workspace layout.
+
+The deterministic core never decides whether a career statement is true and never decides whether a person should apply.
+
+## Résumé document contract
+
+The document contract lives in [`src/schemas/resume.js`](src/schemas/resume.js): `ZResume` and `readResume()`.
+
+`ZResume` contains only what the renderer reads:
 
 ```text
-profile/                       human-authored sources
-  contact.md                   edited freely      never grounds claims
-  background.md                edited rarely      grounds claims
-  career.md                    optional           grounds claims
-  search-preferences.json      edited             trusted job-search config
-  generated/                   machine-owned; written only by resume-persona
-    README.md                  the ownership contract
-    identity.json              structural spine
-    claims.json                verified claim ledger
-    accomplishments.json       retrieval index over the ledger
+schema_version, target_role, ats_title, contact, summary,
+skills_primary, skills_secondary,
+experience[{id, company, role, period, location, bullets}],
+education[], projects[], certifications[], awards_or_contributions[],
+presentation, notes[]
 ```
 
-| File | Owner | Edited | Grounds claims |
-|---|---|---|---|
-| `contact.md` | human | freely | **no** |
-| `background.md` | human | rarely | yes |
-| `career.md` | human | optional; on review cycles | yes |
-| `search-preferences.json` | human | freely | n/a (trusted config) |
-| `generated/identity.json` | `resume-persona` | never by hand | n/a |
-| `generated/claims.json` | `resume-persona` | never by hand | n/a |
-| `generated/accomplishments.json` | `resume-persona` | never by hand | n/a |
-
-The folder boundary encodes **ownership**, not file type — `search-preferences.json`
-is JSON but human-authored, so it stays with the sources. Everything under
-`generated/` is derived from the sources, is read by every downstream stage, and
-is written by exactly one skill.
-
-Ownership per directory is declared once, machine-readably, in
-`src/lib/workspace-layout.js`; `skills/resume-conventions/SKILL.md` is its prose
-form and `labora validate-workspace <persona>` reports divergence. This section
-explains *why* the boundary exists — it is not a second declaration of *where*
-it sits.
-
-The compiled ledgers now sit at `.labora/state/profile/` for a new persona, and
-stay at `profile/generated/` for one that already has them there;
-`src/lib/profile-state.js` resolves which. The boundary this section describes is
-unchanged by that — what moved is only whether machine state is presented to the
-operator as a peer of the career history they wrote.
-
-Hand-editing `generated/` is the failure mode this prevents. Claims are anchored
-to their source by content hash and line range, so a hand-written claim either
-fails validation or, worse, passes structurally while asserting something no
-evidence supports. When a downstream stage finds something missing, that is an
-evidence gap to report — the fix is to add evidence to a source and re-run
-`resume-persona`, never to patch the artifact.
-
-Two manifest tests enforce this: every `persona` stage output must resolve inside
-`profile/generated/`, and no stage may declare a human-authored source as an
-output.
-
-These were one file, `context.md`, which fused all three roles. That coupling was
-a live defect: claims are anchored to their source by content hash
-(`source_hash_mismatch`), so editing a phone number rehashed the file and
-invalidated every claim grounded in it — 22 on the reference persona. The most
-frequently edited file was welded to the most frozen one. `contact.md` is now
-excluded from `sourceMayGroundClaims`, which makes that class of breakage
-unrepresentable.
-
-The split also removed content that no consumer read: a written profile summary,
-per-position resume bullets, and a hand-maintained technical-skills list. These
-are the same anchoring hazard that schema 4.0 removed from `identity.json`, and
-the skills list duplicated the allowlist that 4.0 replaced with a derived
-vocabulary. They are now prohibited by the file's own header and by
-`resume-persona`.
-
-Self-reported bullets are kept only for a period with no richer evidence — on
-the example persona, the earliest roles, which have no performance-review
-corpus. Where `career.md` and the evidence corpus already cover a period, its
-resume bullets are redundant *and* anchoring, so they are dropped.
-
-A written summary is not the same as a tenure fact. `background.md` may carry a
-`## Professional Profile` block of atomic fields (current title, years of
-experience, focus) because atomic fields cannot be pasted into a resume as prose,
-while a summary paragraph can.
-
-### Evidence tiers
-
-The approved grounding corpus is `profile/career.md`, `profile/background.md`,
-cleaned `evidence/performance-reviews/**/text/**`, and
-`evidence/repositories/<date>/repositories.md`. Everything else — including
-`evidence/references/` — is readable context but cannot ground a claim.
-
-`career.md` is optional. It exists for a persona whose period narrative is a
-single hand-written timeline. When the same periods already exist as cleaned
-per-review evidence, the timeline is a lossy duplicate of a stronger source: the
-reviews are attested, `career.md` is self-reported, and maintaining both invites
-them to disagree. Archive it in that case rather than keeping two versions of one
-career. The reference persona did exactly this — its `career.md` grounded zero
-claims while the 13 cleaned connects grounded dozens.
-
-These sources differ in what a *reader* can check, which is what actually decides
-how a fact may be presented:
-
-| Tier | Example | Reader can verify |
-| --- | --- | --- |
-| Self-verifying | credential URL, public repository, reachable product URL | Yes, independently |
-| Machine-retrievable | repository snapshot of a private repo | Re-fetchable by the operator, not by a recruiter |
-| Attested | performance review, reference | Only via the employer |
-| Self-reported | `background.md` bullets | No |
-
-`snapshot-repos.js` writes the repository tier. Only the filename the tool emits
-grounds claims, so a hand-written file cannot enter the corpus. Visibility is
-recorded per repository: a private repository is real work but not inspectable by
-a recruiter, and must never be presented as if it were. Commit counts measure
-sustained activity, not impact, and never stand alone as a resume metric.
-
-`--verify-urls` records whether each repository's homepage responds, which is how
-a private repository can still carry self-verifying evidence: the source stays
-closed while the shipped product remains open to any reader. The status is a
-point-in-time observation, not a standing guarantee.
-
-Repository claims must be grounded in *durable* fields. Commit counts and
-last-pushed dates change on the next push, and claim facts are re-verified
-against their source, so a volatile number in a fact breaks the ledger as soon as
-the author commits again.
-
-Re-running the snapshot changes the file's hash and every block's line numbers,
-which strands every repository claim. `anchor-repo-claims.js` rebuilds them
-deterministically: repository facts are mechanical derivations of a
-tool-generated file, so they belong in code rather than in a model's judgement.
-It preserves each claim's explicit `disclosure` value when one exists, omits
-the key when no prior value exists, and reports claims whose repository has left
-the snapshot instead of silently dropping them. Run it after every
-snapshot:
-
-```
-labora snapshot-repos --persona <name> --verify-urls
-labora anchor-repo-claims --persona <name>
-```
-
-### `profile/generated/claims.json`
-
-A source-addressed ledger of verified facts. Claims have stable IDs, source file
-hashes, line/page spans, extraction method, confidence and verification status.
-Cleaned evidence is linked to an immutable mechanical extraction and raw PDF hash;
-new numeric tokens introduced during cleaning are rejected.
-
-Each claim also carries a `disclosure` level that governs whether and how it may
-reach a rendered document:
-
-| `disclosure` | Rendering behaviour |
-| --- | --- |
-| `public` | `fact` renders as-is. |
-| `internal_generalizable` | Requires `externalFact`; the generalized wording is what bullets, skills and summaries validate against. `externalFact` may drop detail but may not introduce a number absent from `fact`, and every named or canonical term it uses must be supported by `fact` plus `externalSources`. |
-| `internal_only` | May inform strategy and ranking, but grounding any rendered content in it raises `confidential_claim_rendered`. |
-| _absent (unclassified)_ | May inform strategy and ranking, but grounding rendered bullet/skill/summary/headline/identity prose raises `claim_disclosure_unclassified`. |
-
-This keeps confidentiality-safe phrasing validatable: without it, the only wording
-that passes grounding is the wording that leaks the internal codename.
-
-### `profile/generated/identity.json`
-
-The identity spine (schema 4.0): contact placeholders, employers, roles,
-employer-tenure periods, claim-backed `experience[].progression[]`, education,
-projects, certifications and awards. Nothing in it is tailored. Formatters
-render the employer and its tenure together, followed by the current role
-without a date; they never borrow the employer start date as the role start
-date. Verified progression dates remain a separate signal.
-
-`progression[]` may render beneath its experience entry when at least two
-externally legible events remain. By default the formatter suppresses known
-generic placeholders, labels duplicating the experience heading, and
-low-information lines. A profile may explicitly classify verified career jumps
-as `externalLabelKind: "scope_change"` when no meaningful external title is
-available; repeated jumps then collapse to "Promoted twice (2021, 2024)".
-This is a product presentation policy, not a claim that promotion lines improve
-hiring outcomes. Progression is gated exactly
-like a bullet: the step must exist in the identity spine, carry verified
-disclosable claims, and supply an `externalLabel` when the internal token is not
-meaningful outside the company. An `internal_only` step never renders; a step
-with no disclosure and an `internal_generalizable` step with no external label
-are withheld from rendering and surfaced by validation.
-
-A step is located in the spine by `label`, but `label` is not necessarily what
-prints — `formatProgression` substitutes `externalLabel` whenever one is set,
-applies optional `externalLabelKind`, and prints `date` beside it. So
-`externalLabel`, `externalLabelKind`, and `date` are each required to match the
-identity record (`progression_identity_changed`). Checking `label` alone would
-leave rendered wording, visibility semantics, and year free to drift while the
-step still resolved to a real, claim-backed promotion.
-
-Composed prose in the spine carries explicit provenance in `claimIds`:
-`projects[].description`, `projects[].highlights[]` and
-`awards_or_contributions[].description`. Atomic fields such as a project `name`
-are grounded by matching them against a source excerpt, but a description cannot
-be checked that way — it is written *from* evidence rather than quoted from it,
-so no substring match confirms it. Before 4.0.0 those fields were compared to
-nothing, and because a resume project validates by exact-object match against
-the spine, a description effectively validated against itself and could reach a
-rendered document unsupported. The claims listed must exist, be `verified`, and
-carry explicit disclosure that is not `internal_only`
-(`claimProvenanceIssues`). Each prose fragment is then
-checked against the mapped renderable claim facts for unsupported named,
-canonical and numeric content plus substantive token coverage. Claim IDs prove
-where prose came from; they do not make unrelated prose supported. A record
-with no description and no highlights needs no `claimIds`, because it renders
-no prose.
-
-Upgrading to 4.0.0 makes a persona whose projects or awards carry undocumented
-prose fail `validate-profile` with `identity_prose_unmapped`. That failure is the
-defect surfacing, not a new restriction: the prose was always ungrounded. Rebuild
-the spine through `profile-builder` so each description names the claims it was
-composed from. If no claim supports a description, the description was never
-supportable and belongs in a gap report rather than in a resume.
-
-It was called `core-resume.json` through schema 3.0. The name was removed with
-the fields, because a document named "resume" invites an agent to treat it as a
-resume to edit — which is the anchoring behaviour 4.0 exists to prevent.
-
-Schema 3.0 additionally carried `summary`, `key_achievements`, `experience[].highlights`
-and `technical_skills`. All four were removed. The first three were a pre-baked
-generic resume that anchored the tailor toward editing sample output instead of
-composing from evidence. The fourth was worse: `technical_skills` was enforced as
-an allowlist, so a hand-written list silently capped the resume below what the
-ledger proved — on the reference persona it blocked 19 skills the claims
-supported.
-
-The displayable vocabulary is now derived from unit `techStack` terms minus
-`identity.skill_vetoes` (`src/lib/skill-vocabulary.js`). An allowlist must enumerate
-everything and therefore goes stale; a veto list enumerates only exceptions and
-cannot fall behind the ledger. This is a labelling gate — a displayed skill must
-still map to verified claims and survive claim grounding.
-
-`src/lib/normalize-identity.js` reads either version and returns 4.0, preserving a
-3.0 `technical_skills` list as `legacy_skills` so pre-bank personas stay
-renderable.
-
-### `profile/generated/accomplishments.json`
-
-The retrieval index over the ledger. Each unit is one coherent piece of work and
-carries only structured fields — `experienceId`, dates, `contribution`, `scope`
-(surface, audience, repos, partner teams, production exposure), `techStack`,
-`outcomes[]` (each pointing at a metric claim with a measurement `confidence`),
-`evidenceStrength` (tier, source kinds, artifact count, stated limitations),
-`disclosure` and `claimIds`.
-
-Units deliberately hold no renderable prose: `title` and `externalTitle` are
-retrieval labels, and every sentence that reaches a document still comes from a
-claim. This makes shortlisting a job-relevant subset a ranking decision over
-scalars and enums (`rankAccomplishments`) instead of a re-read of the full ledger,
-and it keeps the number of bullets an agent must consider bounded as the ledger
-grows.
-
-`validateApplicationStrategy` additionally raises `missed_evidence` when a job
-requirement is supported by verified claims that no shortlisted unit surfaces and
-that the strategy never assessed. It blocks on `core` and `hard_eligibility`
-requirements and warns on the rest. This is the anti-anchoring gate: it makes
-"the candidate can prove this and we never looked" a machine-detectable failure
-rather than something an agent has to remember to check.
-
-`validateAccomplishments` enforces the invariants: claims must exist and be
-verified, an outcome must belong to the unit that reports it, `experienceId` must
-resolve in the identity record, date ranges must be coherent, `supersedes` must resolve, and a
-unit may never declare itself less confidential than its most restricted claim.
-
-### Identity sections: exact versus catalog
-
-`education` must match the identity record exactly — a degree is not a per-job
-selection, and dropping one misrepresents the record (`identity_section_mismatch`).
-
-`projects`, `certifications` and `awards_or_contributions` are catalogs that grow
-over a career. The resume may render any subset of the identity record but never
-an entry outside it (`identity_section_unsupported`). Containment is what carries
-the anti-fabrication guarantee; equality would only have added a completeness
-rule that forces every credential onto every resume, which dilutes the relevant
-ones. Omission is a tailoring decision, reviewed by strategy and the judges.
-
-The check is multiset containment, so a resume cannot pad a section by repeating
-one verified entry.
-
-Containment is keyed on the fields a reader will see; `claimIds` is excluded
-(`catalogKey`). Provenance records where a description came from and is stripped
-before rendering, so comparing it would make a tailor that copied the visible
-record faithfully but omitted the metadata fail as though it had invented the
-entry — and would make the verdict depend on the order of the IDs.
-
-### `applications/<slug>/job-spec.json`
-
-Reviewable job constraints classified as required, preferred or responsibility.
-Each also carries release severity: `hard_eligibility`, `core`, `preferred`, or
-`soft_signal`. Compound requirements retain `all`/`any` semantics and exact
-source text.
-
-`nonRequirements` flags posting prose that reads as boilerplate — EEO
-paragraphs, pay ranges, benefits blocks — with a reason for each. The flag is
-**advisory: it never removes the line from the requirement set.** The line is
-still extracted and still scored; the classification exists so a human can see
-what the tool believes it is.
-
-That is a deliberate reversal of an earlier design that dropped the flagged
-lines, and it is the single most important property of this stage. The two
-failure directions are not symmetric. A retained non-requirement is visible and
-merely noisy. A dropped requirement is invisible: it leaves the scoring
-denominator, so coverage rises and `core_requirements_missing` shrinks, and the
-tool reports a better fit than the evidence supports. Adversarial review of the
-subtractive design found that failure repeatedly and in ordinary prose — "Create
-the pay range for each role based on qualifications and location", "Manage the
-benefits package for all employees", "The candidate will manage the benefits
-package" — each of which returned zero requirements and 100% coverage. Every fix
-admitted the next construction, because deciding whose sentence a line is, from
-prose alone, is not something pattern matching can be relied on to do. Removing
-the subtraction removes the whole class of failure by construction rather than
-by better patterns.
-
-Separately, a line carrying a hard-eligibility gate is never flagged at all,
-since scraped postings routinely run the gate and the legal footer together in
-one unbroken paragraph.
-
-This matters because a flat scraped posting has no headings, so the last section
-seen carries forward to the end of the document and every trailing legal
-paragraph lands inside "Requirements". Two failures followed from that, and both
-are now regression-tested. An EEO paragraph reads "...without regard to national
-origin, citizenship status..." and the bare token `citizenship` classified it as
-`authorization`, which carries `hard_eligibility`, which no resume can satisfy,
-which hard-blocks a legitimate application. In the other direction, "No visa
-sponsorship is available" contains "sponsorship is available", so a
-negation-blind guard downgraded a genuine gate to a soft signal and reported a
-job as open to a candidate it excluded.
-
-Both are fixed by classifying one **clause** at a time rather than one line at a
-time, which is the unit the meaning actually lives in. Lines are split into
-sentences and sentences into clauses, because a clause is the smallest span
-whose subject and polarity are constant. A scraped paragraph routinely states
-the gate and the legal footer together, so a whole-line verdict has to be wrong
-about one of them: judged as a line, "U.S. citizens only. Acme is an equal
-opportunity employer." either loses the gate or gains a false one. Clause scope
-confines each signal to the span that carries it, so an EEO mention of
-citizenship suppresses only its own clause, a sponsorship offer for a different
-role cannot cancel a gate beside it, and "We do not require a degree, but
-require U.S. citizenship" keeps the gate the disclaimer does not cover.
-
-Clause splitting replaced two earlier attempts that both leaked in the dangerous
-direction: bounded wildcards, which silently crossed clause boundaries, and then
-positional arithmetic comparing where a disclaimer ended against where a demand
-began, which could not help when the disclaimer's own span consumed the demand.
-Splitting first makes the boundary explicit, and it degrades safely — an
-over-split fragment is still classified on its own, and a fragment stating a
-gate still produces one. Within a clause the order is precedence-based: an
-explicit denial of sponsorship and an explicit demand on the applicant are
-decided before any protective or EEO cue is consulted, and only genuinely
-ambiguous phrasings fall through to them. Where a phrase is ambiguous the
-classifier requires the clause to state an obligation, so "all employees have
-the right to work in an environment free from discrimination" is not read as a
-work-authorization gate.
-
-The honest limit is that all of this is pattern matching over prose, so it is
-accurate on the phrasings it has seen and silent about the rest. Known gaps are
-tracked as issues rather than claimed as solved: employer-subject authorization
-prose and administrative licence duties can still be misread as candidate gates.
-That limit is exactly why the asymmetry is enforced structurally rather than
-trusted. Classification can be wrong; it cannot delete a requirement.
-
-### `applications/<slug>/application-strategy.json`
-
-Private positioning brief with the three strongest claim-backed hiring signals,
-likely objections, first-page proof hierarchy, and evidence questions. Its
-`summaryPlan` selects an identity, one primary recent accomplishment unit, and
-an optional differentiator before prose is drafted. A chat answer is not
-evidence; new facts must enter the grounded corpus and claim ledger.
-
-### `applications/<slug>/baseline.json`
-
-Optional. A content-addressed pointer to a resume the operator has already
-reviewed: path, `sha256`, `approval` (`operator` or `unreviewed`), and
-`approvedAt`. `application-strategy.json` may name the same contract as
-`baselineResume`.
-
-The baseline is an **editorial constraint, never evidence**. It records what a
-person approved *saying*; only the claim ledger records what is supported. If a
-baseline could ground a claim, any sentence that survived one run would become
-self-supporting, and an unsupported bullet would launder itself into a verified
-one simply by having been printed once. That is prevented structurally rather
-than by instruction: the editorial path reads it through
-`baselineEditorialView()`, which returns prose spans, addresses and hashes with
-no provenance and no claim IDs, so there is nothing in it to ground anything
-with.
-
-Approval binds to the exact bytes. A changed file is not the approved baseline,
-and `labora baseline --check` exits 2 saying so.
-
-### `applications/<slug>/editorial-plan.json`
-
-Written before any prose is mutated, when a baseline exists. One operation per
-changed span, drawn from a closed set of seven — `keep`, `move`, `combine`,
-`split`, `make_specific`, `delete`, `rewrite` — each recording the exact source
-location, the original text byte-for-byte, the proposed text or destination, the
-reason, the semantic delta (`none`, `narrowed`, `broadened`, `moved`, `split`,
-`combined`, `removed`), the supporting claim and unit IDs, the spans it affects,
-and whether operator reapproval is required.
-
-`rewrite` is deliberately last. A model can always produce different prose, and
-different prose is indistinguishable from better prose unless someone recorded
-which of the seven they meant. `src/lib/editorial-plan.js` enforces the
-deterministic invariants: every changed approved span has an operation and a
-reason; a `move` carries its claim mapping to the destination; a `split`
-partitions its source's claims and may not print a number the receiving half
-cannot support; a `combine` may not cross an accomplishment unit, contribution
-level, role, or disclosure boundary.
-
-Section-level selection is recorded alongside it in `experience-plan.json`,
-`skills-plan.json` and `projects-plan.json`, which make *what was chosen and
-why* inspectable before prose exists. Their shared `supportingLocations` /
-`claimIds` edges are what let a cut bullet invalidate the skill it was the only
-visible proof of — the claim ledger still supports that skill, so no claim-level
-validator notices.
-
-### `applications/<slug>/resume.json`
-
-Public resume content plus private non-rendered provenance. Every bullet and
-displayed skill maps to verified claims. Summary provenance is sentence- and
-clause-level, with direct claim and accomplishment-unit mappings for every
-material phrase. Contact fields remain empty.
-
-### `applications/<slug>/final-resume-style-<style-id>.md`
-
-A deterministic, editable review companion rendered from the same contact-
-injected formatter projection as DOCX/PDF. It is tracked as a format output, so
-manual edits make the stage stale. The file is never a claim source, judge input,
-or selected delivery artifact; supported edits must be reconciled into
-`resume.json`, claim-validated, and regenerated.
-
-### Style profiles
-
-`src/lib/resume-style.js` is the single registry of named visual contracts.
-Each profile — `precision-minimal` and `editorial-technical` today — is
-semantic data: font stacks, sizes, line height, margins, spacing, colours,
-rule behaviour, contact-row grouping and pagination rules. `docxStyleTokens()`
-and `cssStyleTokens()` derive the renderer-specific forms from that one
-definition, so DOCX and HTML/PDF cannot drift into separately tuned layouts;
-where a CSS value has no exact DOCX equivalent the conversion is a documented
-rounding, not a second opinion.
-
-A profile governs presentation only. It holds no content, no contact values and
-no selection logic, so switching profiles can change how a resume looks but
-never what it says: both profiles must extract to identical text.
-
-The registry deliberately imports nothing, because `run-state` has to resolve a
-style with no npm packages installed. Schema validation lives in
-`src/schemas/resume-style.js` and runs at the render boundary; a test asserts
-every built-in satisfies that schema so the split cannot drift.
-
-Unknown IDs are refused with a non-zero exit and the accepted list. The selected
-ID names the artifacts, is written into the DOCX core properties, and is
-recorded in `validations/artifact.json` and `run.json`. Chromium's print
-pipeline accepts no custom PDF metadata, so a PDF's provenance rests on those
-records rather than on embedded keys.
-
-### `validations/*.json`
-
-Deterministic reports for factual support and rendered artifact fidelity.
-
-### `run.json`
-
-Per-stage dependency and output hashes. A file is reusable only when its stage
-fingerprint and output hashes remain unchanged.
-
-### `release.json`
-
-What the gate established, and nothing more:
-
-- `review_ready`: an artifact exists; every concern is a finding carrying its
-  status (`verified` / `user_attested` / `uncertain` / `unsupported`), its
-  basis, and its suggested actions;
-- `generation_failed`: the requested artifact was not produced.
-
-There is no state in which the tool refuses. `gates` is retained alongside the
-findings as evidence of which perspectives held up, but nothing may turn a
-`false` there into a refusal.
-
-### `release-approval.json`
-
-Written only by `labora approve`, only from an explicit operator act. It names
-one artifact hash and one set of acknowledged finding IDs, and it is the only
-source of `operator_approved`. Keeping it in a separate file is what makes the
-guarantee structural: the gate never opens it, so it cannot author an approval
-even by mistake.
-
-When an editorial run produced the artifact, the approval also copies
-`release.json`'s `editorial` binding — the baseline hash, the editorial-plan
-hash, and the revised-content hash. An artifact hash answers "is this the same
-file"; it does not answer "is this the same proposal", and the operator approved
-the proposal as much as the document. Each field is compared only when both
-sides carry it, so an approval recorded before this existed still applies:
-invalidating every historical approval the moment a field appears would silently
-tell people their reviewed documents were never reviewed.
-
-### `outcome.json`
-
-Operator-confirmed funnel events such as submitted, recruiter screen, interview,
-rejection, and offer. Outcomes are observational and never treated as causal
-proof that a prompt or resume earned an interview.
-
-## Pipeline
+The stored `contact` is blank by design. Contact is injected during rendering from `profile/contact.md`, so an accidentally shared `resume.json` does not carry private contact details.
+
+`presentation` carries operator-approved section labels and skill groupings. A style profile can change typography and section order; it cannot add words. Labels and skill groupings are words on the page, so `src/schemas/resume-presentation.js` requires `approvedBy: "operator"` and checks that grouped skills already exist in the résumé.
+
+`notes[]` is shared working text for open questions and unconfirmed suggestions. It is never rendered.
+
+`readResume()` intentionally tolerates old claim-era documents. It drops `provenance`, `keywords_mapped`, `gaps_or_risks`, `experience[].progression`, and similar removed fields instead of rejecting the file. A person’s résumé should not become unreadable because the plugin removed a validation architecture; the content survives and the obsolete machinery is ignored.
+
+## Tool groups
+
+Tools live at `src/tools/<group>/<name>.js` and are invoked through the dispatcher as `labora <group> <name>`. `labora list` is the source of truth for the installed command surface.
+
+### `render`
+
+`labora render resume <resume.json> --out <dir> [--formats md,docx,pdf] [--contact <contact.md>] [--job <job.md>] [--style ID] [--name <basename>] [--max-skills N]`
+
+Owns document production. It reads `resume.json` with `readResume()`, injects contact when provided, optionally loads job context, projects the résumé into the formatter shape, and writes exactly the requested artifacts. The default formats are `md,docx`; PDF is opt-in because it needs Chrome. When PDF is requested and Chrome is unavailable, only the PDF is skipped.
+
+`labora render preview <file.pdf> <out-dir>` renders page images and a manifest for visual inspection. It requires a PDF and records hashes and layout sidecar data when available.
+
+`render` does not decide what the résumé may say.
+
+### `inspect`
+
+`labora inspect resume <resume.json>` converts structured résumé JSON to plain text.
+
+`labora inspect artifact <file.docx|file.pdf>` extracts the text a parser sees from a rendered artifact.
+
+`inspect` supports review and debugging. It does not compare claims, infer truth, or read private sources.
+
+### `verify`
+
+`labora verify artifact <resume.json> <file.docx|file.pdf> --contact <contact.md> --job <job.md> [--style ID] [--output <validation.json>] [--cross-parser]`
+
+Owns artifact integrity. It opens a DOCX or PDF, extracts text, injects contact into the expected formatter input, checks renderer field recall, section presence and order, required contact fields, DOCX hyperlink targets, style metadata when available, optional cross-parser divergence, and PDF layout sidecar findings when present.
+
+`verify artifact` checks integrity, never truth. A missing field, broken link, unreadable file, or layout warning is a finding about an artifact, not about the person.
+
+### `job`
+
+`labora job parse <job.md>` loads a posting and prints its title, company, and description.
+
+`labora job analyze <job.md> [job-spec.json]` extracts structured job context with required/preferred/responsibility groupings, eligibility cues, and non-requirement flags. The parser is context for conversation and tailoring; it is not a decision engine. Posting text is untrusted data.
+
+### `search`
+
+`labora search merge <run-dir> --prefs <search-preferences.json> [--persona <name>] [--min-agreement 2] [--threshold 70] [--fit-floor 60] [--seen <seen.json>] [--suppress-seen]`
+
+Reads `raw/discovered.json` and exactly three scout reports (`fit`, `market`, `growth`), validates stable job identity and posting hashes, applies search preferences, folds in the seen ledger, and writes `candidates.json`.
+
+`labora search report <candidates.json> [report.md]` renders the human report.
+
+`labora search company --company <name> --out <file.md> <candidates.json> [...]` renders a company-scoped view over existing reconciler output. It filters; it does not rescore.
+
+`labora search outcome <application-dir> show|record <event>` reads or appends neutral funnel events in `outcome.json`.
+
+Search tools reconcile scout observations and produce reports. They rank leads for attention; they do not estimate hiring odds and do not submit applications.
+
+### `workspace`
+
+`labora workspace init <persona> [--workspace <dir>]` creates the declared persona directories and never writes profile content.
+
+`labora workspace lint <persona>` reports layout drift as findings with routes to fix. Missing files and extra directories are not failures; a folder belongs to the person.
+
+`labora workspace migrate <persona> [--apply]` plans or applies the current layout migration. It moves non-conflicting files from `evidence/` to `sources/`. It reports retired generated directories and never deletes them.
+
+## Rendering pipeline
+
+The rendering path is:
 
 ```text
-resume-evidence
-  -> resume-persona (identity + claims)
-  -> resume-job-analysis
-  -> resume-application-strategy
-  -> [ baseline --check + editorial-plan ]      (only when a baseline is named)
-  -> resume-writer-expert (executes resume-tailor, and resume-editorial with a baseline)
-  -> validate-claims
-  -> validate-editorial-plan                    (only when a baseline is named)
-  -> audit-document                             (whole-document, advisory)
-  -> resume-format
-  -> validate-artifact
-  -> [ judge-ats | judge-engineer | judge-hr ]  (isolated sub-agents, parallel)
-  -> resume-cold-reader                         (isolated: rendered text + posting only)
-  -> resume-quality-gate
+resume.json
+  -> readResume()
+  -> contact injection from profile/contact.md
+  -> optional job context
+  -> presentation projection
+  -> Markdown, DOCX, and/or PDF
+  -> optional PDF layout sidecar
 ```
 
-The `resume-build` conductor runs evidence, persona, job analysis, application
-strategy, tailoring, and formatting in one shared context. It pauses for targeted
-evidence questions before tailoring. The three judges are launched as **separate
-sub-agents** and each reads one deterministic bundle containing only permitted
-job/artifact inputs and hashes. They run in parallel and never read provenance,
-generator rationale, or one another's output.
+The presentation projection is built by `src/agents/format-resume.js`. It turns the résumé contract into renderer input, applies approved presentation labels/groupings, balances skills, and sends the same semantic content to Markdown, DOCX, and HTML/PDF renderers.
 
-### The editorial pass
+Style profiles live in [`src/lib/resume-style.js`](src/lib/resume-style.js). The installed profile IDs are `precision-minimal` and `editorial-technical`. A profile is presentation data: fonts, sizes, spacing, colour, rules, contact-row grouping, pagination behaviour, section order, and layout policy. Unknown profile IDs are refused with the accepted list. Switching profiles changes how the same words appear; it does not rewrite the résumé.
 
-When the strategy names a baseline, the run becomes an *edit* rather than a
-generation. The failure this removes is that regeneration was previously the
-only available operation: an operator who had already reviewed a resume made
-hundreds of decisions about verb, order, detail and restraint, and every run
-threw all of them away.
+PDF rendering records measured layout beside the artifact as `<resume.pdf>.layout.json`. `verify artifact` and `render preview` read that sidecar when present. The layout findings are advisory and are never substituted for a person’s decision about content.
 
-Two things keep that from becoming a loophole. Grounding is unchanged — a kept
-sentence and a revised sentence both resolve through claim validation exactly as
-before, and the plan validator additionally reports a kept span whose claim
-mapping has disappeared. And the whole-document audit that follows section
-drafting is **advisory**: repeated openings, clause cadence, noun stacks,
-duplicate bullet purposes, keyword placement, voice drift and seniority-scope
-loss are reported with a suggested operation and exit 0. The only editorial
-findings raised as errors are the ones that cross an evidence boundary, such as
-seniority, scale, adoption or timing vocabulary borrowed from a posting the
-ledger does not support.
+## Job posting parsing and job discovery
 
-"Human" here means the document communicates naturally to its intended reader
-and preserves the operator-approved voice. It explicitly does not mean optimising
-an AI-detector score: there is no detector scoring, burstiness target, or synonym
-randomisation anywhere in this repository, and `test/document-audit.test.js`
-asserts their absence.
+Job parsing survived because it produces context, not a verdict. `src/lib/job-parser.js` loads posting text; `src/lib/job-requirements.js` extracts structured requirements, responsibilities, eligibility cues, and non-requirement signals. The extraction is used so the conversation can refer to the posting precisely. It does not decide whether the person qualifies.
 
-The cold reader is isolated for a stronger reason than the judges are. A reviewer
-who has seen the evidence understands sentences a recruiter will not, and will
-report them clear. `labora prepare-reader-input` builds its entire world from
-three strings, so there is nowhere to put a claim ledger even if a caller offers
-one. It names ambiguity and never invents the missing fact; repair happens back
-in the evidence-aware stage.
-
-One bounded remediation cycle is allowed when existing verified claims can
-address a finding. A real qualification gap is never fabricated away.
-
-## Scoring
-
-The deterministic scorer exposes separate diagnostics:
-
-- `lexical_coverage_percent`;
-- `requirement_coverage_percent`;
-- `preferred_coverage_percent`;
-- `responsibility_coverage_percent`;
-- full matched/missing requirement evaluations.
-- missing requirements grouped by release severity.
-
-Internal provenance and keyword metadata are excluded. The renderer does not
-append keyword lists.
-
-Rendered-artifact validation optionally cross-checks parseability with a second
-independent extractor (`validate-artifact --cross-parser`: OCR render for PDF,
-mammoth HTML for DOCX). Fields the two parsers disagree on are advisory warnings
-that flag documents likely to be mangled by a differing employer ATS; they never
-flip the hard recall verdict.
-
-The local versioned alias dictionary is intentionally conservative. O*NET or
-ESCO-derived aliases may be added later, but semantic suggestions must never
-override factual provenance.
-
-Hard eligibility covers genuinely non-negotiable conditions such as work
-authorization, required clearance, or required licensing. Missing core
-capabilities produce human review rather than automatic rejection.
-
-## Judge independence
-
-All judges receive the actual selected DOCX/PDF delivery text and job description
-through `prepare-judge-input.js`. The ATS judge additionally receives sanitized
-deterministic ATS diagnostics—not `resume.json`. Prompt, input, and artifact
-hashes identify exactly what was evaluated. The HR judge may view only the
-generated page previews listed in its bundle.
-
-The three judges are separate sub-agents (`judge-ats`, `judge-engineer`,
-`judge-hr`) launched by the `resume-build` conductor, each in its own context.
-Isolation is structural, not merely instructed: a judge sharing the conductor
-context could see the tailoring rationale, so its verdict would no longer be
-independent evidence.
-
-`calibrate-judges.js` aggregates historical judge outputs into verdict/score
-distributions, per-model and per-prompt-hash grading differences,
-month-over-month drift, and cross-judge agreement (unanimity rate and score
-correlation over complete applications). It is a deterministic observability
-tool, not part of the release gate.
-
-Its per-model breakdown groups on `metadata.model`, which is why that field must
-not be a guess *and* must be a stable model identity. A judge cannot observe its
-own model, so `judge-input.js` supplies the value from the resolved runtime
-configuration (`copilot-settings.js`) and the quality gate compares it alongside
-`evaluatedArtifactHash`, `promptHash`, and `inputHash`. A judge that authors the
-field instead of copying it is reported as stale. The recorded value is the bare
-model name (or `runtime-default`, or `unknown`), never a description of how the
-model was reached — the same model inherited and explicitly pinned must land in
-one calibration bucket, or drift analysis invents a model change that never
-happened. Provenance lives in the separate `source` field.
-
-`check-judge-models.js` reports whether any judge is configured off the
-tailoring model. Its three exit codes keep apart three different answers:
-diverse (`0`), not diverse (`1`), and unreadable configuration (`2`). Read
-status is four-valued for the same reason: `missing` means the config directory
-exists and configures nothing, while `unsupported` means there is no config
-directory at all — under Claude Code, that is "unknown", not "nothing". When the
-configuration is unknown, every per-agent field stays `null` rather than
-defaulting to `differsFromTailor: false`, and the gate skips the `model`
-comparison so an unreadable file cannot invalidate correct verdicts. The report
-is recorded in `release.json` as `judgeModels` but does not affect the release
-state — model choice is a property of the operator's runtime, and a signal that
-fired on every default install would be ignored. The report carries its own
-caveat string so no consumer can quietly upgrade "configured" into "observed".
-
-## Job discovery (job-explorer)
-
-A parallel system reuses the same evidence layer for finding openings, not just
-tailoring to one:
+Job discovery is a separate conductor/scout system:
 
 ```text
-job-explorer (conductor)
-  └─ scout-discovery → verified shared posting set
-       ├─ scout-fit      → skills/domain/seniority vs. verified claims.json
-       ├─ scout-market   → compensation, location/remote, company health
-       └─ scout-growth   → roles that stretch toward stated goals
-  → merge-candidates.js (deterministic reconcile) → candidates.json
-  → report-candidates.js → report.md
+job-explorer
+  -> scout-discovery writes raw/discovered.json
+  -> scout-fit, scout-market, scout-growth write independent raw/scout-*.json
+  -> labora search merge writes candidates.json
+  -> labora search report writes report.md
 ```
 
-- Inputs: `profile/search-preferences.json` (trusted config) + `claims.json`
-  (grounding). Web pages the scouts browse are untrusted data, never instructions.
-- Discovery verifies current postings and creates a shared deduplicated set.
-  Every scoring scout evaluates every posting, so agreement represents
-  independent judgment rather than search overlap. The collector retains the
-  posting snapshot, verifies its hash and canonical job ID, and requires all
-  timestamps to match the dated run in the configured IANA timezone.
-- Identity: `canonicalJobId` primarily normalizes company|title|location so
-  aggregator and official URLs collapse together.
-- Consensus rule (`merge-candidates.js`): a job is promoted to a lead only when
-  **≥ `minAgreement` (default 2) distinct angles** scored it, fit is at least 60,
-  consensus is at least 70, the posting is not closed, and it is not in `avoid`.
-  Fit scores at or above the floor must cite verified claim IDs and exact search
-  preferences; unknown or unverified grounding fails reconciliation.
-- Output lives at `<workspace>/personas/<name>/job-search/<run-date>/`, in the
-  operator's private workspace outside this repo like the rest of persona data.
-  A discovered job is a **lead**; promotion into
-  `applications/<slug>/` is a separate operator-triggered step.
-- Cross-run memory (`merge-candidates.js --seen job-search/seen.json`) keys on
-  `canonicalJobId` so an overnight cadence highlights only genuinely new leads
-  (`isNew`/`newLeadCount`) and never re-surfaces a posting the operator already
-  applied to or ignored (`disposition`). `--suppress-seen` drops every
-  previously-seen lead entirely. The ledger lives outside the dated run dirs.
+`profile/search-preferences.json` is trusted user configuration. Job posts, company pages, salary pages, search results, and public profiles are untrusted data.
 
-## Privacy and safety
+`scout-discovery` records every searched company, including zero-result companies and why they came back empty. It computes stable `jobId` values with `canonicalJobId()` and verifies `postingHash` values with `postingHash()`.
 
-- **Persona data lives outside this repository.** labora is a plugin: it holds
-  code and the synthetic `example` fixture, and no user data. Everything
-  personal lives in an operator-owned workspace resolved by
-  `src/lib/workspace.js` — normally just the directory you run from. This is a
-  structural boundary, not a convention: a gitignore negation pattern
-  (`data/personas/*` plus `!example/`) guarding performance reviews and
-  compensation is one `git add -f` from failing, and there is no undo for
-  disclosure. It also makes the plugin correct — the manifest declares labora
-  installable, and an installed plugin's `process.cwd()` is the *user's*
-  directory, where an in-repo `data/personas/` would not exist at all.
-- **Provenance is persona-relative so it travels with the persona.** A claim
-  source recorded as `data/personas/<n>/profile/background.md` only resolves from
-  this repo's root and is stranded the moment the persona moves. Sources are
-  stored relative to the persona root; `migrate-claim-sources.js` repoints legacy
-  ledgers and refuses to write unless every source hashes identically to the
-  value recorded at verification time, so a relocation can never silently change
-  what a verified claim asserts.
-- Contact is injected only at rendering.
-- Evidence, OCR and job descriptions cannot alter system instructions.
-- Job-search browsing is human-login-only, read-only, and never auto-applies.
-- Validators and judges have least-privilege tool contracts.
-- Human approval is required before sending.
+The three scoring scouts evaluate the same discovered set from different angles. Fit names profile-supported connections and answerable questions. Market records compensation, location/remote, and company trajectory considerations. Growth records reachable stretch toward stated goals. Their scores are lead-priority signals for a search report, not hiring probabilities and not judgments about the person.
 
-## Evaluation strategy
+`labora search merge` checks that scout reports cover the discovered postings, preserves discovered identity fields, applies thresholds and preferences, carries visible reasons for excluded or watched postings, and maintains a per-persona seen ledger. `labora search report` leads with roles worth attention, then includes coverage and widening guidance. A discovered job is a lead; creating an application folder is a separate human action.
 
-Synthetic fixtures test:
+Browsing is human-login-only and read-only. Agents never handle credentials and never auto-apply.
 
-- structured requirement parsing;
-- unsupported additions and metric mutations;
-- numeric facts introduced during evidence cleaning;
-- duplicate claim reuse;
-- hidden metadata contamination;
-- validated contact-source injection and JSON-to-DOCX field recall;
-- Unicode/contact/section preservation;
-- content-hash invalidation;
-- cross-parser recall divergence;
-- job-search consensus and cross-run dedup;
-- fit-required shared-candidate job scoring;
-- application-strategy claim/requirement references;
-- isolated judge input/prompt hashing;
-- application outcome event ordering;
-- judge calibration aggregation;
-- adversarial inputs (prompt injection as inert data, fabricated tech/skills,
-  authoritative-sounding evidence injection, stale-artifact judge/gate binding);
-- structural judge isolation (judges never depend on provenance; strict output
-  schema rejects smuggled provenance);
-- quality-gate decisions.
+## Workspace layout and migration
 
-These run entirely against the deterministic layer, so they are CI-stable and
-model-agnostic. Model-in-the-loop calibration of judge verdicts against labeled
-resumes (Promptfoo) is the deliberate follow-up: it belongs in an opt-in
-`eval` target with credentials, never in the default CI suite.
+The declared layout lives in [`src/lib/workspace-layout.js`](src/lib/workspace-layout.js):
 
-Optional future integrations: Promptfoo for model-judge calibration, Apache Tika
-for a third-party cross-parser comparison, JSON Resume import/export, and
-O*NET/ESCO aliases.
+```text
+<workspace>/personas/<name>/
+  profile/       authored by the person
+  sources/       captured material, as-is
+  applications/  produced application inputs and outputs
+  job-search/    produced discovery runs
+```
+
+Expected authored profile files are `contact.md`, `background.md`, `career.md`, and `search-preferences.json`.
+
+Workspace resolution lives in [`src/lib/workspace.js`](src/lib/workspace.js). Reads search, in order: `$LABORA_WORKSPACE`, the nearest `labora.json` pointer, the current working directory when it contains `personas/`, `<cwd>/data` for legacy layouts, and the plugin’s bundled fixture data.
+
+Migration reflects the architectural change:
+
+- `evidence/` became `sources/`, because the folder is now material the person already had, not material a claim ledger must prove from.
+- `profile/generated/` and `.labora/state/profile/` are retired. The linter and migration planner report them as no longer read. Nothing deletes them.
+
+## What was removed, and why
+
+The removed machinery is the old claim/gate architecture:
+
+- claim ledger;
+- accomplishment bank;
+- generated profile;
+- evidence manifests and provenance hashing;
+- application-strategy validation;
+- gap triage;
+- ATS requirement scoring;
+- editorial and baseline plans;
+- section plans;
+- observation records;
+- quality gate;
+- release findings and release approval;
+- the three judges.
+
+The single structural reason is that deterministic truth gates over someone’s own career produced false negatives. The repository’s history records the pattern: most declared gaps were not gaps (#7), rendered qualifying claims were still counted missing (#2), private-source work was treated as absence despite a live product (#30), an equal-opportunity paragraph became a false hard eligibility problem (#1), and the release model gave the tool authority to stop the user (#89).
+
+Honesty was not abandoned. It moved from refusal to asking. Labora writes what the person confirms, marks suggestions as suggestions, asks when scope or numbers are unclear, and leaves open questions visible instead of turning them into hidden refusals.
+
+## Testing strategy
+
+Run the deterministic suite with:
+
+```bash
+npm test
+```
+
+Tests are model-agnostic where possible. They cover the code that must be stable without relying on a live conversation: résumé schema compatibility, formatter round trips, artifact extraction and integrity checks, style profiles, job parsing, job-search reconciliation and reporting, workspace lint/migration behaviour, dependency loading, and install packaging.
+
+Two contract tests are especially load-bearing:
+
+- `test/plugin-packaging.test.js` protects the installed surface: manifest paths, version agreement, skill metadata, explicit `user-invocable` declarations, dispatcher and hook behaviour, dependency-free startup, marketplace metadata, and the public no-personal-data rule.
+- `test/agent-architecture.test.js` protects agent and skill architecture: agent frontmatter, tool names exposed by the runtime, browser-tool boundaries, dispatch names, deterministic command references, job-search scout contracts, and disclosure-boundary propagation.
+
+When the public surface changes, these tests should change with it. A passing package that documents commands or agents the runtime does not expose is a broken package.

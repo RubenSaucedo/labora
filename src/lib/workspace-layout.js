@@ -1,38 +1,26 @@
 /**
  * The persona workspace layout, declared once.
  *
- * Before this module the same layout was asserted in at least four places that
- * disagreed with each other: the conventions skill described flat content-dated
- * evidence files *and* processing-stage directories in the same document, the
- * researcher agent permitted only capture-date directories, and the README and
- * evidence skill prescribed `raw/extracted/text/validations`. A reader had to
- * pick a winner, and every stage picked a different one.
+ * Before this module the same layout was asserted in four places that disagreed
+ * with each other, so an operator could not answer "where does this belong?"
+ * without reading agent contracts, and every doc edit re-opened a settled
+ * question. The contract lives here and prose points at it.
  *
- * The cost of that is not tidiness. It is that an operator cannot answer "where
- * does this evidence belong?" or "which file may I edit?" without reading agent
- * contracts, and every doc edit re-opened a settled question.
- *
- * So the contract lives here, in code, and prose points at it. Two properties
- * matter more than the specific shapes:
- *
- *   - **Ownership is declared, not inferred.** Whether a path is authored by a
- *     human or produced by a stage is a fact about who may write it, and it is
- *     recorded rather than guessed from a file extension.
- *
- *   - **Recognition is not enforcement.** Claims anchor to path plus content
- *     hash plus line range, so renaming evidence re-anchors every claim that
- *     cites it. This module therefore *recognises* the legacy shapes as valid
- *     rather than reporting them as defects, and says which one is preferred
- *     for new material. Migration is a separate, explicit, reversible step.
+ * The layout got simpler when the claim ledger was removed. There used to be
+ * three kinds of directory -- what a person wrote, what a stage generated, and
+ * what claims were anchored to -- and the rules about which could be renamed
+ * were load-bearing, because renaming a file silently invalidated every claim
+ * that cited it by path and content hash. Nothing is anchored any more. A
+ * person can reorganise their own folder without breaking anything.
  */
 
-/** Who may write a path, and what that implies for the operator. */
+/** Who writes a path, and what that implies for the operator. */
 export const OWNERSHIP = Object.freeze({
-  /** A human writes it. It is canonical, and a tool must never rewrite it. */
+  /** A person writes it. It is canonical, and a tool must never rewrite it. */
   AUTHORED: "authored",
-  /** A stage writes it. Deleting it is safe; hand-editing it is not. */
-  GENERATED: "generated",
-  /** Original bytes captured from elsewhere. Neither authored nor derived. */
+  /** A tool writes it. Deleting it is safe; it can always be produced again. */
+  PRODUCED: "produced",
+  /** Material captured from elsewhere, as-is. Neither authored nor derived. */
   CAPTURED: "captured",
 });
 
@@ -40,18 +28,43 @@ export const OWNERSHIP = Object.freeze({
  * Directories permitted at a persona root.
  *
  * `optional` records that absence is normal, so the linter can distinguish
- * "this persona has no evidence yet" from "this persona has a directory nobody
+ * "this persona has no sources yet" from "this persona has a directory nobody
  * declared".
  */
 export const PERSONA_DIRECTORIES = Object.freeze([
-  { name: "profile", ownership: OWNERSHIP.AUTHORED, optional: false, purpose: "durable career facts the operator writes" },
-  { name: "evidence", ownership: OWNERSHIP.CAPTURED, optional: true, purpose: "source material claims are grounded in" },
-  { name: "applications", ownership: OWNERSHIP.GENERATED, optional: true, purpose: "one directory per job, inputs and outputs together" },
-  { name: "job-search", ownership: OWNERSHIP.GENERATED, optional: true, purpose: "dated discovery runs" },
-  { name: "career-issues", ownership: OWNERSHIP.AUTHORED, optional: true, purpose: "career-issue drafts, filed by a human" },
+  {
+    name: "profile",
+    ownership: OWNERSHIP.AUTHORED,
+    optional: false,
+    purpose: "what the person told us about their career, in their words",
+  },
+  {
+    name: "sources",
+    ownership: OWNERSHIP.CAPTURED,
+    optional: true,
+    purpose: "material the person already had: old résumés, notes, reviews, exports",
+  },
+  {
+    name: "applications",
+    ownership: OWNERSHIP.PRODUCED,
+    optional: true,
+    purpose: "one directory per job, inputs and outputs together",
+  },
+  {
+    name: "job-search",
+    ownership: OWNERSHIP.PRODUCED,
+    optional: true,
+    purpose: "dated discovery runs",
+  },
 ]);
 
-/** Files at `profile/` a human authors. Everything else there is derived. */
+/**
+ * Files at `profile/` a person authors.
+ *
+ * All four are plain prose or a small preferences file, on purpose. They are
+ * meant to be opened and edited by hand: this is the person's own account of
+ * their career, and it is the only source of truth Labora has.
+ */
 export const AUTHORED_PROFILE_FILES = Object.freeze([
   "contact.md",
   "background.md",
@@ -60,62 +73,30 @@ export const AUTHORED_PROFILE_FILES = Object.freeze([
 ]);
 
 /**
- * Where compiled profile state lives.
+ * The directory the claim ledger used to be compiled into.
  *
- * Machine state belongs outside the tree the operator authors, so a new persona
- * keeps its ledgers under `.labora/state/profile/`. A persona that already has
- * them at `profile/generated/` keeps them there until it is explicitly
- * migrated — see `src/lib/profile-state.js` for why that is resolved rather
- * than moved on next write.
+ * Recognised only so migration can tell a person it is no longer read. Nothing
+ * writes it and nothing looks inside it.
  */
-export const PROFILE_STATE_DIR = ".labora/state/profile";
-export const GENERATED_PROFILE_DIR = "profile/generated";
-
-/**
- * Generated files that are meant to be *read* by a person.
- *
- * `profile/generated/` survives as the home of the rendered review surface.
- * That is a different thing from machine state: it exists to be looked at, so
- * hiding it under a dot-directory would serve tidiness at the operator's
- * expense.
- */
-export const REVIEW_SURFACE_FILES = Object.freeze(["PROFILE.md", "README.md"]);
-
-/**
- * Evidence package shapes, in preference order.
- *
- * `preferred` is the shape new material should use. The others are recognised
- * because personas already use them and their claims are anchored to those
- * exact paths.
- */
-export const EVIDENCE_SHAPES = Object.freeze([
-  {
-    id: "dated-subject-package",
-    preferred: true,
-    example: "evidence/performance-reviews/2024-10-mid-year-review/evidence.md",
-    describes: "one directory per evidence item, named for the date the evidence describes plus a subject slug",
-  },
-  {
-    id: "processing-stage",
-    preferred: false,
-    example: "evidence/performance-reviews/{raw,extracted,text,validations}/<basename>.<ext>",
-    describes: "one directory per pipeline stage, shared across every item",
-  },
-  {
-    id: "capture-date",
-    preferred: false,
-    example: "evidence/repositories/2026-08-25/repositories.md",
-    describes: "one directory per capture batch",
-  },
+export const RETIRED_GENERATED_DIRS = Object.freeze([
+  "profile/generated",
+  ".labora/state/profile",
 ]);
+
+/** The directory `sources/` replaced. Recognised so migration can move it. */
+export const LEGACY_SOURCES_DIR = "evidence";
+
+/** Lowercase ASCII kebab-case, the naming standard for authored paths. */
+export function isKebabCase(segment) {
+  return /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(segment);
+}
 
 /**
  * A path segment that is only a year.
  *
- * It reads as the year the evidence describes while it almost always records
- * the import batch, so a directory named `2025/` ends up holding material from
- * 2020 onward. The manifest's `contentDate` and `capturedAt` are authoritative
- * either way; a path date never is.
+ * It reads as the year the material describes while it usually records the
+ * import batch, so a directory named `2025/` ends up holding things from 2020
+ * onward. Worth mentioning to a person; never worth refusing over.
  */
 export function isBareYearSegment(segment) {
   return /^(19|20)\d{2}$/.test(segment);
@@ -129,9 +110,4 @@ export function isBareDateSegment(segment) {
 /** `2024-10-mid-year-review` — a date that also says what it is about. */
 export function isDatedSubjectSegment(segment) {
   return /^(19|20)\d{2}(-\d{2}){0,2}-[a-z0-9]+(-[a-z0-9]+)*$/.test(segment);
-}
-
-/** Lowercase ASCII kebab-case, the naming standard for authored paths. */
-export function isKebabCase(segment) {
-  return /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(segment);
 }

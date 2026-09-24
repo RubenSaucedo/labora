@@ -45,7 +45,7 @@ function normalizeSkill(value) {
  * Shape alone is not enough. A skill group is an arrangement of skills the
  * resume already claims, so every item must already be in the resume; without
  * this check the block would be a second, unvalidated route for a skill to
- * reach the page, which is exactly what claim validation exists to prevent.
+ * reach the page under a label nobody chose.
  *
  * @param {unknown} candidate
  * @param {{ skills_primary?: string[], skills_secondary?: string[] }} resume

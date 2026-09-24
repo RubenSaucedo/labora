@@ -24,15 +24,15 @@ trusted output:
 
 - **Prompt injection through untrusted content.** Job descriptions, PDFs, OCR
   output and web pages are data, never instructions. A posting that causes an
-  agent to change a claim, exfiltrate persona data, or take an action outside
-  its contract is a valid report.
+  agent to rewrite someone's profile, exfiltrate persona data, or take an action
+  outside its contract is a valid report.
 - **Persona data leaving the machine.** Anything that writes personal data to a
   tracked path, a log, a public artifact, or a network destination.
 - **Credential handling.** Labora must never request, store or transmit a
   password. Any path that does is a vulnerability.
-- **Agent boundary escapes.** A curating, advocating or judging context gaining
-  browser access, or a judge seeing tailoring rationale, defeats the guarantees
-  the pipeline is built on.
+- **Agent boundary escapes.** A drafting or reviewing context gaining browser
+  access, or `resume-reviewer` being handed the profile it is supposed to be
+  reading without, defeats the guarantees those boundaries provide.
 - **Unsafe file or command handling** in the deterministic tools under `src/`.
 
 ## What is out of scope

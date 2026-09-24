@@ -26,11 +26,10 @@
 //   pt   -> eighths of a point (DOCX borders)   Math.round(pt * 8)
 //   lineHeight -> 240ths of a line (DOCX)       Math.round(lineHeight * 240)
 
-// Deliberately zero imports. Freshness tracking (`labora run-state`) resolves
-// style IDs to build artifact names, and run-state has to keep working on a
-// machine where no npm package is installed at all — labora's degraded advisory
-// mode depends on it. Shape validation therefore lives in
-// src/schemas/resume-style.js (zod) and runs at the render boundary in
+// Deliberately zero imports. This module has to keep working on a machine where
+// no npm package is installed at all, because naming and describing the styles
+// is useful even when nothing can be rendered. Shape validation therefore lives
+// in src/schemas/resume-style.js (zod) and runs at the render boundary in
 // src/agents/format-resume.js, where a renderer is already a heavy-dependency
 // path; test/resume-style.test.js holds the two to the same profiles so the
 // split cannot drift.
