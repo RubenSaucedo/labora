@@ -401,6 +401,52 @@ likely objections, first-page proof hierarchy, and evidence questions. Its
 an optional differentiator before prose is drafted. A chat answer is not
 evidence; new facts must enter the grounded corpus and claim ledger.
 
+### `applications/<slug>/baseline.json`
+
+Optional. A content-addressed pointer to a resume the operator has already
+reviewed: path, `sha256`, `approval` (`operator` or `unreviewed`), and
+`approvedAt`. `application-strategy.json` may name the same contract as
+`baselineResume`.
+
+The baseline is an **editorial constraint, never evidence**. It records what a
+person approved *saying*; only the claim ledger records what is supported. If a
+baseline could ground a claim, any sentence that survived one run would become
+self-supporting, and an unsupported bullet would launder itself into a verified
+one simply by having been printed once. That is prevented structurally rather
+than by instruction: the editorial path reads it through
+`baselineEditorialView()`, which returns prose spans, addresses and hashes with
+no provenance and no claim IDs, so there is nothing in it to ground anything
+with.
+
+Approval binds to the exact bytes. A changed file is not the approved baseline,
+and `labora baseline --check` exits 2 saying so.
+
+### `applications/<slug>/editorial-plan.json`
+
+Written before any prose is mutated, when a baseline exists. One operation per
+changed span, drawn from a closed set of seven — `keep`, `move`, `combine`,
+`split`, `make_specific`, `delete`, `rewrite` — each recording the exact source
+location, the original text byte-for-byte, the proposed text or destination, the
+reason, the semantic delta (`none`, `narrowed`, `broadened`, `moved`, `split`,
+`combined`, `removed`), the supporting claim and unit IDs, the spans it affects,
+and whether operator reapproval is required.
+
+`rewrite` is deliberately last. A model can always produce different prose, and
+different prose is indistinguishable from better prose unless someone recorded
+which of the seven they meant. `src/lib/editorial-plan.js` enforces the
+deterministic invariants: every changed approved span has an operation and a
+reason; a `move` carries its claim mapping to the destination; a `split`
+partitions its source's claims and may not print a number the receiving half
+cannot support; a `combine` may not cross an accomplishment unit, contribution
+level, role, or disclosure boundary.
+
+Section-level selection is recorded alongside it in `experience-plan.json`,
+`skills-plan.json` and `projects-plan.json`, which make *what was chosen and
+why* inspectable before prose exists. Their shared `supportingLocations` /
+`claimIds` edges are what let a cut bullet invalidate the skill it was the only
+visible proof of — the claim ledger still supports that skill, so no claim-level
+validator notices.
+
 ### `applications/<slug>/resume.json`
 
 Public resume content plus private non-rendered provenance. Every bullet and
@@ -472,6 +518,15 @@ source of `operator_approved`. Keeping it in a separate file is what makes the
 guarantee structural: the gate never opens it, so it cannot author an approval
 even by mistake.
 
+When an editorial run produced the artifact, the approval also copies
+`release.json`'s `editorial` binding — the baseline hash, the editorial-plan
+hash, and the revised-content hash. An artifact hash answers "is this the same
+file"; it does not answer "is this the same proposal", and the operator approved
+the proposal as much as the document. Each field is compared only when both
+sides carry it, so an approval recorded before this existed still applies:
+invalidating every historical approval the moment a field appears would silently
+tell people their reviewed documents were never reviewed.
+
 ### `outcome.json`
 
 Operator-confirmed funnel events such as submitted, recruiter screen, interview,
@@ -485,11 +540,15 @@ resume-evidence
   -> resume-persona (identity + claims)
   -> resume-job-analysis
   -> resume-application-strategy
-  -> resume-writer-expert (executes resume-tailor)
+  -> [ baseline --check + editorial-plan ]      (only when a baseline is named)
+  -> resume-writer-expert (executes resume-tailor, and resume-editorial with a baseline)
   -> validate-claims
+  -> validate-editorial-plan                    (only when a baseline is named)
+  -> audit-document                             (whole-document, advisory)
   -> resume-format
   -> validate-artifact
   -> [ judge-ats | judge-engineer | judge-hr ]  (isolated sub-agents, parallel)
+  -> resume-cold-reader                         (isolated: rendered text + posting only)
   -> resume-quality-gate
 ```
 
@@ -499,6 +558,38 @@ evidence questions before tailoring. The three judges are launched as **separate
 sub-agents** and each reads one deterministic bundle containing only permitted
 job/artifact inputs and hashes. They run in parallel and never read provenance,
 generator rationale, or one another's output.
+
+### The editorial pass
+
+When the strategy names a baseline, the run becomes an *edit* rather than a
+generation. The failure this removes is that regeneration was previously the
+only available operation: an operator who had already reviewed a resume made
+hundreds of decisions about verb, order, detail and restraint, and every run
+threw all of them away.
+
+Two things keep that from becoming a loophole. Grounding is unchanged — a kept
+sentence and a revised sentence both resolve through claim validation exactly as
+before, and the plan validator additionally reports a kept span whose claim
+mapping has disappeared. And the whole-document audit that follows section
+drafting is **advisory**: repeated openings, clause cadence, noun stacks,
+duplicate bullet purposes, keyword placement, voice drift and seniority-scope
+loss are reported with a suggested operation and exit 0. The only editorial
+findings raised as errors are the ones that cross an evidence boundary, such as
+seniority, scale, adoption or timing vocabulary borrowed from a posting the
+ledger does not support.
+
+"Human" here means the document communicates naturally to its intended reader
+and preserves the operator-approved voice. It explicitly does not mean optimising
+an AI-detector score: there is no detector scoring, burstiness target, or synonym
+randomisation anywhere in this repository, and `test/document-audit.test.js`
+asserts their absence.
+
+The cold reader is isolated for a stronger reason than the judges are. A reviewer
+who has seen the evidence understands sentences a recruiter will not, and will
+report them clear. `labora prepare-reader-input` builds its entire world from
+three strings, so there is nowhere to put a claim ledger even if a caller offers
+one. It names ambiguity and never invents the missing fact; repair happens back
+in the evidence-aware stage.
 
 One bounded remediation cycle is allowed when existing verified claims can
 address a finding. A real qualification gap is never fabricated away.

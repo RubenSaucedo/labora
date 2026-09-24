@@ -1,10 +1,11 @@
-export const SKILL_ALIAS_VERSION = "2026-07-28";
+export const SKILL_ALIAS_VERSION = "2026-09-21";
 
 export const SKILL_ALIASES = {
   react: ["react", "react.js"],
   jquery: ["jquery"],
   typescript: ["typescript"],
   javascript: ["javascript", "ecmascript"],
+  python: ["python"],
   css: ["css", "cascading style sheets"],
   "node.js": ["node.js", "nodejs"],
   "github-actions": ["github actions"],

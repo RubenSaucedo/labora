@@ -2,6 +2,7 @@ import { significantRequirementTokens } from "./job-requirements.js";
 import { canonicalSkillsInText } from "./skill-aliases.js";
 import { clearanceMatched } from "./eligibility.js";
 import { renderAuthorization } from "./disclosure.js";
+import { evaluateBaseline } from "./editorial-baseline.js";
 
 const normalize = (value) =>
   String(value || "")
@@ -101,7 +102,7 @@ function claimSupportsRequirement(claim, requirement) {
   return tokens.filter((token) => normalizedFact.includes(token)).length / tokens.length >= 0.6;
 }
 
-export function validateApplicationStrategy({ strategy, jobSpec, claimLedger, bank = null }) {
+export function validateApplicationStrategy({ strategy, jobSpec, claimLedger, bank = null, baselineBytes = undefined }) {
   const issues = [];
   const requirements = new Map((jobSpec?.requirements || []).map((item) => [item.id, item]));
   const verifiedClaims = new Map(
@@ -521,6 +522,43 @@ export function validateApplicationStrategy({ strategy, jobSpec, claimLedger, ba
       code: "missing_pending_request",
       location: "status",
       message: "A needs_evidence strategy must contain a pending evidence request.",
+    });
+  }
+
+  // The baseline contract, when one is named.
+  //
+  // A baseline that cannot be resolved to the exact bytes it was recorded
+  // against is not a baseline; it is a filename. Reporting that as an error is
+  // not a refusal to work -- the strategy still validates everything else, and
+  // the generation path with no baseline is untouched -- it refuses to let a
+  // different document inherit an approval the operator gave to this one.
+  //
+  // `baselineBytes === undefined` means the caller did not attempt to read the
+  // file, so nothing is asserted either way.
+  const baseline = strategy?.baselineResume || null;
+  if (baseline && baselineBytes !== undefined) {
+    const status = evaluateBaseline({ contract: baseline, bytes: baselineBytes });
+    if (!status.usable) {
+      issues.push({
+        code: "baseline_unusable",
+        location: "baselineResume",
+        message: `Baseline "${baseline.path}": ${status.reason}`,
+      });
+    } else if (!status.approved) {
+      issues.push({
+        severity: "warning",
+        code: "baseline_unapproved",
+        location: "baselineResume",
+        message: `Baseline "${baseline.path}": ${status.reason}`,
+      });
+    }
+  }
+  if (baseline && baseline.approval === "operator" && !baseline.approvedAt) {
+    issues.push({
+      severity: "warning",
+      code: "baseline_approval_undated",
+      location: "baselineResume",
+      message: "An operator-approved baseline records no approval time, so staleness cannot be reasoned about.",
     });
   }
 

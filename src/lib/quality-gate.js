@@ -1,5 +1,6 @@
 import { UNKNOWN_MODEL } from "./copilot-settings.js";
 import { dedupeFindings, makeFinding, sortFindings, summarizeFindings } from "./findings.js";
+import { coldReaderFindings } from "./reader-context.js";
 
 /**
  * The release gate reports; it does not decide.
@@ -148,6 +149,64 @@ function judgeOutlookFindings({ atsJudge, engineerJudge, hrJudge }) {
   return findings;
 }
 
+function editorialFindings({ editorialValidation, documentAudit }) {
+  // Editorial concerns are reported at the honesty level they actually have.
+  //
+  // An approved sentence that changed with no recorded operation is
+  // `unsupported`: the document asserts something the operator did not approve
+  // and nothing explains why. Everything else -- cadence, repetition, placement,
+  // drift -- is `uncertain`, because it is an editorial opinion about a
+  // statement that may be perfectly true. Collapsing the two would let a
+  // repeated sentence opening sit in the same bucket as a silent rewrite of
+  // approved wording.
+  const findings = [];
+  const editorialActions = [
+    "Restore the approved wording",
+    "Record the editorial operation and its reason",
+    NARROW,
+    OMIT,
+    ACCEPT,
+  ];
+
+  for (const issue of editorialValidation?.issues || []) {
+    findings.push(makeFinding({
+      source: "editorial",
+      code: issue.code,
+      status: "unsupported",
+      finding: issue.message,
+      location: issue.location || "",
+      basis: issue.location ? [issue.location] : [],
+      suggestedActions: editorialActions,
+    }));
+  }
+  for (const issue of editorialValidation?.warnings || []) {
+    findings.push(makeFinding({
+      source: "editorial",
+      code: issue.code,
+      status: "uncertain",
+      finding: issue.message,
+      location: issue.location || "",
+      suggestedActions: editorialActions,
+    }));
+  }
+  for (const issue of [...(documentAudit?.issues || []), ...(documentAudit?.warnings || [])]) {
+    findings.push(makeFinding({
+      source: "document_audit",
+      code: issue.code,
+      status: issue.severity === "error" ? "unsupported" : "uncertain",
+      finding: issue.route ? `${issue.message} Suggested operation: ${issue.route}.` : issue.message,
+      location: issue.location || "",
+      suggestedActions: [
+        "Apply the suggested editorial operation",
+        NARROW,
+        OMIT,
+        ACCEPT,
+      ],
+    }));
+  }
+  return findings;
+}
+
 export function evaluateQualityGate({
   applicationStrategy,
   strategyValidation,
@@ -164,6 +223,10 @@ export function evaluateQualityGate({
   judgeValidationErrors = [],
   pipelineErrors = [],
   judgeModels = null,
+  editorialValidation = null,
+  documentAudit = null,
+  coldReaderReport = null,
+  editorialBinding = null,
 }) {
   const findings = [];
   const bestAts = atsResults?.best?.ats || atsResults?.ats || atsResults || {};
@@ -173,7 +236,9 @@ export function evaluateQualityGate({
   findings.push(...claimFindings(claimValidation));
   findings.push(...validationFindings("strategy", strategyValidation, "Application strategy"));
   findings.push(...coverageFindings(hardEligibilityMissing, coreRequirementsMissing));
+  findings.push(...editorialFindings({ editorialValidation, documentAudit }));
   findings.push(...judgeOutlookFindings({ atsJudge, engineerJudge, hrJudge }));
+  if (coldReaderReport) findings.push(...coldReaderFindings(coldReaderReport));
 
   // Artifact validation is reported only when an artifact exists. When it does
   // not, `generation_failed` already says the only true thing there is to say,
@@ -356,5 +421,8 @@ export function evaluateQualityGate({
     // runtime rather than of this application, and a signal that fires on every
     // default install is a signal nobody reads.
     judgeModels,
+    // What the operator's approval will bind to beyond the file itself. Null
+    // when no baseline was supplied, which leaves approval exactly as it was.
+    editorial: editorialBinding,
   };
 }

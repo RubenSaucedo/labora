@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ZBaselineResumeContract } from "./editorial.js";
 
 const ZSeverity = z.enum(["hard_eligibility", "core", "preferred", "soft_signal"]);
 const ZContributionLevel = z.enum([
@@ -46,6 +47,15 @@ export const ZApplicationStrategy = z.object({
   targetRole: z.string().min(1),
   company: z.string().default(""),
   candidateNarrative: z.string().min(1),
+  // An optional, content-addressed pointer to a resume the operator already
+  // reviewed. Null for every strategy written before this existed and for every
+  // run that starts from evidence, which keeps the generation path exactly as
+  // it was.
+  //
+  // It is named here rather than discovered on disk because a baseline changes
+  // what the tailor is allowed to do, and a capability that switches on because
+  // a file happens to be present is a capability nobody chose.
+  baselineResume: ZBaselineResumeContract.nullable().default(null),
   topSignals: z.array(z.object({
     signal: z.string().min(1),
     requirementIds: z.array(z.string()).default([]),

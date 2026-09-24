@@ -9,6 +9,15 @@ user-invocable: false
 
 Load `resume-conventions`.
 
+**When `application-strategy.json` names a `baselineResume`, load
+`resume-editorial` before drafting anything.** An operator who has already
+reviewed a resume has made hundreds of decisions you cannot see, and
+regenerating from evidence throws all of them away every run. With a baseline
+present this skill still applies in full — every claim rule below is unchanged —
+but *what you are permitted to change* is governed by the editorial plan, and
+`rewrite` stops being the default operation. The baseline constrains expression;
+it never grounds a fact.
+
 When this skill runs inside `resume-writer-expert`, load
 `references/senior-swe-writing.md` before drafting. Its examples teach sentence
 shape only and never ground a fact.
@@ -189,12 +198,18 @@ coverage by making the resume denser, repetitive, or less natural.
 
 1. Ensure `resume-job-analysis` has produced `job-spec.json` and that
    `application-strategy.json` carries a validated `unitShortlist`.
-2. Draft `resume.json` from the shortlisted units and `summaryPlan`, with
+2. When a baseline is named, run `labora baseline <application> --check` and
+   write `editorial-plan.json` before mutating any prose. A changed baseline
+   (exit 2) stops this loop until the operator re-records it.
+3. Draft `resume.json` from the shortlisted units and `summaryPlan`, with
    complete clause-level summary provenance.
-3. Run `score-ats` with `--job-spec <application>/job-spec.json`.
-4. Run `validate-claims` and save `validations/claims.json`.
-5. Revise at most twice, but only by surfacing already verified claims.
-6. Keep the highest truthful requirement coverage with zero claim-validation
+4. Run `score-ats` with `--job-spec <application>/job-spec.json`.
+5. Run `validate-claims` and save `validations/claims.json`.
+6. With a baseline, run `validate-editorial-plan` and then `audit-document`
+   before rendering. The audit is advisory and exits 0 with findings; act on the
+   operation it names rather than polishing the sentence in place.
+7. Revise at most twice, but only by surfacing already verified claims.
+8. Keep the highest truthful requirement coverage with zero claim-validation
    errors.
 
 Targets:
