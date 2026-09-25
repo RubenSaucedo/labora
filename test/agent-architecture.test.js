@@ -286,3 +286,101 @@ test("the outbound privacy boundary is carried by resume-conventions", () => {
   }
   assert.match(flat, /example/);
 });
+
+// The editorial method is prose, and prose is the only thing holding it up.
+//
+// An earlier version of Labora enforced these rules with deterministic
+// validators over a claim ledger and spent most of its time reporting defects
+// that were not defects. Deleting that machinery was right, but it means the
+// guarantee now lives entirely in sentences -- so the sentences are the thing
+// worth protecting.
+test("the editorial method keeps its seven operations and its ordering", () => {
+  const skill = fs.readFileSync(
+    path.join(repoRoot, "skills/resume-editorial/SKILL.md"),
+    "utf8",
+  );
+  const prose = skill.replace(/[*`_]/g, "");
+
+  for (const operation of ["keep", "move", "combine", "split", "make specific", "delete", "rewrite"]) {
+    assert.ok(
+      new RegExp(`\\b${operation}\\b`, "i").test(prose),
+      `the editorial method must name the "${operation}" operation`,
+    );
+  }
+
+  // Rewriting being the default is the failure the method exists to prevent.
+  assert.match(
+    prose,
+    /rewrite is (?:the )?last|last resort/i,
+    "the method must say rewrite is the last resort, not the default",
+  );
+  assert.match(
+    prose,
+    /placement/i,
+    "the decision procedure must start from placement rather than wording",
+  );
+});
+
+test("the editorial method reads the whole document, not one sentence", () => {
+  const prose = fs
+    .readFileSync(path.join(repoRoot, "skills/resume-editorial/SKILL.md"), "utf8")
+    .replace(/[*`_]/g, "");
+
+  // Each of these is a relationship between sentences. No per-sentence pass can
+  // see any of them, which is why they need naming somewhere.
+  for (const [label, pattern] of [
+    ["repeated openings", /opening with the same/i],
+    ["uniform clause shape", /same shape|identical rhythm/i],
+    ["noun stacks", /comma-separated nouns/i],
+    ["summary restating a bullet", /restates a bullet/i],
+    ["loss of level", /evidence of architecture|got smaller/i],
+  ]) {
+    assert.match(prose, pattern, `the whole-document read must cover ${label}`);
+  }
+
+  // Purposeful repetition is not a defect, and a method that cannot tell the
+  // difference trains people to ignore it.
+  assert.match(
+    prose,
+    /retrieval repetition is different/i,
+    "the method must distinguish purposeful repetition from redundant prose",
+  );
+});
+
+test("the editorial method suggests operations and never refuses", () => {
+  const prose = fs
+    .readFileSync(path.join(repoRoot, "skills/resume-editorial/SKILL.md"), "utf8")
+    .replace(/[*`_]/g, "");
+
+  assert.match(
+    prose,
+    /Never refuse over it|never refuse/i,
+    "editing judgment is judgment; it may be raised but never enforced",
+  );
+  // It must show the shape of a good suggestion, not merely assert one.
+  assert.match(
+    prose,
+    /Want me to\?/,
+    "the method must model bringing a change to the person as a question",
+  );
+});
+
+test("every skill that edits an existing resume loads the editorial method", () => {
+  for (const dir of ["draft-resume", "tailor-resume"]) {
+    const skill = fs.readFileSync(path.join(repoRoot, "skills", dir, "SKILL.md"), "utf8");
+    assert.match(
+      skill,
+      /resume-editorial/,
+      `${dir} changes a document the person already has, so it must load resume-editorial`,
+    );
+  }
+  const writer = fs.readFileSync(
+    path.join(repoRoot, "agents/resume-builders/resume-writer.agent.md"),
+    "utf8",
+  );
+  assert.match(
+    writer,
+    /resume-editorial/,
+    "the writer is what actually rewrites sentences, so it must carry the method",
+  );
+});
