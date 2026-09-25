@@ -1,7 +1,7 @@
 {
   "name": "labora",
-  "version": "8.0.0",
-  "description": "Copilot plugin that helps a person write their r\u00e9sum\u00e9: interviews, drafts, tailors, renders DOCX/PDF, and reads the result back.",
+  "version": "8.1.0",
+  "description": "Copilot plugin that helps a person write their résumé: interviews, drafts, tailors, renders DOCX/PDF, and reads the result back.",
   "type": "module",
   "scripts": {
     "test": "node --test"

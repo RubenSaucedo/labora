@@ -125,7 +125,7 @@ test("user-invocable skills carry an argument hint and a description", () => {
 });
 
 test("internal writing and convention skills stay internal", () => {
-  const mustBeInternal = ["resume-conventions", "resume-writing", "resume-interview"];
+  const mustBeInternal = ["resume-conventions", "resume-writing", "resume-interview", "resume-editorial"];
   const exposed = [];
   for (const dir of mustBeInternal) {
     assert.ok(skillDirs.includes(dir), `skills/${dir} is missing`);
@@ -209,9 +209,16 @@ test("skill and agent prose avoids blocking verdict vocabulary", () => {
 
 // Public skills should hand control back to the person with an action or a
 // choice. Ending in a verdict is the old product failure in a new wrapper.
+//
+// The pattern below is an allowlist of phrasings rather than a test of the
+// property, which makes it brittle: rewording a skill's closing line breaks it
+// even when the line still hands control back. That is a known weakness. It is
+// kept because the alternative -- inferring agency from prose -- fails in the
+// other direction, and a test that breaks loudly when someone rewrites a
+// closing line is cheap to fix and catches the case that matters.
 test("public skills hand control back instead of ending in a verdict", () => {
   const offenders = [];
-  const control = /\b(next useful (?:step|command|question)|next action|choices? available|person(?:\'s)? decision|person deciding|someone deciding|operator is allowed to see|decision belongs|person decides|accept, edit, or reject|Never end with a verdict|what remains open|which suggestions to accept|next reminder|report what actually rendered|List artifact paths|summarize every material change)\b/i;
+  const control = /\b(next useful (?:step|command|question)|next action|choices? available|person(?:'s)? decision|person deciding|someone deciding|operator is allowed to see|decision belongs|person decides|accept, edit, or reject|Never end with a verdict|what remains open|which suggestions to accept|next reminder|report what actually rendered|List artifact paths|summari[sz]e every material change|questions that would improve|if the person wants|ask (?:the person|them) which|leaves open questions visible)\b/i;
   for (const dir of skillDirs) {
     const file = path.join(skillsDir, dir, "SKILL.md");
     const { field, raw } = frontmatter(file);
