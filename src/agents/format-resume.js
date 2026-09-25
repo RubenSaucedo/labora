@@ -8,7 +8,6 @@ import {
   TextRun,
 } from "docx";
 import fs from "fs/promises";
-import { analyzeProgression } from "../lib/progression.js";
 import { balanceSkillLines } from "../lib/skill-layout.js";
 import {
   normalizeCertification,
@@ -84,8 +83,12 @@ function experienceCompanyLine(exp, dateSeparator = " – ") {
 // Progression is useful only when its external wording tells a reader what
 // changed. Shared analysis applies disclosure, conservative lexical filtering,
 // heading de-duplication, and the optional verified scope-change override.
-export function formatProgression(progression, role = "") {
-  return analyzeProgression(progression, role).line;
+// Promotions inside one tenure are written as ordinary experience entries now.
+// The old path carried a structured `progression` array that existed to be
+// claim-gated, and rendering it meant a second place where a job title could
+// disagree with the one above it.
+export function formatProgression() {
+  return "";
 }
 
 /**
@@ -666,8 +669,8 @@ export function resumeJsonToMarkdown(resumeJson, style = DEFAULT_STYLE_ID) {
   } = resumeJson;
 
   const lines = [
-    "<!-- Labora review companion. Manual edits are not claim-validated; " +
-      "reconcile them into resume.json before regenerating delivery artifacts. -->",
+    "<!-- Labora review copy. Edit it freely; " +
+      "fold anything you want to keep back into resume.json before you render again. -->",
   ];
   const blank = () => {
     if (lines.at(-1) !== "") lines.push("");

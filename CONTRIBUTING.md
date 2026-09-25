@@ -40,47 +40,63 @@ The same applies to **test fixtures and documentation**. Use synthetic names.
 A real employer in a fixture discloses where someone actually works or is
 applying, even though it looks like harmless sample data.
 
-### 2. Never invent evidence
+### 2. Never invent anything
 
-Every resume bullet and every displayed skill maps to a verified claim ID
-anchored in a real source. No change may make it possible to render a fact the
-ledger cannot support — not a rounded metric, not an inferred seniority, not a
-"reasonable" restatement of something the operator said loosely.
+Labora writes what the person tells it. When a detail is missing it asks one
+concrete question; it does not guess, insert a placeholder, or quietly widen
+scope, ownership, seniority or a number. When it suggests wording the person has
+not confirmed, it says so.
 
-An operator's spoken answer is *evidence*, routed through `profile-builder` for
-curation. It is never written straight onto a resume.
+There used to be a claim ledger enforcing this with a validator, and it is gone.
+It produced constant false negatives against people's own careers — see
+`PHILOSOPHY.md` for the issue history. Honesty is now a conversational contract,
+which means it lives in the prose contracts under `skills/` and `agents/`. Treat
+a change that weakens one of those sentences as seriously as a change that
+weakens a check.
 
-### 3. Agent isolation is the architecture
+### 3. Never add a way to say no
 
-The judges, scouts, curator and tailor run as separate sub-agents so their
-verdicts are independent and auditable. Running a stage inline, merging two
-agents, or hand-priming a generic sub-agent to imitate one silently removes
-every boundary that stage exists to enforce.
+This is the rule the whole product turns on. Before adding any check, ask:
+
+> Could this ever tell someone they did not do something they did?
+
+If yes, it does not belong in code. A tool that is occasionally too generous
+costs an awkward interview. A tool that is systematically too strict costs the
+job, and it fails silently, which is why it accumulates.
+
+Labora has no verdict, no score, no hiring probability, no release gate and no
+"not a fit". Deterministic code may report facts about a *file* — it did not
+render, it will not open, a section is missing — never facts about a person.
+
+### 4. Agent isolation is still the architecture
+
+Agents run as separate sub-agents so their work is independent. Running a stage
+inline, merging two agents, or hand-priming a generic sub-agent to imitate one
+silently removes the boundary that stage exists to provide.
 
 Concretely:
 
-- Only acquisition agents (`profile-researcher`, the scouts, `job-explorer`)
-  may hold browser tools. Untrusted job pages must never share a context with
-  claim-write access.
-- `resume-writer-expert` is denied raw evidence, so it cannot derive new facts.
-- `profile-builder` runs with no job in context, so it cannot tilt facts toward
-  one opening, and may not read `search-preferences.json`.
-- The judges see only the rendered artifact and the job — never the tailoring
-  rationale, the provenance, or each other.
+- Only acquisition agents (`source-gatherer`, the scouts, `job-explorer`) may
+  hold browser tools. Untrusted job pages must never share a context with write
+  access to someone's profile.
+- `resume-reviewer` sees only the rendered document, the posting and an audience
+  label. This is not a gate — it is the only way the reading is worth anything,
+  because a reader who knows what the writer meant will understand sentences a
+  stranger will not.
 
 `test/agent-architecture.test.js` enforces these. If your change makes one of
 those tests fail, the test is usually right.
 
-### 4. Prose contracts are code
+### 5. Prose contracts are code
 
-The files in `agents/` and `skills/` are the contracts the agents follow, and
-the test suite asserts on their sentences. Rewording a normative rule **should**
+The files in `agents/` and `skills/` are the contracts the agents follow, and the
+test suite asserts on their sentences. Rewording a normative rule **should**
 break the build — that is the mechanism working, not a flaky test.
 
 If you intend to change a rule, change it deliberately and update the assertion
 in the same commit, with the reasoning in the commit message.
 
-### 5. Mutation-verify new tests
+### 6. Mutation-verify new tests
 
 A test that passes when the rule is deleted is not a test. After adding one,
 break the rule in the source or contract file and confirm your test fails:
@@ -95,27 +111,21 @@ Assert the **normative sentence**, not a keyword that happens to appear nearby.
 A regex loose enough to match an incidental token will pass even after someone
 removes the guarantee it was written to protect.
 
-### 6. Never lower a gate to manufacture output
+### 7. Never lower a search gate to manufacture output
 
-`fitFloor`, `consensusThreshold` and `minAgreement` decide what is ready to act
-on. A run that surfaces nothing is a finding about the search, not a bug to
-tune away. If a gate is genuinely miscalibrated, argue it on the evidence and
-change it in its own commit.
+`fitFloor`, `consensusThreshold` and `minAgreement` decide which job leads are
+worth acting on. A run that surfaces nothing is a finding about the search, not a
+bug to tune away. If a threshold is genuinely miscalibrated, argue it on the
+evidence and change it in its own commit.
 
-For the same reason, never present evidence coverage as a probability of being
-hired. That depends on the other applicants, which no run can observe.
+Never present anything as a probability of being hired. That depends on the
+other applicants, which no run can observe.
 
-### 7. Never automate an application, never handle credentials
+### 8. Never automate an application, never handle credentials
 
 Browsing is human-login-only: the operator logs in themselves and the agent
-continues in that session. No part of Labora may ask for, store, or accept a
+continues in that session. No part of Labora may ask for, store or accept a
 password, and nothing may submit an application on someone's behalf.
-
-### 8. Never hand-edit generated artifacts
-
-`profile/generated/` is written by `profile-builder` alone, through its owning
-tools. A hand-edited claim cannot be re-verified, which defeats the ledger. If a
-source moved, rebuild; if no tool exists to produce what you need, add one.
 
 ### 9. Dependencies need justification
 

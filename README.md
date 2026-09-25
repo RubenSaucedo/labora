@@ -1,539 +1,181 @@
 # Labora
 
-Copilot-native resume pipeline for producing evidence-grounded, job-tailored
-resumes with deterministic quality gates.
+Labora helps a person write a résumé they can stand behind: it starts from what they already have, asks about the parts that are unclear, drafts and tailors the document, then renders the files they ask for. It is a Copilot/Claude-compatible plugin with conversational skills on top of a small deterministic toolset for documents, job postings, job search, and workspace layout.
 
-The system improves confidence in factual integrity, requirement coverage,
-document parseability, and recruiter readability. It does not claim to emulate
-every commercial ATS or guarantee an interview.
+Read [`PHILOSOPHY.md`](PHILOSOPHY.md) for the product rule behind the design. In short: the person is the source of truth, and Labora asks rather than refusing.
 
-Labora exists to help a person get a job, which means a gap is an opportunity
-with a next step rather than a verdict, and *we have no evidence of X* is never
-*the candidate lacks X*. That flexibility governs what labora looks for and asks
-about — never what it prints, where every rendered bullet still maps to a
-verified claim. [`PHILOSOPHY.md`](PHILOSOPHY.md) states the rules in full and
-outranks the rest of the documentation.
+## What makes it different
 
-## Architecture
+Most résumé tooling starts by asking the person to prove their own career to the tool. Labora starts by asking, “what do you already have?”
 
-Reasoning lives in Copilot skills. Stable and safety-critical work lives in Node
-tools:
+`/labora:start` can ingest an existing folder of old résumés, notes, exports, project lists, brag documents, and drafts. It inventories that material, reads back what it found, preserves useful wording, and asks only for the missing or ambiguous pieces before writing `profile/` files the person confirms. That path is the front door because it respects the work someone has already done and the language they already trust.
 
-```text
-evidence -> identity + claims -> job specification -> application strategy -> tailored resume
-         -> claim validation -> Markdown review + DOCX/PDF -> artifact validation
-         -> ATS / engineer / HR judges -> release gate
-```
-
-See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the contracts.
+Labora still does not invent. When a detail is missing, it asks one concrete question. When it suggests wording, it labels the suggestion so the person can accept, edit, or reject it.
 
 ## Quick start
 
-**1. Add the marketplace and install the plugin**, then restart the CLI so the
-agents register:
+### 1. Install the plugin
+
+Add the marketplace served by this repository, install the plugin, then restart the CLI so the agents and slash commands register:
 
 ```bash
-/plugin marketplace add RubenSaucedo/labora
+/plugin marketplace add <repo-owner>/labora
 /plugin install labora@labora
 ```
 
-Direct repo installs (`/plugin install RubenSaucedo/labora`) still work, but the
-CLI now warns that only `plugin@marketplace` installs will be supported.
+Direct repository installs may work in some runtimes, but marketplace installs are the supported path.
 
-**2. Enable full deterministic assurance.** The deterministic tools are Node scripts with
-real runtime dependencies (`zod`, `docx`, `mammoth`, `pdf-parse`,
-`puppeteer-core`). A plugin installer copies the repo but never runs
-`npm install`, so install them once:
+### 2. Install deterministic tool dependencies
+
+The plugin can converse without dependencies. Rendering, DOCX/PDF parsing, and artifact inspection need the Node packages declared by the plugin:
 
 ```bash
 labora setup
+labora doctor
 ```
 
-`labora` is the dispatcher at `<plugin>/bin/labora`; the session-start hook
-prints its absolute path. `labora doctor` reports install health, including
-whether npm can reach its configured registry and whether Chrome was found for
-PDF rendering. Without npm, agents, skills and dependency-free tools remain
-available in degraded advisory mode. A dependency-backed tool refuses only its
-own stage, and Labora never approximates that calculation or validation.
-Labora does not download a
-browser — set `LABORA_CHROME` if yours is somewhere unusual. OCR for scanned
-PDFs is optional; install it with `npm install tesseract.js` inside the plugin.
+`bin/labora` is not added to `PATH`. The plugin’s `sessionStart` hook announces the absolute dispatcher path for the current install and tells agents to invoke tools as `labora <group> <tool>`. If hooks are disabled, tell the agent the absolute path to `bin/labora` at session start.
 
-**3. Create a workspace** — a directory you own that holds `personas/`. Your
-career data lives here, never in the plugin:
+PDF output is opt-in because it needs Chrome. Labora does not download a browser; set `LABORA_CHROME` if Chrome is installed somewhere unusual.
 
-```bash
-mkdir -p ~/src/labora-<you>/personas && cd ~/src/labora-<you>
-git init          # optional, but if you do version it, keep the repo PRIVATE
-```
+### 3. Create a private workspace
 
-Old installations may have added root-level `agents/` or `skills/` links or
-copies as a workaround for a retired path-resolution bug. Labora no longer
-reads them; the session-start advisory reports them so you can confirm their
-origin and remove obsolete entries. It never deletes or reads workspace content.
-
-**4. Work from that directory.** That is the entire configuration: labora finds
-`personas/` because you ran it there. Agents and skills route by intent:
+Labora is a plugin. Your career data belongs in a workspace you control, outside the plugin checkout:
 
 ```text
-new applicant <persona>
-process evidence for <persona>
-build the profile for <persona>
-find jobs for <persona>
-build a resume for <persona> for <job-slug>
-judge <persona> <job-slug>
+<workspace>/
+  personas/
 ```
 
-Every entry point is also a slash command, in Copilot CLI and Claude Code alike:
+Run Labora from that workspace. If you need an unusual layout, set `$LABORA_WORKSPACE` or add a `labora.json` pointer.
 
-| command | does |
+### 4. First run
+
+From the workspace:
+
+```text
+/labora:start <name>
+```
+
+The first-run flow is:
+
+1. `labora workspace init <name>` creates the persona directories.
+2. Labora asks for the folder of material you already have.
+3. It summarizes what it found and reads proposed profile wording back to you.
+4. After confirmation, it writes `profile/contact.md`, `profile/background.md`, `profile/career.md`, and `profile/search-preferences.json`.
+5. It runs `labora workspace lint <name>` and reports any layout findings as fixable workspace notes.
+
+After that, use `/labora:draft-resume`, `/labora:tailor-resume`, `/labora:render-resume`, and `/labora:review-resume` as needed.
+
+## Slash commands
+
+The public command surface is exactly the user-invocable skills under `skills/`:
+
+| Command | When to reach for it |
 | --- | --- |
-| `/new-applicant <persona>` | interview and onboard someone with no persona yet |
-| `/profile <persona> [--research]` | build or refresh the verified profile |
-| `/resume-evidence <persona>` | extract and clean newly dropped evidence PDFs |
-| `/job-search <persona>` | discover and rank real openings |
-| `/prepare-resume <persona> <job-slug>` | analyse a job and tailor against it |
-| `/resume-format <persona> <job-slug> [--style ID]` | render the delivery artifacts |
-| `/judge-resume <persona> <job-slug> [--style ID]` | run the three independent gates |
-| `/build-resume <persona> <job-slug> [--style ID]` | all of it, through the release decision |
-| `/career-issue <persona>` | turn a named gap route into an issue on a repo the persona owns |
+| `/labora:start <name>` | Create a persona workspace, ingest existing material, and confirm the first profile files. |
+| `/labora:brainstorm <name>` | Talk through career stories, recover forgotten work, clarify scope, or enrich the profile. |
+| `/labora:draft-resume <name> [job-slug]` | Compose a first `resume.json` from the profile and confirmed conversation. |
+| `/labora:tailor-resume <name> <job-slug>` | Adapt an existing résumé to a specific posting without starting over. |
+| `/labora:render-resume <name> <job-slug> [--formats md,docx,pdf]` | Produce Markdown, DOCX, and optionally PDF artifacts, then inspect what rendered. |
+| `/labora:review-resume <name> <job-slug>` | Get an advisory cold read of the rendered document against the posting. |
+| `/labora:job-search <name>` | Run isolated scouts and deterministic reconciliation for job leads. |
+| `/labora:log-application <name> <job-slug>` | Record application funnel events and neutral follow-up notes. |
 
-Those nine are the whole public surface. The remaining skills are internal
-pipeline stages, marked `user-invocable: false` because each one runs inside an
-isolated agent or writes `profile/generated/`, and invoking it directly would
-walk around the boundary it exists to enforce.
-
-The `resume-build` agent checks content hashes, rebuilds stale stages, and writes
-`release.json` with one of:
-
-- `review_ready` — an artifact exists, and here is everything Labora
-  established and failed to establish about it, as findings
-- `generation_failed` — no document was produced; there is nothing to review yet
-
-Nothing else. Labora reports; it never refuses. Every finding carries how the
-statement was established — `verified`, `user_attested`, `uncertain`,
-`unsupported` — and the smallest next action, and none of them prevents you from
-rendering or sending your own resume.
-
-Approval is a separate, explicit act:
-
-```console
-labora approve applications/<job-slug> --accept-all
-```
-
-That is the only thing that produces `operator_approved`. It binds to one exact
-artifact hash and one exact finding set, and stops applying the moment either
-changes.
-
-## Data layout
-
-Persona data is **personal** — career history, performance reviews,
-compensation, generated resumes. It lives in a private workspace **outside this
-repository**, so labora itself never stores user data and can be installed as a
-plugin without carrying anyone's history.
-
-```text
-<workspace>/personas/<name>/
-├── profile/
-│   ├── contact.md                  # you edit
-│   ├── background.md               # you edit
-│   ├── career.md                   # you edit (optional)
-│   ├── search-preferences.json     # you edit
-│   └── generated/                  # resume-persona writes; everyone else reads
-│       ├── identity.json
-│       ├── claims.json
-│       └── accomplishments.json
-├── evidence/
-│   ├── performance-reviews/{raw,extracted,text,validations}
-│   ├── repositories/<date>/{repositories.md,repositories.json}
-│   └── references/
-├── career-issues/                  # career-issue drafts; you file them yourself
-│   └── <date>-<kind>-<slug>.{md,json}
-└── applications/<job-slug>/
-    ├── job.md
-    ├── job-spec.json
-    ├── application-strategy.json
-    ├── resume.json
-    ├── ats-results.json
-    ├── final-resume-style-<style-id>.md
-    ├── final-resume-style-<style-id>.docx
-    ├── final-resume-style-<style-id>.pdf
-    ├── validations/{strategy,claims,artifact}.json
-    ├── previews/{manifest.json,page-<N>.png}
-    ├── judges/{ats,engineer,hr}.json
-    ├── release.json
-    ├── outcome.json
-    ├── run.json
-    └── summary.md
-```
-
-### Persona workspaces
-
-labora is a **plugin**: it holds code and the synthetic `example` fixture, and
-no user data. Your data lives in a workspace you own — any directory containing
-`personas/`.
-
-```text
-src/
-├── labora/          # the plugin — code only, installable, no user data
-└── labora-ruben/    # your workspace
-    └── personas/ruben/
-```
-
-**Run labora from your workspace.** That is the whole configuration:
-
-```bash
-cd ~/src/labora-ruben
-# every tool and agent now resolves personas/ from here
-```
-
-Resolution order, first match wins:
-
-1. `$LABORA_WORKSPACE` — explicit override
-2. the `workspace` field of the nearest `labora.json` (resolved relative to that
-   file) — useful only when you must run from *outside* your workspace
-3. **`<cwd>`, when it contains `personas/`** — the normal path
-4. `<cwd>/data` — legacy in-repo layout
-5. the plugin's bundled `data/` — keeps the committed `example` persona
-   reachable wherever the plugin is installed
-
-Options 1 and 2 exist for unusual setups. If you `cd` into your workspace you
-need neither, and the plugin repo never learns your workspace exists.
-
-Git is a recommendation, not a requirement — mandating a repo adds an
-accidental-public-remote failure mode worse than the problem it solves. If you
-do version it, use a **private** repo; the convention is `labora-<owner>`.
-
-Only `data/personas/example/` is committed; it is synthetic. Contact information
-remains blank in model-written JSON and is injected from `profile/contact.md`
-during deterministic rendering.
-
-Migrating an existing in-repo persona:
-
-```bash
-mkdir -p ../labora-<name>/personas
-mv data/personas/<name> ../labora-<name>/personas/<name>
-cd ../labora-<name>
-node <path-to-labora>/src/tools/migrate-claim-sources.js <name>          # dry run
-node <path-to-labora>/src/tools/migrate-claim-sources.js <name> --write
-node <path-to-labora>/src/tools/validate-profile.js <name>               # expect: profile VALID
-```
-
-Claim provenance is stored **persona-relative** so it travels with the persona.
-`migrate-claim-sources.js` repoints legacy repo-relative paths and refuses to
-write unless every source hashes identically to the value recorded at
-verification time — so a migration can never silently change what a verified
-claim asserts.
-
-Two tests assert against a real persona and skip when none is present. To run
-them, point at a workspace: `LABORA_WORKSPACE=../labora-<name> npm test`.
-
-The profile is split by **ownership**, then by lifetime:
-
-| File | Owner | Edited | Grounds claims | Holds |
-|---|---|---|---|---|
-| `contact.md` | you | freely | **no** | private contact card |
-| `background.md` | you | rarely | yes | durable facts: positions, education, projects, certifications, awards |
-| `career.md` | you | optional; on review cycles | yes | period narrative — skip it when cleaned per-review evidence already covers the same periods |
-| `search-preferences.json` | you | freely | n/a | trusted job-search config |
-| `generated/identity.json` | `resume-persona` | never by hand | n/a | structural spine |
-| `generated/claims.json` | `resume-persona` | never by hand | n/a | verified claim ledger |
-| `generated/accomplishments.json` | `resume-persona` | never by hand | n/a | retrieval index over the ledger |
-
-You edit the sources; `resume-persona` regenerates `generated/`. The boundary is
-ownership, not file type — `search-preferences.json` is JSON but human-authored,
-so it stays with the sources. To change anything under `generated/`, change a
-source and re-run `resume-persona`; never hand-edit the artifacts, because claims
-are anchored to their sources by content hash and a hand-written claim has no
-verifiable anchor. See `profile/generated/README.md`.
-
-`contact.md` is deliberately excluded from the grounding corpus. Claims are
-anchored to their source file by content hash, so if contact details shared a
-file with grounded evidence, changing a phone number would invalidate the
-ledger. Neither `background.md` nor `career.md` may contain a profile summary,
-resume bullets for a well-evidenced period, or a skill list: that is pre-baked
-resume prose, and it anchors the tailor instead of informing it.
-
-## Agents
-
-Each agent has one **trust posture**, and the posture decides what it may *see*.
-Contamination, not capability, is what breaks an assurance pipeline: a curator
-who knows the target job shades facts toward it, an advocate holding raw evidence
-composes from sources no claim covers, and a judge that has seen the rationale
-grades what you meant instead of what the page says.
-
-Agent definitions are grouped by the outcome they own:
-
-```text
-agents/
-├── judges/
-├── job-scouts/
-├── profile-builders/
-└── resume-builders/
-```
-
-The plugin manifest lists each directory explicitly. Agent names remain flat and
-stable at runtime, so callers still dispatch `labora:<agent-name>`.
-
-| Posture | Agent | Sees | Writes |
-|---|---|---|---|
-| Intake | `applicant-intake` | the operator's answers | human-authored `profile/` sources |
-| Acquire | `profile-researcher` | untrusted web, GitHub, credential issuers | `evidence/` only |
-| Acquire | `scout-discovery`, `scout-fit`, `scout-market`, `scout-growth` | job sources, claims, preferences | discovery run dir |
-| Curate | `profile-builder` | evidence + sources, **no job** | `profile/generated/` (sole owner) |
-| Advocate | `resume-writer-expert` | claims, bank, job spec — **never raw evidence** | `resume.json` |
-| Adjudicate | `judge-ats`, `judge-engineer`, `judge-hr` | rendered artifact + job only | `judges/*.json` |
-| Read cold | `resume-cold-reader` | rendered text + posting + audience label only | `reader-review.json` |
-| Conduct | `resume-build`, `job-explorer` | orchestration state | summaries, reconciliation |
-
-| Agent | Role |
-|---|---|
-| `applicant-intake` | Onboarding conductor: interviews a brand-new applicant for contact, career history, evidence sources and preferences, then dispatches the researcher and curator |
-| `resume-build` | Conductor: sequences skills + deterministic tools, launches the tailor and judges, applies the release gate |
-| `profile-builder` | Profile conductor and sole owner of `profile/generated/`; dispatches the researcher |
-| `profile-researcher` | Isolated evidence acquisition — the only agent that touches untrusted pages, and it cannot write claims |
-| `resume-writer-expert` | Isolated senior-SWE writing specialist — composes and critiques bullets only from verified claims |
-| `resume-tailor` | Compatibility alias that routes existing integrations to `resume-writer-expert` |
-| `judge-ats` | Isolated ATS-gate judge (fresh context) |
-| `judge-engineer` | Isolated technical hiring-manager judge (fresh context) |
-| `judge-hr` | Isolated recruiter / HR screening judge (fresh context) |
-| `resume-cold-reader` | Isolated external reader — sees only the rendered text, the posting and an audience label, and reports what each phrase appears to mean |
-| `job-explorer` | Job-discovery conductor: collects postings, launches three independent scoring scouts, and reconciles them |
-| `scout-discovery` | Read-only collector — verifies and deduplicates current postings without scoring |
-| `scout-fit` | Isolated scout — skills/domain/seniority match vs. verified claims |
-| `scout-market` | Isolated scout — compensation, location/remote, company health |
-| `scout-growth` | Isolated scout — roles that stretch the persona toward stated goals |
-
-The profile agents are split so the stage handling untrusted web content has no
-write access to the claim ledger: a hostile page can at worst dirty a file under
-`evidence/`, never author a claim.
-
-`test/agent-architecture.test.js` enforces these boundaries, so a posture cannot
-be widened by accident — granting the tailor a browser tool fails the suite.
-
-The three judges run as separate sub-agents with their own context so their
-verdicts stay independent of the tailoring reasoning. Each sees only the job and
-the selected delivery artifact — never provenance, generator rationale, or the
-other judges. The conductor launches them in parallel.
-
-The `job-explorer` first creates one shared deduplicated posting set. Three scout
-sub-agents then score every posting independently from fit, market, and growth
-angles. A deterministic reconciler requires a credible fit score plus consensus.
-Canonical job IDs, posting hashes, and the configured IANA timezone bind every
-lead to one fresh dated run. It proposes leads — it never applies.
-See `ARCHITECTURE.md` for the discovery layout and consensus rule.
-
-## Skills
-
-| Skill | Responsibility |
-|---|---|
-| `new-applicant` | Scaffold a persona workspace and ask for search preferences |
-| `job-search` | Job-discovery contract; dispatches the `job-explorer` agent |
-| `resume-evidence` | OCR and faithfully clean private source documents |
-| `resume-persona` | Build the identity spine, a source-addressed claim ledger, and the accomplishment bank |
-| `resume-job-analysis` | Classify required, preferred and responsibility constraints |
-| `resume-application-strategy` | Build the private positioning brief and targeted evidence questions |
-| `resume-tailor` | Tailor only from verified claims and map provenance; executed by `resume-writer-expert` |
-| `resume-editorial` | Edit against an operator-approved baseline: plan keep/move/combine/split/make-specific/delete/rewrite per span, then audit the whole document |
-| `resume-format` | Inject contact, render Markdown review + DOCX/PDF, validate delivery-artifact recall |
-| `judge-ats` | ATS rubric/procedure — executed by the `judge-ats` agent |
-| `judge-engineer` | Engineering-depth rubric — executed by the `judge-engineer` agent |
-| `judge-hr` | Recruiter-screen rubric — executed by the `judge-hr` agent |
-| `resume-quality-gate` | Aggregate deterministic and model evaluations |
-| `application-outcomes` | Record operator-confirmed funnel events without causal claims |
-| `career-issue` | Draft an issue on a repo the persona owns from a named gap route |
-
-All skills load `skills/resume-conventions/SKILL.md`. Judge skills hold the
-rubric; the matching agents provide the isolated context that runs them.
+Internal skills (`resume-conventions`, `resume-interview`, and `resume-writing`) are loaded by agents and public commands; they are not entry points.
 
 ## Deterministic tools
 
-```bash
-labora analyze-job <job.md> [job-spec.json]
-labora validate-evidence-cleaning <extracted.md> <cleaned.md> --metadata <extracted.json>
-labora validate-application-strategy <strategy.json> <job-spec.json> <claims.json> [--accomplishments <accomplishments.json>]
-labora baseline <application-dir> --record <resume-approved.json> [--approved-by-operator]
-labora baseline <application-dir> --check
-labora validate-editorial-plan <editorial-plan.json> <resume.json> <claims.json> --application <application-dir> [--accomplishments <accomplishments.json>]
-labora validate-section-plans <resume.json> [--claims <claims.json>] [--experience-plan <f>] [--skills-plan <f>] [--projects-plan <f>]
-labora audit-document <resume.json> [--job-spec <job-spec.json>] [--claims <claims.json>] [--application <application-dir>] [--editorial-plan <f>]
-labora prepare-reader-input <artifact-text.txt> [--job <job.md>] [--audience recruiter|engineering_manager|technical_screener]
-labora rank-accomplishments <accomplishments.json> <job-spec.json> [--limit <n>]
-labora score-ats <resume.json> <job.md> --job-spec <job-spec.json>
-labora validate-claims <resume.json> <identity.json> <claims.json> [--accomplishments <accomplishments.json>] [--job-spec <job-spec.json>]
-labora format-markdown <resume.json> <out.md> --job <job.md> --contact <contact.md>
-labora format-docx <resume.json> <out.docx> --job <job.md> --contact <contact.md> [--style precision-minimal|editorial-technical]
-labora format-pdf <resume.json> <out.pdf> --job <job.md> --contact <contact.md> [--style precision-minimal|editorial-technical]
-labora render-artifact-preview <out.pdf> <application-dir>/previews
-labora validate-artifact <resume.json> <out.docx|out.pdf> --contact <contact.md> --job <job.md> [--cross-parser]
-labora prepare-judge-input <ats|engineer|hr> <application-dir> <artifact>
-labora run-state check <application-dir> --style precision-minimal
-labora quality-gate <application-dir> --artifact <selected.docx|selected.pdf>
-labora check-judge-models [--json] [--settings <path>]
-labora merge-candidates <run-dir> --prefs <search-preferences.json> --claims <claims.json> [--fit-floor 60] [--seen <seen.json>] [--suppress-seen]
-labora calibrate-judges [--persona <name>] [--out <calibration.json>]
-labora application-outcome <application-dir> show|record <event>
-labora career-issue draft <persona> --kind <polish|legibility|gap|growth> --repo <owner/repo> --title <text> --problem <text> --route <text> --done-when <text>
-labora career-issue check <persona> <body-file>
+Run `node bin/labora list` in the plugin checkout, or `labora list` when the dispatcher path is announced, to see the installed surface. Tools are two-word commands grouped by responsibility:
+
+```text
+render    resume, preview
+inspect   artifact, resume
+verify    artifact
+job       parse, analyze
+search    merge, report, company, outcome
+workspace init, lint, migrate
 ```
 
-`--style` selects a named style profile: `precision-minimal` (default —
-restrained, direct, technical) or `editorial-technical` (mature, deliberate,
-readable, with a serif display face over the same Arial body). Both come from
-one registry, so DOCX and HTML/PDF render from identical semantic tokens rather
-than two hand-tuned layouts. A profile decides how the page looks and nothing
-about what it says; the two profiles print the same words. A profile also
-declares `sectionOrder`, because rearranging sections invents no words — but it
-carries no headings, since a heading *is* words. `precision-minimal` therefore
-places projects before education while `editorial-technical` does the reverse,
-and neither adds, drops or rewrites a line. An unrecognised
-ID exits non-zero with the accepted list instead of falling back, and the
-selected ID names the artifacts and is recorded in `validations/artifact.json`
-and `run.json`.
+Common invocations:
 
-Section headings and skill groupings live in an optional `presentation` block
-on `resume.json`, not in a style. Both put words on the page, so both require
-`approvedBy: "operator"`; a block an agent wrote and nobody confirmed is
-ignored at render time rather than rejected, and the shipped headings stand. A
-skill group may only regroup skills the resume already claims, and may not
-print one twice.
+```bash
+labora render resume <resume.json> --out <application-dir> --formats md,docx --contact <contact.md> --job <job.md>
+labora render resume <resume.json> --out <application-dir> --formats docx --contact <contact.md>
+labora render resume <resume.json> --out <application-dir> --formats pdf --contact <contact.md> --job <job.md>
+labora inspect resume <resume.json>
+labora inspect artifact <resume.docx|resume.pdf>
+labora verify artifact <resume.json> <resume.docx|resume.pdf> --contact <contact.md> --job <job.md>
+labora job parse <job.md>
+labora job analyze <job.md> [job-spec.json]
+labora search merge <run-dir> --prefs <search-preferences.json>
+labora search report <candidates.json> [report.md]
+labora search company --company <name> --out <file.md> <candidates.json> [...]
+labora search outcome <application-dir> show|record <event>
+labora workspace init|lint|migrate <persona>
+```
 
-An approved grouping is printed as approved. Its labels, its membership, its
-group order and its order within a group all reach Markdown, DOCX and PDF
-unchanged, and `--max-skills` does not apply to it — a cap that silently
-discarded a skill the operator approved would be the tool overruling the
-person. Ranking skills against the job and balancing them across lines remains
-the behaviour when no approved grouping exists.
+`--formats` builds exactly the formats named. The default for `render resume` is `md,docx`; PDF is opt-in because it needs Chrome. A missing PDF renderer skips the PDF and leaves any other requested formats intact.
 
-Artifact validation derives the headings it expects from those same two inputs
-rather than a fixed list, so a reordered or relabelled resume is checked
-against what it declared. An approved grouping is checked structurally as well
-as lexically: the labels must appear in the approved order and each group's
-skills must appear under their own label. Field recall alone cannot see this,
-because a flattened list still contains every skill word. It also checks
-hyperlink targets: a credential URL
-that renders as text but not as a link is reported, which plain-text recall
-cannot see. That check runs for DOCX, where relationships can be read back;
-for PDF it is skipped rather than guessed.
+`verify artifact` checks file integrity: the artifact opens, parses, contains expected renderer fields, sections, contact, links where the format exposes them, and PDF layout sidecar data when present. It never checks whether a career statement is true.
 
-PDF rendering also records measured layout beside the artifact. The page count
-comes from the generated PDF, not from the browser's continuous-column
-measurement of the DOM: Chromium drops trailing whitespace at a break and
-honours the profile's keep-together rules, so a resume sitting a hair over a
-boundary measured as an extra page the file does not contain, and the underfill
-finding pointed at a page nobody could open. Fill is still measured from the
-DOM, because nothing else measures it, but it is reported against the real
-final page — and where the measurement cannot describe that page, no figure is
-reported rather than an invented one. Every layout figure is advisory: Labora
-reports the page break and leaves cutting or expanding content to you.
+Top-level support commands are `labora list`, `labora doctor`, `labora setup`, and `labora announce`.
 
-`format-markdown` creates an editable review companion from the same formatter
-projection as DOCX/PDF. Manual edits are feedback only: they make the format
-stage stale and must be reconciled into `resume.json` and claim-validated before
-delivery artifacts are regenerated. Markdown is never accepted as the selected
-artifact by judges or the release gate.
+## Workspace layout
 
-`coverage_percent` is lexical coverage only.
-Requirements carry both employer priority and release severity. Missing
-`hard_eligibility` blocks; missing `core` requirements routes to human review;
-`preferred` and `soft_signal` gaps remain advisory. None of the scores is a
-hiring probability.
+```text
+<workspace>/personas/<name>/
+  profile/       contact.md, background.md, career.md, search-preferences.json
+  sources/       whatever the person already had, copied or captured as-is
+  applications/<job-slug>/
+                 job.md, job-spec.json, resume.json, rendered files
+  job-search/<run-date>/
+                 raw scout output, candidates.json, report.md
+```
 
-`analyze-job` flags non-requirement prose — EEO paragraphs, pay ranges,
-benefits blocks — in `nonRequirements` with a reason. The flag is advisory and
-never removes the line from scoring, because a wrongly withheld requirement is
-invisible while a retained one is merely noisy. Each entry carries its reason so
-the filter can be audited rather than trusted. Work-authorization detection is
-negation-aware in both directions: an equal-opportunity paragraph ("without
-regard to … citizenship status") is never an eligibility gate, and a refusal to
-sponsor ("no visa sponsorship is available") always is.
+`profile/` is human-authored and confirmed. `sources/` holds material the person chose to provide. `applications/<job-slug>/` keeps one opportunity’s posting, structured job context, résumé JSON, and rendered artifacts together. `job-search/<run-date>/` holds private discovery runs.
 
-`--cross-parser` extracts the rendered artifact a second time with an independent
-parser (OCR render for PDF, mammoth HTML for DOCX) and reports fields the two
-parsers disagree on — a real-world ATS fragility signal. Divergences are advisory
-warnings, never a hard failure.
+Older workspaces may have `evidence/` and generated profile directories. `labora workspace migrate <persona>` shows a dry-run migration from `evidence/` to `sources/`; `--apply` moves non-conflicting files. Retired generated directories are reported and never deleted.
 
-Judges consume one deterministic input bundle containing only the parsed job,
-selected artifact text, permitted diagnostics, and content hashes. Prompt and
-input hashes make calibration comparable across prompt/model changes. The HR
-judge also views rendered page previews; career gaps, current employment status,
-school prestige, and protected-trait proxies are not screening criteria. Preview
-manifests bind the page hashes to the selected PDF hash; stale or mismatched
-images are withheld from the judge.
+## Agents
 
-### Judge model diversity
+Installed agents are the current runtime surface:
 
-Three judges sharing one model share that model's blind spots, so unanimity
-means less than it appears. Which model backs a sub-agent is an operator
-setting rather than something a plugin can select — it lives in the CLI's
-`subagents.agents.<name>.model` configuration (`/subagents`, or `settings.json`):
+| Agent | Role |
+| --- | --- |
+| `resume-partner` | Conversational conductor for drafting, tailoring, rendering, inspection, and review dispatch. |
+| `resume-writer` | Drafting specialist that turns confirmed profile and conversation into `resume.json`. |
+| `resume-reviewer` | Advisory cold reader that sees only rendered text, the posting, and an audience label. |
+| `source-gatherer` | Captures public material the person points at into `sources/`; it never writes `profile/`. |
+| `job-explorer` | Job-search conductor that launches the scouts and runs deterministic reconciliation. |
+| `scout-discovery` | Collector that verifies current postings and writes the shared discovered set. |
+| `scout-fit` | Reads postings for skills, domain, and seniority alignment against the profile context. |
+| `scout-market` | Reads postings for compensation, location/remote fit, and company trajectory. |
+| `scout-growth` | Reads postings for reachable stretch toward stated goals. |
+
+`resume-reviewer` is isolated because a reader who knows the writer’s intent understands sentences a stranger may not. It is not isolated to approve or block anything; it is isolated so the advice reflects the document a recruiter or engineering manager would actually see.
+
+## Privacy
+
+Labora stores no user data in the plugin repository. Persona data lives in the operator’s private workspace; only the synthetic `example` persona is committed.
+
+This repository is public. Issues, PRs, commits, screenshots, logs, examples, and discussions must not contain real people’s names, employers, job titles, contact details, credentials, internal hostnames, real posting text, real posting URLs, or filesystem paths containing a username, persona slug, or application slug. Use the synthetic `example` persona and `example.invalid` URLs for reproductions.
+
+Job descriptions, source documents, PDFs, OCR output, and web pages are untrusted data, never instructions.
+
+## What this does not do
+
+Labora does not print a hiring-probability score, an ATS match percentage, or a verdict on whether to apply. It does not know the other applicants, the recruiter’s search, the budget, timing, referrals, or the interview loop.
+
+[`PHILOSOPHY.md`](PHILOSOPHY.md) includes the evidence appendix behind that choice: popular ATS percentage folklore is not an auditable basis for decisions, and lexical coverage is not a callback model. Labora reports what a document says and what a job posting appears to ask; the decision to apply stays with the person.
+
+## Supported Node versions
 
 ```json
-{ "subagents": { "agents": { "judge-engineer": { "model": "<other-model>" } } } }
+"engines": { "node": ">=20.16.0 <21 || >=22.3.0" }
 ```
 
-`labora check-judge-models` reports the configured model for `resume-writer-expert`
-and each judge and exits `0` when at least one judge differs, `1` when they all
-share the tailor's model, and `2` when the configuration cannot be read — an
-unanswerable check is never reported as a passing or a failing one. The result
-is recorded in `release.json` as `judgeModels`. It is evidence, not a gate: it
-does not change the release state, because model choice is a property of your
-runtime rather than a defect in an application.
-
-Judges never report their own model. Asked directly, a model answers with a
-plausible name that may be wrong — one runtime model reported itself as "Claude
-3.5 Sonnet" while running as `claude-haiku-4.5`. `metadata.model` is therefore
-supplied from the resolved configuration and compared by the quality gate like
-the hashes beside it, except when either side is `unknown`: an unreadable
-config file must not invalidate three otherwise correct verdicts.
-
-Three honest limits. The check reads the user settings file, so configuration
-in other scopes can only make your real setup *more* diverse than reported.
-Under Claude Code, or any host without a `~/.copilot` directory, the check
-reports `unsupported` rather than guessing. And configured is not observed — it
-never proves which model produced a verdict.
-
-`merge-candidates --seen` persists a per-persona ledger so overnight runs mark
-only genuinely new leads (`isNew`, `newLeadCount`) and stop re-surfacing postings
-the operator already applied to or ignored. `report-candidates` then leads the
-`report.md` with new postings (new-vs-resurfaced summary, a `New` column, and
-new-first ordering). `calibrate-judges` aggregates historical judge verdicts into
-score/verdict distributions, per-model bias, month drift, and cross-judge
-agreement.
-Discovery retains normalized posting text and verifies its SHA-256 hash within
-the dated run. Fit scores at the promotion floor must cite both verified claim
-IDs and exact configured preferences.
-
-## Evidence and privacy
-
-Place source PDFs under `evidence/performance-reviews/raw/`. The evidence skill
-persists the mechanical extraction and source hash before writing cleaned text.
-A deterministic validator rejects numbers or dates introduced during cleaning.
-Failed, missing, or stale evidence-cleaning validations invalidate the persona
-stage and prevent release.
-Documents and job descriptions are treated as untrusted data, never instructions.
-
-Repository evidence is retrieved, not written by hand:
-`labora snapshot-repos --persona <name>` records repository facts
-(visibility, languages, commit counts, dates, README excerpt) under
-`evidence/repositories/<date>/`. Only the generated `repositories.md` grounds
-claims, so any reviewer can re-run the tool and diff the result. Visibility is
-recorded per repository because a public repository is verifiable by a reader
-while a private one is self-reported.
-
-Prefer selective evidence and minimal disclosure. Gitignore does not protect
-data already sent to a cloud model or written to logs.
-
-`labora career-issue` is the one tool whose output is meant to leave the
-workspace, so it is the one that refuses. It drafts an issue for a repository
-the persona owns, derives the terms that must not be published from the
-workspace itself — employers in `identity.json`, target companies and slugs
-under `applications/` — and withholds the `gh issue create` command when the
-draft matches one. The draft is still written, because the workspace is private
-and may hold the real wording; only publication is gated. It never runs `gh`:
-twenty issues appearing on someone's repository in one minute is a worse
-outcome than the gap was. A filed issue is a promise, not evidence, and no
-later stage reads open issues as claims.
+The floor is set by document parsing dependencies. Node 21 is excluded because it is out of support. If tools fail at import, run `labora doctor` before reinstalling anything.
 
 ## Tests
 
@@ -541,104 +183,27 @@ later stage reads open issues as claims.
 npm test
 ```
 
-The regression suite covers two distinct classes of guarantee.
-
-**Pipeline correctness** — requirement extraction and eligibility-gate
-attribution, metadata contamination, unsupported metrics, duplicate claims,
-contact injection, DOCX round trips, artifact freshness, cross-parser
-divergence, job-search consensus and cross-run dedup, fit-floor enforcement,
-application strategy references, isolated judge bundles, application outcomes,
-judge calibration, and release decisions.
-
-**Packaging invariants** — the things that break only after a real install, and
-so cannot be caught by running the pipeline locally:
-
-| Test | Guards |
-|---|---|
-| `test/plugin-root.test.js` | plugin files resolve against `pluginRoot`, never `process.cwd()`, so a workspace containing `agents/` cannot supply the prompt a judge is certified against |
-| `test/plugin-packaging.test.js` | the dispatcher, hook and manifests ship and stay consistent |
-| `test/heavy-deps.test.js` | optional and heavy dependencies stay lazily loaded, so a missing browser or OCR engine degrades instead of breaking every tool |
-
-The prose in `agents/` and `skills/` is asserted on directly, so rewording a
-rule is expected to break the build.
+The suite covers deterministic parsing, rendering, artifact inspection, job-search reconciliation/reporting, workspace layout, dependency loading, plugin packaging, and agent/skill contracts. The prose in `skills/` and `agents/` is executable documentation: changing a command name, public skill, or agent boundary should change tests with it.
 
 ## Troubleshooting
 
-Run `labora doctor` first. It reports every failure below in one pass:
-
-```text
-plugin root   /path/to/labora
-working dir   /path/to/your-workspace
-node          v22.19.0
-npm           10.9.3
-registry      https://registry.npmjs.org/ (reachable)
-tools         29 available
-dependencies  ready
-pdf renderer  /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
-mode          full deterministic capabilities installed
-```
+Run `labora doctor` first. It reports plugin root, working directory, Node and npm versions, registry reachability, available tools, dependency status, PDF renderer status, and degraded/full mode.
 
 | Symptom | Cause | Remedy |
-|---|---|---|
-| A dependency-backed tool refuses to run | Its required packages are not installed | Run `labora doctor`; use `labora setup` only when npm and the registry are ready |
-| `npm` reports unavailable | The Node installation does not include npm or npm is not on `PATH` | Repair the Node/npm installation; agents, skills and dependency-free tools still work |
-| `registry` reports authentication, access, network or TLS failure | npm cannot reach its configured registry | Follow the environment's approved registry/auth/network process; Labora never switches registries or writes credentials |
-| `dependencies` reports missing after `setup` | Node is older than the supported range | Node `>=20.16 <21` or `>=22.3` — see below |
-| `pdf renderer` reports none found | Labora never downloads a browser | Install Chrome, or set `LABORA_CHROME` to its binary |
-| A scanned PDF yields no text | OCR is an optional dependency | `npm install tesseract.js` inside the plugin directory |
-| Skills tell you to run `labora <tool>`, but your shell has no such command | `bin/labora` is deliberately not added to `PATH` | See *How the agent finds the tools* below |
-| A tool reports a stage is stale | File existence is not freshness | `labora run-state` reports what must re-run |
-
-### Supported Node versions
-
-```json
-"engines": { "node": ">=20.16.0 <21 || >=22.3.0" }
-```
-
-The floor is set by `pdf-parse`, not by labora itself. Node 21 is excluded
-because it is out of support. On an unsupported runtime the tools fail at
-import, which looks like a missing-dependency error but is not — check
-`labora doctor` before reinstalling anything.
-
-### How the agent finds the tools
-
-`bin/labora` lives inside the plugin, and a plugin install lands at an
-unpredictable path that differs per machine and per install method. Putting it
-on `PATH` would make the plugin mutate the user's shell environment, so labora
-does not.
-
-Instead, the `sessionStart` hook in `hooks.json` runs `labora announce`, which
-returns the absolute path as session context:
-
-```json
-{ "additionalContext": "labora plugin <version> is installed at /path/to/labora.\n\nSkills and agents invoke deterministic tools as \"labora <tool> [args]\".\nThat command is not on PATH. Run it as:\n  /path/to/labora/bin/labora <tool> [args]" }
-```
-
-That is the only reason the agent knows where the tools are. **If you disable
-hooks, every skill instruction that says `labora <tool>` will fail** — the agent
-has no way to resolve it. Either re-enable the hook, or tell the agent the
-absolute path to `bin/labora` once at the start of a session.
-
-This also explains a rule that otherwise looks arbitrary: skills invoke
-`labora <tool>`, never `node src/tools/<tool>.js`. A relative path resolves
-against the workspace you are working in, not the plugin, so it resolves to
-nothing.
+| --- | --- | --- |
+| A dependency-backed tool refuses to run | Required packages are not installed | Run `labora doctor`; if npm and the registry are ready, run `labora setup`. |
+| `npm` is unavailable | Node/npm is missing or not on `PATH` | Repair Node/npm. Conversation, skills, agents, and dependency-free tools remain available. |
+| Registry checks fail | npm cannot reach its configured registry | Follow the environment’s approved registry/auth/network process; Labora does not switch registries or write credentials. |
+| PDF was skipped | Chrome was not found | Install Chrome or set `LABORA_CHROME`; request `md,docx` when PDF is not needed. |
+| A scanned PDF yields no text | OCR is optional | Install `tesseract.js` inside the plugin only if OCR is needed. |
+| The shell has no `labora` command | The dispatcher is not on `PATH` | Use the absolute `bin/labora` path announced by the session hook. |
+| A workspace has old `agents/` or `skills/` entries | Retired path-resolution workaround | The announce hook reports them as inert; confirm their origin before removing anything. |
 
 ## Contributing
 
-Read [`CONTRIBUTING.md`](CONTRIBUTING.md) first, and
-[`ARCHITECTURE.md`](ARCHITECTURE.md) before a substantial change.
+Read [`AGENTS.md`](AGENTS.md), [`PHILOSOPHY.md`](PHILOSOPHY.md), and [`ARCHITECTURE.md`](ARCHITECTURE.md) before a substantial change.
 
-Most rules exist to protect a guarantee rather than a preference. The load
-bearing ones: never commit real persona data, never make it possible to render
-a fact the ledger cannot support, never widen an agent boundary, and never lower
-a discovery gate to manufacture leads. The prose in `agents/` and `skills/` is
-asserted on by the test suite, so rewording a rule is expected to break the
-build.
-
-Security issues go through [`SECURITY.md`](SECURITY.md) privately, never a
-public issue. Participation is governed by the
-[Code of Conduct](CODE_OF_CONDUCT.md).
+The load-bearing rules are: keep personal data out of public artifacts, keep the conversation/code boundary intact, keep slash commands under `skills/`, invoke deterministic tools through `labora <group> <tool>`, and update regression tests with fixes. Security issues go through [`SECURITY.md`](SECURITY.md) privately. Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

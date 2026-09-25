@@ -18,7 +18,7 @@ function makeDispatcherFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "labora-dispatcher-"));
   fs.mkdirSync(path.join(root, "bin"), { recursive: true });
   fs.mkdirSync(path.join(root, "src", "lib"), { recursive: true });
-  fs.mkdirSync(path.join(root, "src", "tools"), { recursive: true });
+  fs.mkdirSync(path.join(root, "src", "tools", "test"), { recursive: true });
   fs.copyFileSync(path.join(repoRoot, "bin", "labora"), path.join(root, "bin", "labora"));
   for (const name of ["tool-dependencies.js", "dependency-install-diagnostics.js"]) {
     fs.copyFileSync(
@@ -35,9 +35,9 @@ function makeDispatcherFixture() {
       dependencies: { zod: "^4.0.0" },
     }),
   );
-  fs.writeFileSync(path.join(root, "src", "tools", "free.js"), 'process.stdout.write("free\\n");\n');
+  fs.writeFileSync(path.join(root, "src", "tools", "test", "free.js"), 'process.stdout.write("free\\n");\n');
   fs.writeFileSync(
-    path.join(root, "src", "tools", "gated.js"),
+    path.join(root, "src", "tools", "test", "gated.js"),
     'import { z } from "zod";\nvoid z;\n',
   );
   return root;
@@ -124,22 +124,22 @@ test("npm failures have distinct repair routes", () => {
 test("a dependency-backed tool refuses only its own stage", () => {
   const root = makeDispatcherFixture();
   try {
-    const result = runFixture(root, ["gated"]);
+    const result = runFixture(root, ["test", "gated"]);
     assert.equal(result.status, 1);
     assert.match(result.stderr, /degraded advisory mode/);
     assert.match(result.stderr, /agents,\s*\n?skills, and dependency-free tools remain available/);
     assert.match(result.stderr, /labora doctor/);
     assert.match(result.stderr, /Do not approximate/);
 
-    const free = runFixture(root, ["free"]);
+    const free = runFixture(root, ["test", "free"]);
     assert.equal(free.status, 0);
     assert.equal(free.stdout, "free\n");
 
     const announce = runFixture(root, ["announce"]);
     assert.equal(announce.status, 0);
     const context = JSON.parse(announce.stdout).additionalContext;
-    assert.match(context, /agents and skills remain available/);
-    assert.match(context, /Stop only the stage/);
+    assert.match(context, /Labora still works/);
+    assert.match(context, /build or read a document/);
     assert.match(context, /doctor/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

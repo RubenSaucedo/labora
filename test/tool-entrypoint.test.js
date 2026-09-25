@@ -15,17 +15,23 @@ const TOOLS = path.join(ROOT, "src", "tools");
  * produces `file://C:\x\y.js`. The comparison is false, `main()` never runs, and
  * the process exits 0 having done nothing.
  *
- * That failure mode is worse than a crash. `labora validate-profile` returned
+ * That failure mode is worse than a crash. `labora workspace lint` returned
  * success and printed nothing, which reads exactly like a clean pass, so a
  * person could ship a resume believing it had been checked.
  */
 test("no tool decides its entrypoint with a hand-built file:// URL", () => {
   const offenders = [];
-  for (const entry of fs.readdirSync(TOOLS)) {
-    if (!entry.endsWith(".js")) continue;
-    const body = fs.readFileSync(path.join(TOOLS, entry), "utf-8");
-    if (body.includes("`file://${process.argv[1]}`")) offenders.push(entry);
-  }
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".js")) {
+        const body = fs.readFileSync(full, "utf-8");
+        if (body.includes("`file://${process.argv[1]}`")) offenders.push(path.relative(TOOLS, full));
+      }
+    }
+  };
+  walk(TOOLS);
   assert.deepEqual(
     offenders,
     [],
@@ -34,7 +40,7 @@ test("no tool decides its entrypoint with a hand-built file:// URL", () => {
 });
 
 test("the hand-built form and the correct form actually differ on Windows", () => {
-  const sample = path.join(TOOLS, "validate-profile.js");
+  const sample = path.join(TOOLS, "workspace", "lint.js");
   const correct = pathToFileURL(sample).href;
   const handBuilt = `file://${sample}`;
   if (path.sep === "\\") {
@@ -48,7 +54,7 @@ test("a tool invoked through the dispatcher actually runs its main path", () => 
   // The regression is silence, so the assertion has to be that output exists.
   // `--help`-less tools report usage on stderr and exit non-zero when given no
   // arguments; the failure being guarded against produced neither.
-  const result = spawnSync(process.execPath, [path.join(ROOT, "bin", "labora"), "validate-profile"], {
+  const result = spawnSync(process.execPath, [path.join(ROOT, "bin", "labora"), "workspace", "lint"], {
     encoding: "utf-8",
   });
   const output = `${result.stdout}${result.stderr}`;

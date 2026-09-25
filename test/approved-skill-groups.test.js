@@ -209,7 +209,7 @@ test("an unapproved grouping is ignored rather than trusted", () => {
   assert.equal(formatter.skills.length, 15);
 });
 
-test("a two-role progression keeps the prior role visible", () => {
+test("progression rendering is retired", () => {
   assert.equal(
     formatProgression(
       [
@@ -218,7 +218,7 @@ test("a two-role progression keeps the prior role visible", () => {
       ],
       "Senior Engineer"
     ),
-    "Engineer, 2020",
-    "the current title is already the heading; the prior role must not vanish with it"
+    "",
+    "promotions inside one tenure are now ordinary experience text, not a second rendered title line"
   );
 });

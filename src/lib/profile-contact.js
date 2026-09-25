@@ -85,17 +85,21 @@ export function loadContact(contactPath) {
 }
 
 export function injectContact(resume, contact) {
-  const required = ["name", "email", "phone"];
-  const missing = required.filter((key) => !contact?.[key]);
-  if (missing.length) {
-    throw new Error(`contact.md is missing required contact fields: ${missing.join(", ")}.`);
+  // A name is the one field a résumé genuinely cannot render without.
+  //
+  // This used to demand a phone number too, and refuse the whole render without
+  // one. Plenty of people deliberately leave a phone off a résumé, and a tool
+  // that treats that choice as a missing input has confused its own template
+  // with the person's decision.
+  if (!contact?.name) {
+    throw new Error("contact.md needs at least a name: the résumé header has nothing to render without it.");
   }
   return {
     ...resume,
     contact: {
       name: contact.name,
-      email: contact.email,
-      phone: contact.phone,
+      email: contact.email || "",
+      phone: contact.phone || "",
       location: contact.location || "",
       linkedin: contact.linkedin || "",
       github: contact.github || "",
