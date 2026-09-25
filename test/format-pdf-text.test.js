@@ -124,3 +124,41 @@ test("an unknown style refuses to reach the browser at all", async () => {
     /Unknown resume style "modern"\. Accepted styles: editorial-technical, precision-minimal\./
   );
 });
+
+// The renderer must not wait on network activity for a document that has none.
+//
+// `networkidle0` waits for a 500ms quiet window measured by a heuristic that
+// slips under CPU load. On a loaded machine that slipped past the 30s
+// navigation timeout and failed the render, which is the worst failure this
+// tool has: a résumé that will not render because the laptop was busy.
+//
+// The guard is on the HTML rather than on the puppeteer call, because the
+// reason `load` is safe is that there is nothing to fetch. If a style profile
+// ever adds a web font, a stylesheet link or a background image, this fails and
+// the wait condition has to be reconsidered at the same time.
+//
+// Anchor `href`s are deliberately not checked: a link is navigated by a reader,
+// never fetched while the page renders. Only these four forms cause a request.
+test("the rendered page fetches nothing while it renders", async () => {
+  const { resumeJsonToHtml } = await import("../src/agents/format-resume.js");
+  const { listStyleProfiles } = await import("../src/lib/resume-style.js");
+
+  const FETCHING = [
+    [/<[^>]+\ssrc\s*=\s*"([^"]+)"/g, "src attribute"],
+    [/<link[^>]+href\s*=\s*"([^"]+)"/g, "link element"],
+    [/@import\s+(?:url\()?["']?([^"')\s;]+)/g, "@import"],
+    [/url\(\s*["']?(https?:\/\/[^"')\s]+)/g, "css url()"],
+  ];
+
+  for (const { id } of listStyleProfiles()) {
+    const html = resumeJsonToHtml(RESUME, resolveStyleProfile(id));
+    for (const [pattern, label] of FETCHING) {
+      const found = [...html.matchAll(pattern)].map((match) => match[1]);
+      assert.deepEqual(
+        found,
+        [],
+        `${id} fetches a resource via ${label}; the PDF wait condition assumes none`,
+      );
+    }
+  }
+});

@@ -1151,7 +1151,21 @@ export async function formatResumeToPdfWithLayout({ resumeJson, style: stylePara
   });
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    // `load`, not `networkidle0`.
+    //
+    // This HTML is a self-contained string: no stylesheet link, no @import, no
+    // web font, no image. There is no network activity to go idle, so
+    // `networkidle0` bought nothing and charged for it -- it waits for a 500ms
+    // quiet window measured by a heuristic that slips under CPU load, and on a
+    // busy machine it slipped past the 30s navigation timeout and failed the
+    // render outright. A résumé that will not render because the laptop was
+    // busy is the worst failure this tool has.
+    //
+    // Verified equivalent: extracted text and the layout measurement are
+    // byte-identical under both wait conditions. `test/format-pdf-text.test.js`
+    // guards the precondition -- if a style profile ever adds a web font or a
+    // remote asset, that test fails and this has to be reconsidered with it.
+    await page.setContent(html, { waitUntil: "load" });
 
     // The print box, not the viewport: page.pdf() applies these margins to a
     // Letter sheet, so the usable height is what the content is paginated into.

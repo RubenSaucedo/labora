@@ -146,3 +146,61 @@ test("the committed example persona satisfies its own current contract", () => {
   const result = lintPersonaLayout(example);
   assert.deepEqual(result.findings, [], JSON.stringify(result.findings, null, 2));
 });
+
+// Applications may be filed flat or grouped by the date work began:
+//
+//   applications/<job-slug>/
+//   applications/<YYYY-MM-DD>/<job-slug>/
+//
+// Every tool takes an explicit application path, so grouping is a filing
+// choice and nothing functional depends on it. What did depend on it was the
+// linter, which reported every date directory as a badly named slug -- so
+// organising a busy workspace produced a screenful of findings about the act
+// of organising it.
+test("a date directory is a container, not a badly named application", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "labora-dategroup-"));
+  const dated = path.join(root, "applications", "2026-08-03", "example-role");
+  fs.mkdirSync(dated, { recursive: true });
+  fs.writeFileSync(path.join(dated, "job.md"), "# Example role\n");
+  fs.mkdirSync(path.join(root, "profile"), { recursive: true });
+
+  const slugFindings = lintPersonaLayout(root).findings
+    .filter((entry) => entry.code === "application_slug_not_kebab_case");
+  assert.deepEqual(slugFindings, [], "a valid date directory is a filing container");
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("a badly named slug inside a date directory is still reported", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "labora-dategroup-"));
+  const dated = path.join(root, "applications", "2026-08-03", "Example Role");
+  fs.mkdirSync(dated, { recursive: true });
+  fs.writeFileSync(path.join(dated, "job.md"), "# Example role\n");
+  fs.mkdirSync(path.join(root, "profile"), { recursive: true });
+
+  const slugFindings = lintPersonaLayout(root).findings
+    .filter((entry) => entry.code === "application_slug_not_kebab_case");
+  assert.equal(slugFindings.length, 1);
+  assert.equal(slugFindings[0].location, "applications/2026-08-03/Example Role/");
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+// A slug is recognised by what it contains, not by how deep it sits. Guessing
+// from depth would misread a project genuinely named for a date.
+test("a date-shaped directory holding a posting is an application, not a container", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "labora-dategroup-"));
+  const leaf = path.join(root, "applications", "2026-08-03");
+  fs.mkdirSync(leaf, { recursive: true });
+  fs.writeFileSync(path.join(leaf, "resume.json"), "{}\n");
+  fs.mkdirSync(path.join(root, "profile"), { recursive: true });
+
+  const result = lintPersonaLayout(root);
+  assert.deepEqual(
+    result.findings.filter((entry) => entry.code === "application_slug_not_kebab_case"),
+    [],
+    "it is kebab-case either way; the point is that it was not recursed into",
+  );
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
