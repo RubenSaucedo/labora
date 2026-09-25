@@ -86,6 +86,24 @@ export const RETIRED_GENERATED_DIRS = Object.freeze([
 /** The directory `sources/` replaced. Recognised so migration can move it. */
 export const LEGACY_SOURCES_DIR = "evidence";
 
+/**
+ * Files that mark a directory as one application rather than a container.
+ *
+ * Applications may be filed flat or grouped by date:
+ *
+ *   applications/<job-slug>/
+ *   applications/<YYYY-MM-DD>/<job-slug>/
+ *
+ * Every tool takes an explicit application path, so grouping is purely a filing
+ * choice. Recognising a leaf by its contents rather than by its depth means a
+ * slug that happens to look like a date is still read as an application.
+ */
+export const APPLICATION_IDENTITY_FILES = Object.freeze([
+  "job.md",
+  "job-spec.json",
+  "resume.json",
+]);
+
 /** Lowercase ASCII kebab-case, the naming standard for authored paths. */
 export function isKebabCase(segment) {
   return /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(segment);

@@ -2,11 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
+  APPLICATION_IDENTITY_FILES,
   AUTHORED_PROFILE_FILES,
   LEGACY_SOURCES_DIR,
   OWNERSHIP,
   PERSONA_DIRECTORIES,
   RETIRED_GENERATED_DIRS,
+  isBareDateSegment,
   isKebabCase,
 } from "./workspace-layout.js";
 
@@ -27,6 +29,28 @@ import {
 
 function finding(severity, code, message, location, route) {
   return { severity, code, message, location, route };
+}
+
+function slugFinding(relative) {
+  return finding(
+    "info",
+    "application_slug_not_kebab_case",
+    `applications/${relative}/ is not kebab-case, which makes it harder to type and to sort.`,
+    `applications/${relative}/`,
+    "Rename it if you like; nothing refers to it by name.",
+  );
+}
+
+/**
+ * A directory is an application when it holds the files that identify one.
+ *
+ * Checking contents rather than depth is what lets a date directory and an
+ * application live at the same level without the linter guessing. A slug that
+ * happens to look like a date still reads as an application, because it has a
+ * posting in it.
+ */
+function isApplicationLeaf(dir) {
+  return APPLICATION_IDENTITY_FILES.some((file) => fs.existsSync(path.join(dir, file)));
 }
 
 function listDir(dir) {
@@ -106,15 +130,29 @@ export function lintPersonaLayout(personaRoot) {
     }
   }
 
-  for (const entry of listDir(path.join(personaRoot, "applications"))) {
-    if (!entry.isDirectory() || isKebabCase(entry.name)) continue;
-    findings.push(finding(
-      "info",
-      "application_slug_not_kebab_case",
-      `applications/${entry.name}/ is not kebab-case, which makes it harder to type and to sort.`,
-      `applications/${entry.name}/`,
-      "Rename it if you like; nothing refers to it by name.",
-    ));
+  // Applications may sit directly under `applications/`, or be grouped by the
+  // date work on them started:
+  //
+  //   applications/<job-slug>/
+  //   applications/<YYYY-MM-DD>/<job-slug>/
+  //
+  // Both are addressed by explicit path everywhere, so grouping costs nothing
+  // functionally. The linter just has to tell a date container apart from an
+  // application, or it reports every date directory as a badly named slug.
+  const applicationsRoot = path.join(personaRoot, "applications");
+  for (const entry of listDir(applicationsRoot)) {
+    if (!entry.isDirectory()) continue;
+    const absolute = path.join(applicationsRoot, entry.name);
+
+    if (isBareDateSegment(entry.name) && !isApplicationLeaf(absolute)) {
+      for (const nested of listDir(absolute)) {
+        if (!nested.isDirectory() || isKebabCase(nested.name)) continue;
+        findings.push(slugFinding(`${entry.name}/${nested.name}`));
+      }
+      continue;
+    }
+
+    if (!isKebabCase(entry.name)) findings.push(slugFinding(entry.name));
   }
 
   return {

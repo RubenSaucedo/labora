@@ -75,3 +75,17 @@ Never publish:
 Describe the class of problem instead of the instance that revealed it. Use the synthetic `example` persona and `example.invalid` URLs for reproductions.
 
 Publication is permanent. Editing a public issue does not retract the original from mail, caches, or history. Check the boundary before publishing, even when the operator pasted real details into the request. If a finding cannot be generalized without losing it, keep it in the private workspace.
+
+## Filing applications
+
+Both layouts are valid and every tool takes an explicit path either way:
+
+```text
+applications/<job-slug>/                  flat
+applications/<YYYY-MM-DD>/<job-slug>/     grouped by the date work began
+```
+
+Group by date when a workspace accumulates enough applications that a flat list
+stops being scannable. A directory is an application when it contains `job.md`,
+`job-spec.json` or `resume.json`; anything else that parses as a date is a
+container.
