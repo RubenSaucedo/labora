@@ -6,7 +6,7 @@ import { sha256 } from "../src/lib/persona-files.js";
 import { formFingerprint } from "../src/lib/application-form.js";
 import { planApplication, valueSha256 } from "../src/lib/application-plan.js";
 import {
-  launchApplicationBrowser, guardApplicationPage, captureApplicationPage,
+  launchApplicationFixtureBrowser, applicationBrowserLaunchError, captureApplicationPage,
   fillApplicationPage, enterApplicationAnswers, observeApplication, publicApplicationUrl,
 } from "../src/lib/application-browser.js";
 
@@ -33,14 +33,36 @@ async function fixture(t, html) {
     server.closeAllConnections();
     server.close(resolve);
   }));
-  const handle = await launchApplicationBrowser();
-  t.after(() => handle.close());
-  const page = (await handle.browser.pages())[0];
   const url = `http://127.0.0.1:${server.address().port}/form`;
-  await guardApplicationPage(page, url);
-  await page.goto(url, { waitUntil: "load" });
-  return { ...handle, page, counts, url };
+  const handle = await launchApplicationFixtureBrowser(url);
+  t.after(() => handle.close());
+  return { ...handle, counts, url };
 }
+
+test("sandbox-free fixture launch rejects public or non-fixture destinations before starting Chrome", async () => {
+  for (const url of ["https://example.invalid:8443/form", "http://192.168.1.1:8080/form",
+    "http://127.0.0.1/form", "file:///synthetic/form", "/relative"]) {
+    await assert.rejects(launchApplicationFixtureBrowser(url), /explicit HTTP loopback/);
+  }
+});
+
+test("Chrome launch diagnostics retain actionable categories without exposing raw stderr or private paths", () => {
+  const failures = [
+    ["No usable sandbox! /synthetic/private/profile https://example.invalid/?token=SENTINEL", /sandbox.*user-namespace/i],
+    ["Failed to move to new namespace: Operation not permitted /synthetic/private/profile", /sandbox/i],
+    ["error while loading shared libraries: /synthetic/private/libSENTINEL.so", /runtime libraries/i],
+    ["Missing X server or $DISPLAY /synthetic/private/profile", /desktop display/i],
+    ["spawn /synthetic/private/chrome ENOENT", /could not be found/i],
+    ["permission denied: /synthetic/private/profile", /workspace permissions/i],
+    ["Timed out waiting for ws://127.0.0.1:1234/SENTINEL", /automation endpoint.*timeout/i],
+    ["Unrecognized crash https://example.invalid/?token=SENTINEL /synthetic/private/profile", /platform dependencies/i],
+  ];
+  for (const [message, expected] of failures) {
+    const diagnostic = applicationBrowserLaunchError(new Error(message)).message;
+    assert.match(diagnostic, expected);
+    assert.doesNotMatch(diagnostic, /SENTINEL|synthetic\/private|example\.invalid|127\.0\.0\.1|ws:\/\//);
+  }
+});
 
 function plan(form, values = {}, options = {}) {
   const bank = { schemaVersion: "1.0", answers: {}, bindings: {} };

@@ -9,6 +9,7 @@ import { sha256 } from "./persona-files.js";
 import { captureFormDocument, formFingerprint } from "./application-form.js";
 
 const observations = new WeakMap();
+const fixtureOrigins = new WeakMap();
 const NETWORK_POLICY = "connect-src 'none'; worker-src 'none'; child-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'";
 
 function publicAddress(address) {
@@ -79,6 +80,10 @@ export async function guardApplicationPage(page, initialUrl) {
   if (observations.has(page)) throw new Error("This page is already observed; use a fresh browser.");
   if (page.url() !== "about:blank") throw new Error("Observation needs a fresh blank page, not an existing session.");
   const initial = new URL(initialUrl);
+  const fixtureOrigin = fixtureOrigins.get(page.browser());
+  if (fixtureOrigin && initial.origin !== fixtureOrigin) {
+    throw new Error("Synthetic fixture browsers are restricted to their declared loopback origin.");
+  }
   initial.hash = "";
   const session = await page.createCDPSession();
   const { frameTree } = await session.send("Page.getFrameTree");
@@ -171,12 +176,34 @@ export async function captureApplicationPage(page) {
   return form;
 }
 
-export async function launchApplicationBrowser({ headless = true, resolverRule } = {}) {
+export function applicationBrowserLaunchError(error) {
+  const message = String(error?.message ?? "");
+  let reason;
+  if (/no usable sandbox|suid sandbox|setuid sandbox|failed to move to new namespace|user namespaces|apparmor|running as root without --no-sandbox/i.test(message)) {
+    reason = "Chrome's sandbox could not initialize. Enable sandbox/user-namespace support and any required AppArmor permissions, or use a supported host. Live browsing never disables the sandbox.";
+  } else if (/error while loading shared libraries|cannot open shared object file/i.test(message)) {
+    reason = "Chrome is missing operating-system runtime libraries. Install the supported Chrome platform dependencies.";
+  } else if (/missing x server|\$DISPLAY|cannot open display/i.test(message)) {
+    reason = "Headed Chrome needs an interactive desktop display. Run live entry on a desktop; headless observation does not need a display.";
+  } else if (error?.code === "ENOENT" || /spawn.*ENOENT|browser was not found|could not find chrome/i.test(message)) {
+    reason = "The Chrome executable could not be found. Install Chrome or set LABORA_CHROME to its executable.";
+  } else if (["EACCES", "EPERM"].includes(error?.code) || /permission denied/i.test(message)) {
+    reason = "Chrome or its fresh profile could not be accessed. Check executable and workspace permissions.";
+  } else if (/timed out|timeout|waiting for.*(?:ws|websocket|endpoint)/i.test(message)) {
+    reason = "Chrome did not expose its automation endpoint before the timeout. Check host resources and the Chrome installation.";
+  } else {
+    reason = "Check Chrome's executable, platform dependencies, desktop availability and sandbox support.";
+  }
+  return new Error(`Could not launch a fresh application browser. ${reason} No applicant data was entered.`);
+}
+
+async function launchBrowser({ headless = true, resolverRule, fixtureOrigin } = {}) {
   let executablePath;
   try { executablePath = requireChrome(); }
   catch { throw new Error("Application browser checks require Chrome. Install Chrome or set LABORA_CHROME to its executable."); }
   const directory = path.resolve(".labora-browser-sessions", randomUUID());
-  await mkdir(directory, { recursive: true, mode: 0o700 });
+  try { await mkdir(directory, { recursive: true, mode: 0o700 }); }
+  catch (error) { throw applicationBrowserLaunchError(error); }
   const cleanup = async () => {
     await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     await rmdir(path.dirname(directory)).catch(() => {});
@@ -191,12 +218,14 @@ export async function launchApplicationBrowser({ headless = true, resolverRule }
         "--disable-breakpad", "--disable-crash-reporter", "--block-new-web-contents",
         "--disable-quic", "--dns-prefetch-disable",
         "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
+        ...(fixtureOrigin && process.platform === "linux" ? ["--no-sandbox", "--disable-setuid-sandbox"] : []),
         ...(resolverRule ? [`--host-resolver-rules=${resolverRule}`] : [])],
     });
-  } catch {
-    await cleanup();
-    throw new Error("Could not launch a fresh application browser; check Chrome and LABORA_CHROME.");
+  } catch (error) {
+    await cleanup().catch(() => {});
+    throw applicationBrowserLaunchError(error);
   }
+  if (fixtureOrigin) fixtureOrigins.set(browser, fixtureOrigin);
   return {
     browser,
     close: async () => {
@@ -204,6 +233,31 @@ export async function launchApplicationBrowser({ headless = true, resolverRule }
       await cleanup();
     },
   };
+}
+
+export function launchApplicationBrowser({ headless = true, resolverRule } = {}) {
+  return launchBrowser({ headless, resolverRule });
+}
+
+// This adapter is exclusively for trusted synthetic HTTP fixtures. It never
+// accepts public destinations and installs the same network guards before load.
+export async function launchApplicationFixtureBrowser(value) {
+  let url;
+  try { url = new URL(value); } catch { /* Report only the bounded fixture contract. */ }
+  if (!url || url.protocol !== "http:" || !["127.0.0.1", "[::1]"].includes(url.hostname) ||
+      !url.port || url.username || url.password) {
+    throw new Error("Synthetic fixtures need an explicit HTTP loopback URL and port without credentials.");
+  }
+  const handle = await launchBrowser({ fixtureOrigin: url.origin });
+  try {
+    const page = (await handle.browser.pages())[0] ?? await handle.browser.newPage();
+    await guardApplicationPage(page, url.href);
+    await page.goto(url.href, { waitUntil: "load" });
+    return { ...handle, page };
+  } catch (error) {
+    await handle.close();
+    throw error;
+  }
 }
 
 export async function observeApplication(url, { headless = true } = {}) {
