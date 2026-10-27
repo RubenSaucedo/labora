@@ -48,7 +48,14 @@ The outbound boundary in `resume-conventions` applies hardest here, because a sc
 - **Human-login-only.** You may use an already-authenticated browser the operator opened. You never handle credentials, log in, store cookies, or store tokens. If a site is not logged in, report it and move on.
 - **No auto-apply, ever.** The explorer proposes leads. It never submits an application, message, connection request, or form.
 - **Be gentle.** Read-only navigation, modest pace, respect obvious rate limits and robots signals. Prefer official company career boards and public listing pages over aggressive scraping.
-- A discovered job is a lead, not an application. Promotion into `applications/<slug>/` is a separate, deliberate step.
+- A discovered job is a lead, not an application. Handoff is a separate, deliberate step.
+  Read `labora application inspect <persona>` and its authored instructions first.
+  For a declared shared workspace, upsert selected stable identities with
+  `labora application track`; keep its index/dashboard as the operational
+  surface. Native `applications/<slug>/` packages remain an explicit choice,
+  never a prerequisite for tracking a lead. Reports are run observations, not a
+  second queue. Explicit archived observations remain historical sources;
+  `seen.json` never establishes current posting availability.
 
 ## Fit is a property of the posting, not the employer
 

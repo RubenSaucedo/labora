@@ -13,6 +13,11 @@ yourself and you never apply.
 
 Resolve for the requested persona:
 
+First run `labora application inspect <persona>` and read the operator-authored
+workspace instructions before choosing handoff paths. Absence of a shared
+contract leaves the native package convention available; never infer ownership
+from folder names or rewrite an existing index to fit a template.
+
 - `<workspace>/personas/<name>/profile/search-preferences.json` (trusted config);
 - `<workspace>/personas/<name>/profile/background.md` (person-authored context);
 - `<workspace>/personas/<name>/profile/career.md` (person-authored context);
@@ -63,8 +68,12 @@ companies returned nothing and why. A run with zero leads is still a complete
 run: report the coverage and the search tuning it implies rather than presenting
 the operator with an empty result.
 
-Make clear these are **leads, not applications**: promotion into
-`applications/<slug>/` and resume tailoring is a separate operator-triggered step.
+Make clear these are **leads, not applications**. Handoff is operator-triggered:
+use the declared shared index/dashboard when configured, upserting selected
+stable opening identities through `labora application track`, or use a native
+package when explicitly requested. Do not copy the whole run or start a resume
+build to track a lead. Preserve explicit archive references and observation
+timestamps; a prior observation or `seen.json` entry is not current verification.
 Never state a hiring probability.
 
 Never submit an application, message, or form. Never mix personas in one run.

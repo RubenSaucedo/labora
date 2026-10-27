@@ -36,6 +36,31 @@ Persona workspaces live outside this public repository unless the persona is the
 
 `applications/<job-slug>/` holds one opportunity's posting, parsed job context, resume JSON, and rendered artifacts. These files can be regenerated, but do not silently overwrite wording the person approved.
 
+## Shared application preparation
+
+Before discovery handoff or application preparation, run
+`labora application inspect <persona>` and read the authored instructions it
+returns. A persona's `application-workspace.json` explicitly declares a
+shared-current-state layout, index format and output paths; directory names
+alone do not establish ownership. See `references/application-workspace.md` in this
+plugin for the opt-in contract. Native packages still work by explicit path.
+
+Use `labora application track <persona> <selection.json>` for a dry run, adding
+`--apply` only for an operator-requested handoff. One stable opening identity
+joins the index, brief and form. Dates record observations, not new preparation
+queues. Read the shared dashboard as the operational surface; discovery reports
+remain historical run outputs.
+
+Source paths resolve only inside this persona, including explicitly declared
+archive paths. Preserve their bytes, hashes and observation dates. A dangling
+reference needs correction, not a search in another persona. `seen.json` is
+deduplication state, never proof that a posting remains open.
+
+Posting verification, form capture, answer review and submission are separate.
+Unknown submission remains unknown. Preserve operator-owned research, archives,
+answers and tools. Do not invoke migration, scaffolding, resume generation or
+uploads as an incidental repair during discovery or inspection.
+
 ## Deterministic tool namespace
 
 Use only the grouped `labora` commands below. Do not call implementation files directly.

@@ -151,6 +151,10 @@ scannable, you can group them by the date you started:
 Both layouts work, and you can mix them. Every command takes the application
 path you give it, so nothing has to be told which style you use.
 
+For a shared index, briefs, captured forms and reusable answers without a new
+build directory per opening, see [shared current-state applications](skills/resume-conventions/references/application-workspace.md).
+The layout is explicitly operator-declared; inspection never converts existing files.
+
 Workspace resolution is deterministic. Reads search in this order:
 
 1. `$LABORA_WORKSPACE`.
@@ -178,6 +182,7 @@ as `node bin/labora ...` in this checkout.
 | `job` | `parse`, `analyze` | Parse a posting and build structured context for conversation and tailoring. |
 | `search` | `merge`, `report`, `company`, `outcome` | Reconcile scout outputs, render job-search reports, filter company views, and log funnel events. |
 | `workspace` | `init`, `lint`, `migrate` | Create persona directories, report layout drift, and plan or apply layout migration. |
+| `application` | `inspect`, `track` | Read a declared preparation contract and explicitly hand off selected discovery observations to one current-state index. |
 
 Common invocations:
 

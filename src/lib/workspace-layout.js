@@ -48,7 +48,7 @@ export const PERSONA_DIRECTORIES = Object.freeze([
     name: "applications",
     ownership: OWNERSHIP.PRODUCED,
     optional: true,
-    purpose: "one directory per job, inputs and outputs together",
+    purpose: "native job packages, or an explicitly declared shared current-state preparation workspace",
   },
   {
     name: "job-search",
