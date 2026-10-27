@@ -119,7 +119,7 @@ test("user-invocable skills carry an argument hint and a description", () => {
     assert.ok(field("description"), `skills/${dir} is user-invocable but has no description`);
   }
   assert.deepEqual(invocable.sort(), [
-    "brainstorm", "draft-resume", "job-search", "log-application",
+    "application-prefill", "brainstorm", "draft-resume", "job-search", "log-application",
     "render-resume", "review-resume", "start", "tailor-resume",
   ].sort());
 });
@@ -192,7 +192,7 @@ test("skill and agent prose avoids blocking verdict vocabulary", () => {
     { label: "release gate", pattern: /\brelease gate\b/i, allowed: /no\s+release gate|removed|deleted/i },
     { label: "must not proceed", pattern: /\bmust not proceed\b/i, allowed: /never|do not/i },
     { label: "hard blocker", pattern: /\bhard blocker\b/i, allowed: /never|no\s+hard blocker/i },
-    { label: "blocked", pattern: /\bblocked\b/i, allowed: /blocked page|board could not be read|do not block|never blocks/i },
+    { label: "blocked", pattern: /\bblocked\b/i, allowed: /blocked page|board could not be read|do not block|never blocks|\bblocked\b.*unanswered legal field/i },
   ];
   for (const file of contractMarkdownFiles) {
     const lines = fs.readFileSync(file, "utf8").split(/\r?\n/);
