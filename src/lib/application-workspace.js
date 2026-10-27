@@ -77,7 +77,17 @@ function cell(value) {
   return String(value ?? "").replaceAll("|", "\\|").replaceAll("\n", " ");
 }
 
-function briefText(entry) {
+function briefText(entry, root) {
+  let preparationReview = "";
+  if (entry.answerReview.plan) {
+    const reference = entry.answerReview.plan;
+    const bytes = fs.readFileSync(personaPath(root, reference.path));
+    if (sha256(bytes) !== reference.sha256) {
+      throw new Error("The preparation brief's plan changed; review and save a new plan rather than silently replacing its text.");
+    }
+    const saved = JSON.parse(bytes);
+    preparationReview = `\n\n${entry.answerReview.status === "needs_review" ? "A new observation needs a fresh review; the prior plan follows for reference.\n\n" : ""}${saved.reviewMarkdown}`;
+  }
   return `<!-- labora:opening ${entry.openingId} -->\n# ${entry.title}\n\n` +
     `Posting: ${entry.url}\n\nObservation: ${entry.source.observedAt} (historical source)\n` +
     `Source: ${entry.source.path}\nSource SHA-256: ${entry.source.sha256}\n` +
@@ -87,7 +97,7 @@ function briefText(entry) {
     `Submission: ${entry.submission.status}\n` +
     (entry.resume ? `\nShared resume: ${entry.resume.artifact.path}\nResume SHA-256: ${entry.resume.artifact.sha256}\n` : "") +
     `\nThe shared index/dashboard is the operational record. ` +
-    `A discovery observation or seen.json entry does not establish that the posting is open now.\n`;
+    `A discovery observation or seen.json entry does not establish that the posting is open now.\n${preparationReview}`;
 }
 
 export function dashboardText(index) {
@@ -185,7 +195,7 @@ function persistEntry(root, workspace, index, entry, { apply }) {
       if (JSON.stringify(current) !== JSON.stringify(index)) {
         throw new Error("The index changed during preparation; inspect it and retry the handoff.");
       }
-      writeOutput(brief, briefText(entry));
+      writeOutput(brief, briefText(entry, root));
       writeOutput(workspace.paths.dashboard, dashboardText(next));
       writeOutput(workspace.paths.index, `${JSON.stringify(next, null, 2)}\n`);
     } finally {

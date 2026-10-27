@@ -103,6 +103,7 @@ Public slash commands come from user-invocable skills under `skills/`.
 | `/labora:review-resume <name> <job-slug>` | You want an advisory cold read before deciding what to do next. | Suggestions in the conversation; edits happen only if you choose them. |
 | `/labora:job-search <name>` | You want current leads from configured sources. | `job-search/<run-date>/raw/`, `candidates.json`, and `report.md`. |
 | `/labora:log-application <name> <job-slug>` | You want to record what happened after applying or following up. | `applications/<job-slug>/outcome.json`. |
+| `/labora:application-prefill <name> <opening-id> [scan\|plan\|fill]` | You want to observe a real form, review exact answers offline, or separately request safe entry. | Shared form captures, plans and briefs; explicitly requested entry leaves a headed browser open and offline, never submitted. |
 
 Internal skills exist for conventions, interviewing, writing, and editorial
 method. They are not slash-command entry points.
@@ -186,7 +187,7 @@ as `node bin/labora ...` in this checkout.
 | `job` | `parse`, `analyze` | Parse a posting and build structured context for conversation and tailoring. |
 | `search` | `merge`, `report`, `company`, `outcome` | Reconcile scout outputs, render job-search reports, filter company views, and log funnel events. |
 | `workspace` | `init`, `lint`, `migrate` | Create persona directories, report layout drift, and plan or apply layout migration. |
-| `application` | `inspect`, `track`, `resume` | Inspect preparation ownership, hand off selected observations, and verify or select an approved shared resume reference. |
+| `application` | `inspect`, `track`, `resume`, `scan`, `plan`, `fill` | Inspect ownership, hand off observations, reuse an approved resume, capture questions, plan answers offline, and explicitly enter one named form without submission. |
 
 Common invocations:
 
@@ -205,6 +206,12 @@ labora search outcome <application-dir> record <event>
 labora workspace init <persona>
 labora workspace lint <persona>
 labora workspace migrate <persona> [--apply]
+labora application inspect <persona>
+labora application track <persona> <selection.json> [--apply]
+labora application resume <persona> [opening-id] [--descriptor <current.json>] [--apply]
+labora application scan <persona> <opening-id> <explicit-form-url> [--apply]
+labora application plan <persona> <opening-id> <persona-relative-answer-bank.json> [--apply]
+labora application fill <persona> <opening-id> --live <same-opening-id>
 ```
 
 `--formats` builds exactly the named formats. The default for `render resume` is
@@ -222,6 +229,17 @@ search, timing, budget, referrals, or the interview loop.
 Labora does not auto-apply, submit forms, send messages, or handle passwords.
 Job discovery is read-only and human-login-only. If a site requires
 authentication, you log in yourself or provide an export.
+
+Application observation never enters data. Planning is offline; legal answers
+are country-and-intent-specific, and drafts require exact-text approval for
+their question and opening. Voluntary self-identification remains untouched.
+Live entry is a separate request: it rechecks the form and approved artifact,
+then disables page scripts and all network before setting supported native
+controls. Interactive widgets and final submission stay manual. See
+[application prefill](skills/application-prefill/SKILL.md) for the safety and
+compatibility boundaries.
+The entry command stays active to preserve its browser guards until you close
+that browser; use the reviewed brief in your normal browser for final completion.
 
 Labora does not treat silence in your files as absence from your career. If
 something is unclear, the right next step is a question. See
