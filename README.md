@@ -154,6 +154,10 @@ path you give it, so nothing has to be told which style you use.
 For a shared index, briefs, captured forms and reusable answers without a new
 build directory per opening, see [shared current-state applications](skills/resume-conventions/references/application-workspace.md).
 The layout is explicitly operator-declared; inspection never converts existing files.
+An [approved default resume](skills/resume-conventions/references/default-resume.md)
+can be selected by reference for multiple openings without editing or rebuilding
+it. Exact artifact approval and explicit archived-source relocations are checked
+before reuse.
 
 Workspace resolution is deterministic. Reads search in this order:
 
@@ -182,7 +186,7 @@ as `node bin/labora ...` in this checkout.
 | `job` | `parse`, `analyze` | Parse a posting and build structured context for conversation and tailoring. |
 | `search` | `merge`, `report`, `company`, `outcome` | Reconcile scout outputs, render job-search reports, filter company views, and log funnel events. |
 | `workspace` | `init`, `lint`, `migrate` | Create persona directories, report layout drift, and plan or apply layout migration. |
-| `application` | `inspect`, `track` | Read a declared preparation contract and explicitly hand off selected discovery observations to one current-state index. |
+| `application` | `inspect`, `track`, `resume` | Inspect preparation ownership, hand off selected observations, and verify or select an approved shared resume reference. |
 
 Common invocations:
 

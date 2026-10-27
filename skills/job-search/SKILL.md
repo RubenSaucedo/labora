@@ -56,6 +56,10 @@ The outbound boundary in `resume-conventions` applies hardest here, because a sc
   never a prerequisite for tracking a lead. Reports are run observations, not a
   second queue. Explicit archived observations remain historical sources;
   `seen.json` never establishes current posting availability.
+  When an approved default is designated, use `labora application resume` to
+  verify and reference it. Read its actual rendered text; wider profile facts
+  are not automatically communicated by the artifact. Preparation never
+  implicitly invokes tailoring, rendering or a per-opening resume copy.
 
 ## Fit is a property of the posting, not the employer
 
