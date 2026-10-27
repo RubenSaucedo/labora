@@ -17,6 +17,12 @@ First run `labora application inspect <persona>` and read the operator-authored
 workspace instructions before choosing handoff paths. Absence of a shared
 contract leaves the native package convention available; never infer ownership
 from folder names or rewrite an existing index to fit a template.
+If the operator designated an approved default resume, read and verify it with
+`labora application resume <persona>` before handoff. Compare what its rendered
+text communicates with the opening separately from wider profile facts. Reuse
+its reference, not a per-opening copy; do not invoke tailoring or rendering
+because a URL changed. Ask about material limitations. Propose a variation only
+with a specific reason and operator approval, leaving the default intact.
 
 - `<workspace>/personas/<name>/profile/search-preferences.json` (trusted config);
 - `<workspace>/personas/<name>/profile/background.md` (person-authored context);

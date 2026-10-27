@@ -84,7 +84,9 @@ function briefText(entry) {
     `Posting SHA-256: ${entry.source.postingHash}\n\n` +
     `Posting verification: ${entry.verification.status}\n` +
     `Form capture: ${entry.formCapture.status}\nAnswer review: ${entry.answerReview.status}\n` +
-    `Submission: ${entry.submission.status}\n\nThe shared index/dashboard is the operational record. ` +
+    `Submission: ${entry.submission.status}\n` +
+    (entry.resume ? `\nShared resume: ${entry.resume.artifact.path}\nResume SHA-256: ${entry.resume.artifact.sha256}\n` : "") +
+    `\nThe shared index/dashboard is the operational record. ` +
     `A discovery observation or seen.json entry does not establish that the posting is open now.\n`;
 }
 
@@ -154,7 +156,22 @@ export function trackOpening(root, selection, { apply = false } = {}) {
     submission: previous?.submission ?? { status: "unknown" },
     brief: `${workspace.contract.briefs}/${openingId}.md`,
   };
-  const next = { ...index, openings: [...index.openings.filter((item) => item !== previous), entry]
+  return persistEntry(root, workspace, index, entry, { apply });
+}
+
+export function updateOpening(root, openingId, update, { apply = false } = {}) {
+  const workspace = readApplicationWorkspace(root);
+  const index = readApplicationIndex(workspace);
+  const matches = index.openings.filter((entry) => entry.openingId === openingId);
+  if (matches.length !== 1) throw new Error("Select exactly one opening already recorded in the shared index.");
+  const entry = update(structuredClone(matches[0]));
+  if (entry.openingId !== openingId) throw new Error("Updating an opening cannot change its stable identity.");
+  return persistEntry(root, workspace, index, entry, { apply });
+}
+
+function persistEntry(root, workspace, index, entry, { apply }) {
+  const { openingId } = entry;
+  const next = { ...index, openings: [...index.openings.filter((item) => item.openingId !== openingId), entry]
     .sort((a, b) => a.openingId.localeCompare(b.openingId)) };
   const brief = personaPath(root, entry.brief);
   assertProducedOutput(brief, `<!-- labora:opening ${openingId} -->`);

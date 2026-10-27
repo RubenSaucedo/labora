@@ -61,6 +61,17 @@ Unknown submission remains unknown. Preserve operator-owned research, archives,
 answers and tools. Do not invoke migration, scaffolding, resume generation or
 uploads as an incidental repair during discovery or inspection.
 
+## Approved default resume
+
+Read the operator-designated baseline before deciding whether any new resume is
+needed. See `references/default-resume.md`. Use `labora application resume` to
+verify exact artifact/approval/source hashes and preview or select a shared
+reference on an opening; no copies, edits or rendering occur. Hash mismatches
+pause upload, not the conversation, and require operator resolution rather than
+silent rebuilding. Preserve immutable approvals and explicit historical-source
+relocations. A variation needs its own request and review, never overwrites the
+default, and says nothing about hiring odds. Final sending remains manual.
+
 ## Deterministic tool namespace
 
 Use only the grouped `labora` commands below. Do not call implementation files directly.
