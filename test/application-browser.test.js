@@ -1,12 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { stat } from "node:fs/promises";
+import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { sha256 } from "../src/lib/persona-files.js";
 import { formFingerprint } from "../src/lib/application-form.js";
 import { planApplication, valueSha256 } from "../src/lib/application-plan.js";
 import {
-  launchApplicationFixtureBrowser, applicationBrowserLaunchError, captureApplicationPage,
+  launchApplicationFixtureBrowser, applicationBrowserLaunchError, applicationBrowserProfileDirectory, captureApplicationPage,
   fillApplicationPage, enterApplicationAnswers, observeApplication, publicApplicationUrl,
 } from "../src/lib/application-browser.js";
 
@@ -84,6 +86,31 @@ test("launch diagnostics distinguish protocol, closed-target and post-launch fai
   const postLaunch = applicationBrowserLaunchError(new Error("SENTINEL"), { stage: "guard-installation" }).message;
   assert.match(postLaunch, /stage=guard-installation; category=unclassified; cause=Error/);
   assert.doesNotMatch(postLaunch, /SENTINEL/);
+});
+
+test("fresh Linux profiles fit singleton socket limits instead of repeating the nested-profile CI failure", () => {
+  const checkout = "/synthetic/runner/work/repository";
+  const directory = applicationBrowserProfileDirectory(checkout, { platform: "linux" });
+  assert.equal(path.dirname(directory), checkout);
+  assert.ok(Buffer.byteLength(directory) <= 52);
+  assert.ok(Buffer.byteLength(`${directory}/SingletonSocket`) <= 107);
+  assert.ok(Buffer.byteLength(`${directory}/.org.chromium.Chromium.XXXXXX/SingletonSocket`) <= 107);
+  const tooLong = `/synthetic/private/${"SENTINEL".repeat(12)}`;
+  assert.throws(() => applicationBrowserProfileDirectory(tooLong, { platform: "linux" }), (error) => {
+    assert.match(error.message, /shorter working-directory path/);
+    assert.doesNotMatch(error.message, /synthetic\/private|SENTINEL/);
+    return true;
+  });
+});
+
+test("a fresh browser owns a private short profile and removes it on close", async (t) => {
+  const { browser, close } = await fixture(t, `<label>Name<input></label>`);
+  const argument = browser.process().spawnargs.find((value) => value.startsWith("--user-data-dir="));
+  const directory = argument.slice("--user-data-dir=".length);
+  assert.equal(path.dirname(directory), process.cwd());
+  if (process.platform !== "win32") assert.equal((await stat(directory)).mode & 0o777, 0o700);
+  await close();
+  await assert.rejects(stat(directory), { code: "ENOENT" });
 });
 
 function plan(form, values = {}, options = {}) {

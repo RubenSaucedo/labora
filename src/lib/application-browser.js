@@ -1,8 +1,8 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
-import { mkdir, rm, rmdir } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import puppeteer from "puppeteer-core";
 import { requireChrome } from "./browser.js";
 import { sha256 } from "./persona-files.js";
@@ -230,16 +230,25 @@ export function applicationBrowserLaunchError(error, { stage = "puppeteer-launch
   return new Error(`Application browser initialization failed [${diagnostic}]. ${reason} No applicant data was entered.`);
 }
 
+export function applicationBrowserProfileDirectory(root = process.cwd(), { platform = process.platform } = {}) {
+  const directory = path.resolve(root, `.lb-${randomBytes(9).toString("base64url")}`);
+  // Linux allows 107 pathname bytes. Reserve 55 for Chrome's scoped runtime
+  // directory and SingletonSocket, rather than nesting a UUID under a long name.
+  if (platform === "linux" && Buffer.byteLength(directory) > 52) {
+    throw new Error("Chrome needs a shorter working-directory path for its private runtime socket. Use a short local checkout/workspace path; no applicant data was entered.");
+  }
+  return directory;
+}
+
 async function launchBrowser({ headless = true, resolverRule, fixtureOrigin } = {}) {
   let executablePath;
   try { executablePath = requireChrome(); }
   catch { throw new Error("Application browser checks require Chrome. Install Chrome or set LABORA_CHROME to its executable."); }
-  const directory = path.resolve(".labora-browser-sessions", randomUUID());
-  try { await mkdir(directory, { recursive: true, mode: 0o700 }); }
+  const directory = applicationBrowserProfileDirectory();
+  try { await mkdir(directory, { mode: 0o700 }); }
   catch (error) { throw applicationBrowserLaunchError(error, { stage: "profile-directory" }); }
   const cleanup = async () => {
     await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    await rmdir(path.dirname(directory)).catch(() => {});
   };
   let browser;
   try {
