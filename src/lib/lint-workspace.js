@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { readApplicationWorkspace } from "./application-workspace.js";
 
 import {
   APPLICATION_IDENTITY_FILES,
@@ -63,6 +64,13 @@ function listDir(dir) {
 
 export function lintPersonaLayout(personaRoot) {
   const findings = [];
+  let applicationWorkspace;
+  try {
+    applicationWorkspace = readApplicationWorkspace(personaRoot);
+  } catch (error) {
+    findings.push(finding("warning", "application_workspace_contract", error.message,
+      "application-workspace.json", "Correct the explicit contract with its owner; inspection does not migrate or rewrite it."));
+  }
   const declared = new Map(PERSONA_DIRECTORIES.map((entry) => [entry.name, entry]));
 
   for (const entry of PERSONA_DIRECTORIES) {
@@ -96,7 +104,7 @@ export function lintPersonaLayout(personaRoot) {
     findings.push(finding(
       "info",
       "undeclared_directory",
-      `${entry.name}/ is not a directory any Labora stage reads. That is fine — it is your folder — but nothing will look inside it.`,
+      `${entry.name}/ is operator-owned, not a native Labora directory. Stages read it only through explicit references or instructions.`,
       `${entry.name}/`,
       "Keep it, or move its contents under sources/ if you want Labora to read it.",
     ));
@@ -161,6 +169,7 @@ export function lintPersonaLayout(personaRoot) {
     // Recorded so a reader of the JSON can see what the shapes mean without
     // opening the source.
     layout: {
+      applicationWorkspace: applicationWorkspace?.layout ?? "unresolved",
       directories: PERSONA_DIRECTORIES.map(({ name, ownership, purpose }) => ({ name, ownership, purpose })),
       authoredProfileFiles: [...AUTHORED_PROFILE_FILES],
       ownership: OWNERSHIP,
