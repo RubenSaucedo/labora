@@ -176,25 +176,58 @@ export async function captureApplicationPage(page) {
   return form;
 }
 
-export function applicationBrowserLaunchError(error) {
+export function applicationBrowserLaunchError(error, { stage = "puppeteer-launch", profilePathBytes } = {}) {
   const message = String(error?.message ?? "");
+  const stages = ["profile-directory", "puppeteer-launch", "initial-page", "guard-installation", "fixture-navigation"];
+  const names = ["Error", "ProtocolError", "TargetCloseError", "TimeoutError", "AbortError", "TypeError", "RangeError"];
+  const cause = names.includes(error?.name) ? error.name : "UnknownError";
+  const method = ["Target.setAutoAttach", "Target.setDiscoverTargets", "Target.getBrowserContexts",
+    "Target.getTargetInfo", "Target.createTarget", "Browser.getVersion", "Browser.setDownloadBehavior",
+    "Page.enable", "Network.enable", "Runtime.enable"].find((name) =>
+    message.includes(`(${name})`));
+  let category;
   let reason;
   if (/no usable sandbox|suid sandbox|setuid sandbox|failed to move to new namespace|user namespaces|apparmor|running as root without --no-sandbox/i.test(message)) {
+    category = "sandbox";
     reason = "Chrome's sandbox could not initialize. Enable sandbox/user-namespace support and any required AppArmor permissions, or use a supported host. Live browsing never disables the sandbox.";
+  } else if (/browser is already running|processsingleton|singleton.*(?:socket|lock)|socket.*path.*too long/i.test(message)) {
+    category = "profile-singleton";
+    reason = "Chrome could not initialize its fresh profile lock/socket. Check runtime-directory socket-path limits and stale locks; no existing profile was reused.";
   } else if (/error while loading shared libraries|cannot open shared object file/i.test(message)) {
+    category = "runtime-libraries";
     reason = "Chrome is missing operating-system runtime libraries. Install the supported Chrome platform dependencies.";
   } else if (/missing x server|\$DISPLAY|cannot open display/i.test(message)) {
+    category = "desktop-display";
     reason = "Headed Chrome needs an interactive desktop display. Run live entry on a desktop; headless observation does not need a display.";
   } else if (error?.code === "ENOENT" || /spawn.*ENOENT|browser was not found|could not find chrome/i.test(message)) {
+    category = "executable-missing";
     reason = "The Chrome executable could not be found. Install Chrome or set LABORA_CHROME to its executable.";
   } else if (["EACCES", "EPERM"].includes(error?.code) || /permission denied/i.test(message)) {
+    category = "permissions";
     reason = "Chrome or its fresh profile could not be accessed. Check executable and workspace permissions.";
+  } else if (cause === "TargetCloseError" || /target closed|session closed|connection closed/i.test(message)) {
+    category = "target-closed";
+    reason = "Chrome's automation target or connection closed during initialization. Check for an early browser/renderer exit.";
+  } else if (cause === "ProtocolError" || /protocol error/i.test(message)) {
+    category = "protocol";
+    reason = "Chrome rejected an automation initialization command. Check Chrome/Puppeteer compatibility.";
   } else if (/timed out|timeout|waiting for.*(?:ws|websocket|endpoint)/i.test(message)) {
+    category = "timeout";
     reason = "Chrome did not expose its automation endpoint before the timeout. Check host resources and the Chrome installation.";
+  } else if (/failed to launch the browser process/i.test(message)) {
+    category = "browser-process-exit";
+    reason = "Chrome exited before the automation connection opened. Check operating-system startup requirements.";
   } else {
+    category = "unclassified";
     reason = "Check Chrome's executable, platform dependencies, desktop availability and sandbox support.";
   }
-  return new Error(`Could not launch a fresh application browser. ${reason} No applicant data was entered.`);
+  const diagnostic = [
+    `stage=${stages.includes(stage) ? stage : "unknown"}`, `category=${category}`, `cause=${cause}`,
+    ...(method ? [`method=${method}`] : []),
+    ...(Number.isInteger(profilePathBytes) && profilePathBytes >= 0 && profilePathBytes <= 65535
+      ? [`profile-path-bytes=${profilePathBytes}`] : []),
+  ].join("; ");
+  return new Error(`Application browser initialization failed [${diagnostic}]. ${reason} No applicant data was entered.`);
 }
 
 async function launchBrowser({ headless = true, resolverRule, fixtureOrigin } = {}) {
@@ -203,7 +236,7 @@ async function launchBrowser({ headless = true, resolverRule, fixtureOrigin } = 
   catch { throw new Error("Application browser checks require Chrome. Install Chrome or set LABORA_CHROME to its executable."); }
   const directory = path.resolve(".labora-browser-sessions", randomUUID());
   try { await mkdir(directory, { recursive: true, mode: 0o700 }); }
-  catch (error) { throw applicationBrowserLaunchError(error); }
+  catch (error) { throw applicationBrowserLaunchError(error, { stage: "profile-directory" }); }
   const cleanup = async () => {
     await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     await rmdir(path.dirname(directory)).catch(() => {});
@@ -223,7 +256,9 @@ async function launchBrowser({ headless = true, resolverRule, fixtureOrigin } = 
     });
   } catch (error) {
     await cleanup().catch(() => {});
-    throw applicationBrowserLaunchError(error);
+    throw applicationBrowserLaunchError(error, {
+      stage: "puppeteer-launch", profilePathBytes: fixtureOrigin ? Buffer.byteLength(directory) : undefined,
+    });
   }
   if (fixtureOrigin) fixtureOrigins.set(browser, fixtureOrigin);
   return {
@@ -249,14 +284,17 @@ export async function launchApplicationFixtureBrowser(value) {
     throw new Error("Synthetic fixtures need an explicit HTTP loopback URL and port without credentials.");
   }
   const handle = await launchBrowser({ fixtureOrigin: url.origin });
+  let stage = "initial-page";
   try {
     const page = (await handle.browser.pages())[0] ?? await handle.browser.newPage();
+    stage = "guard-installation";
     await guardApplicationPage(page, url.href);
+    stage = "fixture-navigation";
     await page.goto(url.href, { waitUntil: "load" });
     return { ...handle, page };
   } catch (error) {
-    await handle.close();
-    throw error;
+    await handle.close().catch(() => {});
+    throw applicationBrowserLaunchError(error, { stage });
   }
 }
 

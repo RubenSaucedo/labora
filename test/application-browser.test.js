@@ -50,6 +50,7 @@ test("Chrome launch diagnostics retain actionable categories without exposing ra
   const failures = [
     ["No usable sandbox! /synthetic/private/profile https://example.invalid/?token=SENTINEL", /sandbox.*user-namespace/i],
     ["Failed to move to new namespace: Operation not permitted /synthetic/private/profile", /sandbox/i],
+    ["The browser is already running for /synthetic/private/profile. Use a different userDataDir.", /category=profile-singleton.*runtime-directory socket-path/i],
     ["error while loading shared libraries: /synthetic/private/libSENTINEL.so", /runtime libraries/i],
     ["Missing X server or $DISPLAY /synthetic/private/profile", /desktop display/i],
     ["spawn /synthetic/private/chrome ENOENT", /could not be found/i],
@@ -62,6 +63,27 @@ test("Chrome launch diagnostics retain actionable categories without exposing ra
     assert.match(diagnostic, expected);
     assert.doesNotMatch(diagnostic, /SENTINEL|synthetic\/private|example\.invalid|127\.0\.0\.1|ws:\/\//);
   }
+});
+
+test("launch diagnostics distinguish protocol, closed-target and post-launch failures without raw exception data", () => {
+  for (const [name, message, category] of [
+    ["TargetCloseError", "Protocol error (Target.setAutoAttach): Target closed. /synthetic/private/SENTINEL", "target-closed"],
+    ["ProtocolError", "Protocol error (Target.getBrowserContexts): https://example.invalid/SENTINEL", "protocol"],
+    ["Error", "Failed to launch the browser process: Code: 21 /synthetic/private/SENTINEL", "browser-process-exit"],
+  ]) {
+    const error = new Error(message);
+    error.name = name;
+    const diagnostic = applicationBrowserLaunchError(error, {
+      stage: "puppeteer-launch", profilePathBytes: 96,
+    }).message;
+    assert.match(diagnostic, new RegExp(`stage=puppeteer-launch; category=${category}; cause=${name}`));
+    assert.match(diagnostic, /profile-path-bytes=96/);
+    if (name === "TargetCloseError") assert.match(diagnostic, /method=Target\.setAutoAttach/);
+    assert.doesNotMatch(diagnostic, /SENTINEL|synthetic\/private|example\.invalid/);
+  }
+  const postLaunch = applicationBrowserLaunchError(new Error("SENTINEL"), { stage: "guard-installation" }).message;
+  assert.match(postLaunch, /stage=guard-installation; category=unclassified; cause=Error/);
+  assert.doesNotMatch(postLaunch, /SENTINEL/);
 });
 
 function plan(form, values = {}, options = {}) {
