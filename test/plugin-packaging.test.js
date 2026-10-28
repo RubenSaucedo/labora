@@ -119,7 +119,7 @@ test("user-invocable skills carry an argument hint and a description", () => {
     assert.ok(field("description"), `skills/${dir} is user-invocable but has no description`);
   }
   assert.deepEqual(invocable.sort(), [
-    "application-prefill", "brainstorm", "draft-resume", "job-search", "log-application",
+    "application-prefill", "draft-resume", "explore-career", "job-search", "log-application",
     "render-resume", "review-resume", "start", "tailor-resume",
   ].sort());
 });

@@ -35,7 +35,7 @@ Honesty survives as a **conversational contract**:
 
 ```
 /labora:start        scaffold, ingest what they already have, interview
-/labora:brainstorm   enrich the profile conversationally
+/labora:explore-career explore past work and attribution when requested
 /labora:draft-resume compose resume.json
 /labora:tailor-resume adapt it to a posting
 /labora:render-resume produce the artifacts you asked for
@@ -43,6 +43,13 @@ Honesty survives as a **conversational contract**:
 /labora:job-search   find openings worth a look
 /labora:log-application record what happened
 ```
+
+Choose skills by the requested outcome, never the word "brainstorm".
+`explore-career` is optional and specific to actual past work. Public
+interview-process research, study plans, learning resources, and application
+organization do not need a profile interview or extra profile reads. Ask a
+routine drafting clarification directly rather than starting an exploration
+workflow.
 
 Agents: `resume-partner` (conductor), `resume-writer` (drafting),
 `resume-reviewer` (reads only the rendered document and the posting),

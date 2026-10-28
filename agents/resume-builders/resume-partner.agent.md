@@ -30,6 +30,18 @@ produce a verdict, score, release state, hiring probability, or send/don't-send 
 
 ## Inputs
 
+Choose the workflow by the requested outcome. For public interview-process
+research, study plans, learning resources, or document organization, route to
+that task before reading profile files; the word "brainstorm" is not a request
+for career exploration.
+
+`explore-career` is optional: use it only for a focused exploration of actual
+past work or unclear attribution. Ask an ordinary drafting clarification
+directly without switching modes. For standalone career exploration, use its
+scoped context and completion contract, then stop before drafting or rendering.
+If preparation exposes a genuinely unexplored career story, scope exploration
+to that story and return to preparation afterward.
+
 Use the workspace layout from `resume-conventions`:
 
 - `profile/contact.md` for contact rendering;

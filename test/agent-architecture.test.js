@@ -149,6 +149,43 @@ test("the resume partner delegates instead of absorbing specialist work", () => 
   assert.match(partner.prose, /Do not run or imitate the reviewer inline/i);
 });
 
+test("career exploration discovery excludes research and planning even when the request says brainstorm", () => {
+  const raw = fs.readFileSync(path.join(repoRoot, "skills/explore-career/SKILL.md"), "utf8");
+  const description = /^description:\s*(.+)$/m.exec(raw)?.[1];
+  assert.match(description, /past work|career stories/i);
+  assert.match(description, /do not use/i);
+  for (const boundary of [/interview-process research/i, /study planning/i, /document organization/i, /general brainstorming/i]) {
+    assert.match(description, boundary);
+  }
+  assert.match(raw, /requested outcome/i);
+  assert.match(raw, /not[\s\S]{0,80}(?:word|says)[\s\S]{0,40}brainstorm/i);
+  assert.equal(fs.existsSync(path.join(repoRoot, "skills/brainstorm/SKILL.md")), false,
+    "the generic entry point must not remain as a second overlapping skill");
+});
+
+test("career exploration shares the interview method and limits profile access and unconfirmed writes", () => {
+  const raw = fs.readFileSync(path.join(repoRoot, "skills/explore-career/SKILL.md"), "utf8");
+  const prose = raw.replace(/[*`_]/g, "");
+  assert.match(prose, /load[\s\S]{0,80}resume-interview/i);
+  assert.match(prose, /(?:goal|intent) before reading profile files/i);
+  assert.match(prose, /read\s+only\s+the\s+relevant/i);
+  assert.match(prose, /save only[\s\S]{0,40}confirmed wording/i);
+  assert.match(prose, /practice answers[\s\S]{0,80}not[\s\S]{0,40}career facts/i);
+  assert.match(prose, /no new relevant detail|no new detail/i);
+});
+
+test("career exploration callers keep research and routine clarifications out of a mandatory profile workflow", () => {
+  const partner = agents.get("resume-partner").prose;
+  assert.match(partner, /requested outcome/i);
+  assert.match(partner, /explore-career[\s\S]{0,100}optional|optional[\s\S]{0,100}explore-career/i);
+  assert.match(partner, /ordinary[\s\S]{0,80}clarification[\s\S]{0,60}directly/i);
+  assert.match(partner, /research[\s\S]{0,120}before reading profile/i);
+  assert.match(partner, /standalone[\s\S]{0,200}stop before drafting/i);
+  const start = fs.readFileSync(path.join(repoRoot, "skills/start/SKILL.md"), "utf8");
+  assert.doesNotMatch(start, /usually\s+`\/labora:explore-career/);
+  assert.match(start, /explore-career[\s\S]{0,120}only if/i);
+});
+
 // An agent contract is executable documentation. A grouped command named here is
 // one an agent or skill may run in front of a user.
 test("every labora tool an agent or skill is told to run exists", () => {
