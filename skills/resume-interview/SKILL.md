@@ -1,6 +1,6 @@
 ---
 name: resume-interview
-description: Use when interviewing a person about career history, accomplishments, search preferences, resume wording, contribution level, or missing detail.
+description: Use when interviewing a person about their actual career history, accomplishments, search preferences, resume wording, or contribution level. Not for public interview-process research, practice sessions, or study planning.
 tools: [view, glob, grep, edit, create, ask_user]
 user-invocable: false
 ---
@@ -62,3 +62,7 @@ Use this shape before writing:
 > I heard: you co-designed the migration plan, implemented the service boundary, and wrote the rollback runbook; the rollout owner made the final launch decision. I would save that as: "Co-designed and implemented the service boundary for the migration, including the rollback runbook used during launch." Is that accurate?
 
 If they edit it, their edit wins.
+
+Practice answers and hypothetical examples are not confirmed career facts.
+Name the destination before saving profile wording and save only what the
+person confirms. If nothing new was confirmed, no profile write is needed.

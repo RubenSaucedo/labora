@@ -15,8 +15,8 @@ drafts, tailors, renders, and advises. Code touches files.
 +--------------------------------------------------------------------------+
 |                           conversation layer                            |
 |                                                                          |
-|  skills: start, brainstorm, draft-resume, tailor-resume, render-resume   |
-|          review-resume, job-search, log-application                      |
+|  skills: start, explore-career, draft-resume, tailor-resume,              |
+|          render-resume, review-resume, job-search, log-application        |
 |                                                                          |
 |  agents: resume-partner, resume-writer, resume-reviewer, source-gatherer |
 |          job-explorer, scout-discovery, scout-fit, scout-market,         |
@@ -50,18 +50,24 @@ only reads and writes files, parses structured inputs, and reports file facts.
 ## Flow from nothing to a rendered resume
 
 ```text
-+---------+    +------------+    +--------------+    +---------------+
-|  start  | -> | brainstorm | -> | draft-resume | -> | tailor-resume |
-+---------+    +------------+    +--------------+    +---------------+
-     |               |                  |                    |
-     v               v                  v                    v
- profile/       profile/          applications/        applications/
- contact.md     confirmed         <job-slug>/          <job-slug>/
- background.md  additions         resume.json          job-spec.json
- career.md      or questions                            resume.json
++---------+    +--------------+    +---------------+
+|  start  | -> | draft-resume | -> | tailor-resume |
++---------+    +--------------+    +---------------+
+     |               |                    |
+     v               v                    v
+ profile/       applications/        applications/
+ contact.md     <job-slug>/          <job-slug>/
+ background.md  resume.json          job-spec.json
+ career.md                           resume.json
  search-
  preferences.json
  sources/ if copied
+
+Optional, when the person wants to recover or clarify actual past work:
+
++----------------+    +-----------------------------------------+
+| explore-career | -> | confirmed profile additions or questions |
++----------------+    +-----------------------------------------+
 
 +---------------+    +---------------+    +-----------------+
 | render-resume | -> | review-resume | -> | log-application |
@@ -78,6 +84,17 @@ only reads and writes files, parses structured inputs, and reports file facts.
 
 `review-resume` reads the rendered document text and the posting. It does not
 need the profile to do its job, and it does not write an approval file.
+`explore-career` shares the `resume-interview` method. It is not a general
+research or planning stage, and routine drafting questions stay direct.
+
+To evaluate its usefulness, try the routing examples in its skill with the
+synthetic `example` persona, both as direct requests and as scoped career
+exploration. Compare the actual new relevant details confirmed, question turns,
+profile files read, and profile writes. Negative cases should stay on their
+research, practice, or organization path without extra profile access. A skill
+name in a log or a question that could have been asked directly is not evidence
+of added value. Instruction-contract tests protect these boundaries; they do
+not measure host-level routing or prove a context benefit.
 
 ## Agent topology
 

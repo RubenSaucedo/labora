@@ -63,13 +63,15 @@ data/personas/example/applications/acme-senior-fe-mar-25/
 Run the commands in this order from this repository checkout. If you installed
 the plugin elsewhere, use the announced `labora` dispatcher instead of `node
 bin/labora`.
+Career exploration is optional: skip step 4 when the existing material already
+contains what you want to say.
 
 | Step | Command | What it produces |
 | --- | --- | --- |
 | 1 | `node bin/labora list` | The installed deterministic command surface. |
 | 2 | `node bin/labora doctor` | Install health: Node, npm, registry, dependencies, Chrome, and mode. |
 | 3 | `/labora:start example` | The intake flow for the synthetic persona; confirmed wording belongs in `profile/`. |
-| 4 | `/labora:brainstorm example` | A conversation for recovering or clarifying profile material. It writes only confirmed `profile/` changes. |
+| 4 (optional) | `/labora:explore-career example` | A focused conversation for recovering past work or clarifying attribution. It writes only confirmed `profile/` changes. |
 | 5 | `/labora:draft-resume example acme-senior-fe-mar-25` | `applications/acme-senior-fe-mar-25/resume.json` or suggested changes to it. |
 | 6 | `/labora:tailor-resume example acme-senior-fe-mar-25` | A posting-aware revision of the same `resume.json`, with open questions left visible. |
 | 7 | `/labora:render-resume example acme-senior-fe-mar-25 --formats md,docx` | `resume.md` and `resume.docx`, plus inspection and integrity output. |
@@ -96,7 +98,7 @@ Public slash commands come from user-invocable skills under `skills/`.
 | Command | When you reach for it | What it leaves behind |
 | --- | --- | --- |
 | `/labora:start <name>` | You are creating a persona or importing existing career material. | `profile/contact.md`, `profile/background.md`, `profile/career.md`, `profile/search-preferences.json`, and any captured `sources/` the person confirms. |
-| `/labora:brainstorm <name>` | You want to recover stories, clarify contribution level, or enrich the profile. | Confirmed edits to `profile/`, or open questions in the conversation. |
+| `/labora:explore-career <name>` | You want to recover a career story or clarify what you actually contributed, not research interviews or plan studies. | Confirmed edits to relevant `profile/` material, or open questions in the conversation. |
 | `/labora:draft-resume <name> [job-slug]` | You need a first general or application résumé. | `applications/<job-slug>/resume.json`, or `applications/general/resume.json` if no job slug is used. |
 | `/labora:tailor-resume <name> <job-slug>` | You already have a résumé and want it adapted to a posting. | An updated `applications/<job-slug>/resume.json` and a summary of material changes. |
 | `/labora:render-resume <name> <job-slug> [--formats md,docx,pdf]` | You want files to submit or inspect. | `resume.md`, `resume.docx`, `resume.pdf` when requested and available, plus PDF layout metadata when PDF renders. |
@@ -107,6 +109,11 @@ Public slash commands come from user-invocable skills under `skills/`.
 
 Internal skills exist for conventions, interviewing, writing, and editorial
 method. They are not slash-command entry points.
+
+In 9.0, `/labora:explore-career` replaces `/labora:brainstorm`; the old command
+is no longer shipped. Exploration is optional, not a prerequisite for drafting.
+Research, practice planning, and application organization stay on their own
+paths. A routine drafting clarification does not need an exploration workflow.
 
 ## Working with your own files
 
